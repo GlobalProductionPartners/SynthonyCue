@@ -1,0 +1,36 @@
+/* Multi Cue (stage) view — shared between admin and kiosk */
+#view-stage { flex-direction: column; overflow: hidden; }
+.stage-top { padding: clamp(16px,2vw,32px) clamp(16px,2vw,32px) 0; flex-shrink: 0; }
+.stage-track-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--dim); margin-bottom: 6px; }
+.stage-song-name { font-family: var(--font-ui); font-size: clamp(48px, 8vw, 112px); font-weight: 700; color: #fff; line-height: 1.0; }
+.stage-progress-wrap { width: 100%; height: 24px; background: var(--bg3); border-radius: 6px; overflow: hidden; margin-top: 20px; }
+.stage-progress-bar { height: 100%; width: 0%; background: var(--amber); transition: none; }
+.stage-progress-time { display: flex; justify-content: space-between; margin-top: 10px; font-family: var(--font-tc); font-size: clamp(22px, 3.5vw, 48px); font-weight: 700; color: var(--amber); }
+.stage-bottom { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; overflow: hidden; }
+.stage-slot { border: 1px solid var(--border); border-top: none; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.stage-slot-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.stage-slot-type { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; padding: 2px 8px; border-radius: 4px; border: 1px solid; white-space: nowrap; }
+.slot-stage { color: var(--cyan); border-color: var(--cyan); }
+.slot-host { color: var(--amber); border-color: var(--amber); }
+.slot-camera { color: #bf5af2; border-color: #bf5af2; }
+.slot-conductor { color: var(--green); border-color: var(--green); }
+.slot-description { color: var(--dim); border-color: var(--dim); }
+/* Type selector — only visible in admin */
+.stage-slot select { font-size: 11px; padding: 1px 4px; background: transparent; border: none; color: var(--dim); margin-left: auto; }
+.stage-cue-next-wrap { padding: 12px; flex: 1; display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
+.stage-cue-next-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.stage-cue-next-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim); }
+.stage-countdown { font-family: var(--font-tc); font-size: clamp(13px, 1.8vw, 20px); font-weight: 700; color: var(--amber); background: rgba(255,214,10,0.1); padding: 2px 8px; border-radius: 4px; }
+.stage-cue-next { font-family: var(--font-ui); font-size: clamp(18px, 3vw, 42px); font-weight: 700; color: #fff; line-height: 1.2; text-transform: uppercase; flex: 1; min-height: 0; overflow: hidden; }
+.stage-cue-progress-wrap { width: 100%; height: 10px; background: var(--bg3); border-radius: 4px; overflow: hidden; margin-top: 12px; flex-shrink: 0; }
+.stage-cue-progress-bar { height: 100%; width: 100%; background: var(--amber); transition: none; border-radius: 4px; }
+.stage-cue-now-wrap { padding: 12px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.stage-cue-now-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--green); margin-bottom: 4px; }
+.stage-cue-current { font-family: var(--font-ui); font-size: clamp(14px, 2.2vw, 30px); font-weight: 700; color: var(--green); line-height: 1.2; text-transform: uppercase; }
+.stage-cue-now-bar-wrap { margin-top: 8px; }
+.stage-cue-now-bar { background: var(--green); transition: none; }
+.stage-cue-now-bar.urgent { background: var(--red); }
+.stage-cue-prev-wrap { padding: 8px 12px; flex-shrink: 0; }
+.stage-cue-prev-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim); margin-bottom: 2px; }
+.stage-cue-prev { font-family: var(--font-ui); font-size: clamp(11px, 1.6vw, 20px); color: var(--dim); text-transform: uppercase; }
+@media (max-width: 600px) { .stage-bottom { grid-template-columns: 1fr; } }

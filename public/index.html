@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#060809">
+<title>Synthony Cue System</title>
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Synthony Cue&quot;,&quot;short_name&quot;:&quot;CueSystem&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#060809&quot;,&quot;theme_color&quot;:&quot;#060809&quot;}">
+<link rel="stylesheet" href="/stage-cue.css">
+<link rel="stylesheet" href="/cue-console.css">
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #000000;
+  --bg2:       #0a0a0a;
+  --bg3:       #111111;
+  --border:    #222222;
+  --text:      #c9d1d9;
+  --dim:       #6e7681;
+  --cyan:      #00e5ff;
+  --purple:    #bf5af2;
+  --orange:    #ff9f0a;
+  --amber:     #ffd60a;
+  --green:     #30d158;
+  --red:       #ff453a;
+  --blue:      #0a84ff;
+  --font-tc:   'JetBrains Mono', 'Courier New', monospace;
+  --font-ui:   system-ui, sans-serif;
+  --font-body: system-ui, sans-serif;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; color: inherit; font-family: inherit; }
+input, select, textarea { font-family: inherit; color: inherit; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; }
+input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); border-color: var(--cyan); }
+
+/* ── Google Fonts (best-effort, graceful fallback) ─────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Top Bar ───────────────────────────────────────────────────────────────── */
+#topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 10;
+  flex-wrap: wrap;
+}
+#topbar .logo {
+  font-family: var(--font-ui); font-weight: 800; font-size: clamp(12px, 2vw, 18px);
+  letter-spacing: 0.05em; color: var(--cyan); white-space: nowrap;
+}
+#tc-display {
+  font-family: var(--font-tc); font-size: clamp(18px, 3.5vw, 36px);
+  color: var(--cyan); letter-spacing: 0.08em; white-space: nowrap;
+  padding: 4px 12px; background: var(--bg3); border-radius: 6px;
+  border: 1px solid var(--border);
+}
+#tc-display.running { border-color: var(--cyan); text-shadow: 0 0 12px var(--cyan); }
+#tc-display.stopped { color: var(--dim); }
+.tc-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn {
+  padding: 6px 14px; border-radius: 5px; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--bg3); transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg); border-color: var(--dim); }
+.btn.primary { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+.btn.primary:hover { opacity: 0.85; }
+.btn.danger  { background: var(--red);  color: #fff; border-color: var(--red); }
+.btn.danger:hover  { opacity: 0.85; }
+.btn.active  { border-color: var(--green); color: var(--green); }
+#tc-source-badge {
+  font-size: 11px; padding: 3px 8px; border-radius: 12px;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--dim);
+  font-family: var(--font-tc);
+}
+#tc-source-badge.live { border-color: var(--green); color: var(--green); }
+.topbar-spacer { flex: 1; }
+#device-name-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
+#device-name-wrap input { width: 120px; font-size: 12px; }
+
+/* ── View Tabs ─────────────────────────────────────────────────────────────── */
+#view-tabs {
+  display: flex; gap: 2px; padding: 6px 16px 0;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.tab {
+  padding: 6px 16px; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: 600;
+  color: var(--dim); border: 1px solid transparent; border-bottom: none;
+  transition: all 0.15s; cursor: pointer; background: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); background: var(--bg); border-color: var(--border); }
+
+/* ── View Container ────────────────────────────────────────────────────────── */
+#view-container { flex: 1; overflow: hidden; position: relative; }
+.view { display: none; height: 100%; overflow: hidden; }
+.view.active { display: flex; flex-direction: column; }
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* DASHBOARD VIEW                                                               */
+/* ════════════════════════════════════════════════════════════════════════════ */
+#view-dashboard { padding: 16px; overflow-y: auto; gap: 16px; }
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.panel {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px;
+}
+.panel-title {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim);
+  margin-bottom: 12px;
+}
+.cue-card {
+  padding: 10px 12px; border-radius: 6px; background: var(--bg3);
+  border-left: 3px solid var(--border); margin-bottom: 6px;
+}
+.cue-card.current { border-left-color: var(--green); }
+.cue-card.next    { border-left-color: var(--amber); }
+.cue-card-tc { font-family: var(--font-tc); font-size: 12px; color: var(--dim); }
+.cue-card-name { font-size: 15px; font-weight: 600; margin: 2px 0; }
+.cue-card-text { font-size: 13px; color: var(--text); }
+.cue-card-countdown { font-family: var(--font-tc); font-size: 20px; color: var(--amber); font-weight: 700; }
+.status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); display: inline-block; margin-right: 6px; }
+.status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.output-log { max-height: 200px; overflow-y: auto; font-size: 12px; font-family: var(--font-tc); }
+.log-entry { padding: 3px 0; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+.log-entry .ok   { color: var(--green); }
+.log-entry .fail { color: var(--red); }
+.log-entry .time { color: var(--dim); }
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* WATERFALL VIEW                                                               */
+/* ════════════════════════════════════════════════════════════════════════════ */
+#view-waterfall { flex-direction: column; }
+.waterfall-controls {
+  padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0;
+}
+.pill {
+  padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--dim);
+  cursor: pointer; transition: all 0.15s;
+}
+.pill:hover { color: var(--text); }
+.pill.active { color: var(--bg); }
+.pill.stage  { border-color: var(--orange);  background: var(--orange);  color: var(--bg); }
+.pill.host   { border-color: var(--amber);   background: var(--amber);   color: var(--bg); }
+.pill.camera { border-color: var(--purple);  background: var(--purple);  color: var(--bg); }
+.pill.conductor { border-color: var(--cyan); background: var(--cyan);    color: var(--bg); }
+.pill.track  { border-color: var(--green);   background: var(--green);   color: var(--bg); }
+.lookahead-sel { font-size: 12px; padding: 4px 8px; }
+#waterfall-scroll { flex: 1; overflow-y: auto; padding: 8px 16px; }
+
+/* Bar-style waterfall */
+.wf-track-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0 4px; margin-top: 4px;
+}
+.wf-track-name {
+  font-size: clamp(12px, 1.6vw, 15px); font-weight: 700; color: var(--green);
+}
+.wf-track-tc {
+  font-family: var(--font-tc); font-size: 11px; color: var(--dim);
+}
+.wf-track-bpm { font-size: 11px; color: var(--dim); }
+.wf-bar-row {
+  display: flex; align-items: center; margin-bottom: 5px;
+}
+.wf-bar-outer {
+  flex: 1; height: 36px; position: relative; background: var(--bg3);
+  border-radius: 6px; overflow: hidden;
+}
+.wf-bar-inner {
+  position: absolute; left: 0; top: 0; height: 100%;
+  border-radius: 6px; overflow: hidden;
+}
+.wf-bar-inner.past { opacity: 0.35; }
+.wf-bar-label {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  display: flex; align-items: center; padding: 0 12px; gap: 8px;
+  pointer-events: none;
+}
+.wf-bar-num {
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); flex-shrink: 0;
+}
+.wf-bar-text {
+  flex: 1; font-size: clamp(12px, 1.8vw, 15px); font-weight: 600;
+  color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wf-bar-cd {
+  font-family: var(--font-tc); font-size: clamp(11px, 1.3vw, 13px);
+  color: rgba(255,255,255,0.35); flex-shrink: 0;
+}
+.wf-bar-cd.near   { color: rgba(255,179,0,0.7); }
+.wf-bar-cd.urgent { color: var(--red); }
+.wf-bar-cd.past   { color: rgba(255,255,255,0.2); }
+.wf-next-up { opacity: 0.6; }
+.wf-next-label { font-size: 10px; font-weight: 700; color: var(--cyan); letter-spacing: 0.1em; flex-shrink: 0; }
+
+/* type colours — fill bar */
+.wf-bar-stage     { background: #ff9f0a; }
+.wf-bar-host      { background: #ffd60a; }
+.wf-bar-camera    { background: #bf5af2; }
+.wf-bar-conductor { background: #00e5ff; }
+/* dark row backgrounds */
+.wf-row-stage     { background: #2a1a00; }
+.wf-row-host      { background: #252000; }
+.wf-row-camera    { background: #1e0f2e; }
+.wf-row-conductor { background: #00171f; }
+.wf-bar-desc      { background: #636366; }
+
+/* Stage view CSS → /stage-cue.css */
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* CAMERA VIEW                                                                  */
+/* ════════════════════════════════════════════════════════════════════════════ */
+#view-camera { align-items: stretch; justify-content: stretch; }
+.camera-main {
+  flex: 1; display: flex; flex-direction: column; padding: 24px;
+  align-items: center; justify-content: center; gap: 20px; text-align: center;
+}
+.camera-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;
+  color: var(--purple); padding: 4px 16px; border: 1px solid var(--purple); border-radius: 12px;
+}
+.camera-cue-text {
+  font-family: var(--font-ui); font-size: clamp(28px, 8vw, 96px);
+  font-weight: 800; color: var(--text); line-height: 1.1;
+}
+.camera-next {
+  font-size: clamp(14px, 2.5vw, 24px); color: var(--dim);
+}
+.camera-next span { color: var(--purple); }
+.camera-countdown {
+  font-family: var(--font-tc); font-size: clamp(20px, 4vw, 52px);
+  font-weight: 700; color: var(--purple);
+}
+.camera-tc {
+  font-family: var(--font-tc); font-size: clamp(14px, 2vw, 20px); color: var(--dim);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* CONDUCTOR VIEW                                                               */
+/* ════════════════════════════════════════════════════════════════════════════ */
+#view-conductor { align-items: stretch; }
+.conductor-main {
+  flex: 1; display: flex; flex-direction: column;
+  padding: clamp(24px, 4vw, 64px); gap: 0;
+}
+.conductor-section {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.conductor-now-section { flex: 1.4; justify-content: center; }
+.conductor-next-section { flex: 1; justify-content: center; }
+.conductor-divider {
+  height: 1px; background: var(--border); margin: 24px 0; flex-shrink: 0;
+}
+.conductor-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.15em; color: var(--dim);
+}
+.conductor-track {
+  font-family: system-ui, sans-serif; font-size: clamp(32px, 6vw, 80px);
+  font-weight: 700; color: #fff; line-height: 1.1;
+}
+.conductor-bpm {
+  font-family: var(--font-tc); font-size: clamp(14px, 2vw, 22px); color: var(--dim);
+}
+.conductor-progress-wrap {
+  height: 32px; background: var(--bg3); border-radius: 6px; overflow: hidden; margin: 8px 0;
+}
+.conductor-progress-bar {
+  height: 100%; width: 0%; border-radius: 5px;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+  transition: none;
+}
+.conductor-times {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-tc); font-size: clamp(24px, 3.5vw, 52px); font-weight: 700; color: var(--dim);
+}
+.conductor-next-track {
+  font-family: system-ui, sans-serif; font-size: clamp(22px, 4vw, 52px);
+  font-weight: 700; color: var(--text); opacity: 0.6; line-height: 1.15;
+}
+.conductor-next-in {
+  font-family: var(--font-tc); font-size: clamp(16px, 2.5vw, 28px);
+  color: var(--amber);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* CUE EDITOR VIEW                                                             */
+/* ════════════════════════════════════════════════════════════════════════════ */
+#view-editor { flex-direction: column; }
+.editor-toolbar {
+  display: flex; gap: 8px; padding: 8px 16px; background: var(--bg2);
+  border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; align-items: center;
+}
+.editor-toolbar .spacer { flex: 1; }
+#cue-table-wrap { flex: 1; overflow: auto; }
+#cue-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+#cue-table th {
+  position: sticky; top: 0; background: var(--bg2); padding: 8px 10px;
+  text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--dim); border-bottom: 1px solid var(--border); white-space: nowrap;
+  z-index: 2;
+}
+#cue-table td {
+  padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+#cue-table tr:hover td { background: var(--bg3); }
+#cue-table tr.selected td { background: rgba(0,229,255,0.06); }
+#cue-table input[type="text"], #cue-table input[type="number"] {
+  width: 100%; min-width: 60px; padding: 3px 6px; font-size: 12px;
+  background: transparent; border: 1px solid transparent;
+}
+#cue-table input[type="text"]:focus, #cue-table input[type="number"]:focus {
+  background: var(--bg3); border-color: var(--cyan);
+}
+#cue-table input[type="checkbox"] { accent-color: var(--cyan); }
+.tc-input { font-family: var(--font-tc) !important; color: var(--cyan) !important; width: 90px !important; }
+.col-track   { color: var(--green); font-weight: 600; }
+.col-stage   { color: var(--orange); }
+.col-host    { color: var(--amber); }
+.col-camera  { color: var(--purple); }
+.col-conductor { color: var(--cyan); }
+.col-osc     { color: var(--blue); }
+.col-artnet  { color: #ff6b35; }
+.row-actions { display: flex; gap: 4px; }
+.row-btn { padding: 2px 8px; font-size: 11px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg3); color: var(--dim); }
+.row-btn:hover { color: var(--text); }
+.row-btn.del:hover { color: var(--red); border-color: var(--red); }
+.editor-song-row td { background: var(--bg2); border-top: 2px solid var(--border); padding: 6px 6px; }
+.editor-song-row:first-child td { border-top: none; }
+.editor-cue-row td { background: var(--bg); padding: 3px 6px; }
+.editor-cue-row:hover td { background: var(--bg3); }
+.editor-song-row.editor-row-active td { background: rgba(48,209,88,0.28) !important; }
+.editor-song-row.editor-row-active td:first-child { box-shadow: inset 4px 0 0 var(--green); }
+.editor-cue-row.editor-row-active td { background: rgba(48,209,88,0.18) !important; }
+.editor-cue-row.editor-row-active td:first-child { box-shadow: inset 4px 0 0 var(--green); }
+.col-green { color: var(--green); }
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* SETTINGS VIEW                                                               */
+/* ════════════════════════════════════════════════════════════════════════════ */
+#view-settings { overflow-y: auto; padding: 16px; gap: 16px; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.form-label { font-size: 12px; color: var(--dim); font-weight: 600; }
+.form-input { font-size: 14px; }
+.dest-table { width: 100%; font-size: 13px; }
+.dest-table td, .dest-table th { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.dest-table th { font-size: 10px; text-transform: uppercase; color: var(--dim); letter-spacing: 0.08em; }
+.dest-row input { background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; padding: 4px 8px; font-size: 12px; width: 100%; }
+
+/* ── Auth Modal ────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 32px; min-width: 300px; max-width: 400px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.modal h2 { font-family: var(--font-ui); font-size: 20px; }
+.modal-error { color: var(--red); font-size: 13px; }
+
+/* ── Import Overlay ────────────────────────────────────────────────────────── */
+#import-drop-overlay {
+  position: fixed; inset: 0; background: rgba(0,229,255,0.08);
+  border: 3px dashed var(--cyan); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-ui); font-size: 32px; color: var(--cyan);
+  z-index: 50; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+}
+#import-drop-overlay.visible { opacity: 1; pointer-events: all; }
+
+/* ── Connection status ─────────────────────────────────────────────────────── */
+#conn-status {
+  font-size: 11px; padding: 3px 8px; border-radius: 10px; font-family: var(--font-tc);
+  background: var(--bg3); border: 1px solid var(--border);
+}
+#conn-status.connected { color: var(--green); border-color: var(--green); }
+#conn-status.disconnected { color: var(--red); border-color: var(--red); }
+#conn-status.connecting { color: var(--amber); border-color: var(--amber); }
+
+/* ── Output Log Panel ──────────────────────────────────────────────────────── */
+#output-log-container { max-height: 160px; overflow-y: auto; font-family: var(--font-tc); font-size: 11px; }
+.log-line { display: flex; gap: 8px; padding: 2px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.log-line .ltime { color: var(--dim); flex-shrink: 0; }
+.log-line .ltype { width: 50px; flex-shrink: 0; }
+.log-line .ltype.osc { color: var(--blue); }
+.log-line .ltype.artnet { color: #ff6b35; }
+.log-line .lstatus.ok   { color: var(--green); }
+.log-line .lstatus.fail { color: var(--red); }
+.log-line .lmsg { color: var(--dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .wf-bar-text { font-size: 12px; }
+}
+
+/* ── Scrollbars ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+/* ── Lead-in flash ─────────────────────────────────────────────────────────── */
+@keyframes leadin-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.leadin-warning { animation: leadin-pulse 0.8s infinite; }
+
+/* TEST VIEW — Cue Console → /cue-console.css */
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">SYNTHONY CUE</div>
+    <div id="tc-display" class="stopped">00:00:00:00</div>
+    <span id="tc-source-badge">INTERNAL</span>
+    <div class="tc-controls">
+      <button class="btn primary" id="btn-start">▶ START</button>
+      <button class="btn" id="btn-stop">■ STOP</button>
+      <button class="btn" id="btn-jam">JAM</button>
+    </div>
+    <div class="topbar-spacer"></div>
+    <span id="conn-status" class="connecting">CONNECTING</span>
+    <div id="device-name-wrap">
+      <span>Device:</span>
+      <input id="device-name-input" type="text" placeholder="e.g. Stage Manager" maxlength="30">
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div id="view-tabs">
+    <button class="tab" data-view="dashboard">Dashboard</button>
+    <button class="tab" data-view="waterfall">Waterfall</button>
+    <button class="tab" data-view="stage">Multi Cue</button>
+    <button class="tab" data-view="camera">Camera</button>
+    <button class="tab" data-view="conductor">Stage Display</button>
+    <button class="tab" data-view="editor">Cue Editor</button>
+    <button class="tab" data-view="settings">Settings</button>
+    <button class="tab" data-view="test">Test</button>
+  </div>
+
+  <!-- VIEWS -->
+  <div id="view-container">
+
+    <!-- DASHBOARD -->
+    <div class="view" id="view-dashboard">
+      <div class="dash-grid">
+        <div class="panel">
+          <div class="panel-title">Current &amp; Next Cue</div>
+          <div id="dash-current" class="cue-card current">
+            <div class="cue-card-tc">--:--:--:--</div>
+            <div class="cue-card-name">No cues loaded</div>
+            <div class="cue-card-text"></div>
+          </div>
+          <div id="dash-next" class="cue-card next">
+            <div class="cue-card-tc">--:--:--:--</div>
+            <div class="cue-card-name">—</div>
+            <div class="cue-card-text"></div>
+            <div class="cue-card-countdown" id="dash-countdown">—</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Timecode Status</div>
+          <div class="status-row"><span><span class="status-dot" id="dot-running"></span>TC Running</span><span id="status-tc-val" style="font-family:var(--font-tc)">—</span></div>
+          <div class="status-row"><span><span class="status-dot" id="dot-source"></span>Source</span><span id="status-tc-src">—</span></div>
+          <div class="status-row"><span>Cues loaded</span><span id="status-cue-count">0</span></div>
+          <div class="status-row"><span>Lead-in warning</span>
+            <span><input id="leadin-seconds" type="number" min="0" max="300" value="5" style="width:55px;font-size:13px"> s</span>
+          </div>
+          <hr style="border-color:var(--border);margin:8px 0">
+          <div class="panel-title">Outputs</div>
+          <div class="status-row"><span><span class="status-dot" id="dot-osc"></span>OSC</span><span id="status-osc">—</span></div>
+          <div class="status-row"><span><span class="status-dot" id="dot-artnet"></span>ArtNet</span><span id="status-artnet">—</span></div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1;">
+          <div class="panel-title" style="display:flex;justify-content:space-between">
+            Output Log
+            <button class="btn" style="font-size:11px;padding:2px 8px" onclick="App.clearLog()">Clear</button>
+          </div>
+          <div id="output-log-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WATERFALL -->
+    <div class="view" id="view-waterfall">
+      <div class="waterfall-controls">
+        <span style="font-size:12px;color:var(--dim)">Filter:</span>
+        <button class="pill track active"  data-filter="track"     onclick="WF.toggleFilter('track',this)">Track</button>
+        <button class="pill stage active"  data-filter="stage"     onclick="WF.toggleFilter('stage',this)">Stage</button>
+        <button class="pill host active"   data-filter="host"      onclick="WF.toggleFilter('host',this)">Host</button>
+        <button class="pill camera active" data-filter="camera"    onclick="WF.toggleFilter('camera',this)">Camera</button>
+        <button class="pill conductor active" data-filter="conductor" onclick="WF.toggleFilter('conductor',this)">Conductor</button>
+      </div>
+      <div id="waterfall-scroll">
+        <div id="waterfall-rows"></div>
+      </div>
+    </div>
+
+    <!-- MULTI CUE -->
+    <div class="view" id="view-stage">
+      <div class="stage-top">
+        <div class="stage-track-label">Now Playing</div>
+        <div class="stage-song-name" id="stage-song-name">—</div>
+        <div class="stage-progress-wrap">
+          <div class="stage-progress-bar" id="stage-progress-bar"></div>
+        </div>
+        <div class="stage-progress-time">
+          <span id="stage-elapsed">—</span>
+          <span id="stage-remaining">—</span>
+        </div>
+      </div>
+      <div class="stage-bottom">
+        <div class="stage-slot" id="slot-a">
+          <div class="stage-slot-header">
+            <span class="stage-slot-type slot-stage" id="slot-a-badge">STAGE</span>
+            <select id="slot-a-type" onchange="Stage.setSlotType('a',this.value)">
+              <option value="stage">Stage Cue</option>
+              <option value="host">Host Cue</option>
+              <option value="camera">Camera</option>
+              <option value="conductor">Conductor</option>
+              <option value="description">Description</option>
+            </select>
+          </div>
+          <div class="stage-cue-next-wrap">
+            <div class="stage-cue-next-header">
+              <span class="stage-cue-next-label">Next</span>
+              <span class="stage-countdown" id="slot-a-countdown">—</span>
+            </div>
+            <div class="stage-cue-next" id="slot-a-next">—</div>
+            <div class="stage-cue-progress-wrap">
+              <div class="stage-cue-progress-bar" id="slot-a-progress"></div>
+            </div>
+          </div>
+          <div class="stage-cue-now-wrap">
+            <div class="stage-cue-now-label">Now</div>
+            <div class="stage-cue-current" id="slot-a-current">—</div>
+            <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-a-now-bar-wrap" style="display:none">
+              <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-a-now-bar"></div>
+            </div>
+          </div>
+          <div class="stage-cue-prev-wrap">
+            <div class="stage-cue-prev-label">Prev</div>
+            <div class="stage-cue-prev" id="slot-a-prev">—</div>
+          </div>
+        </div>
+        <div class="stage-slot" id="slot-b">
+          <div class="stage-slot-header">
+            <span class="stage-slot-type slot-host" id="slot-b-badge">HOST</span>
+            <select id="slot-b-type" onchange="Stage.setSlotType('b',this.value)">
+              <option value="stage">Stage Cue</option>
+              <option value="host" selected>Host Cue</option>
+              <option value="camera">Camera</option>
+              <option value="conductor">Conductor</option>
+              <option value="description">Description</option>
+            </select>
+          </div>
+          <div class="stage-cue-next-wrap">
+            <div class="stage-cue-next-header">
+              <span class="stage-cue-next-label">Next</span>
+              <span class="stage-countdown" id="slot-b-countdown">—</span>
+            </div>
+            <div class="stage-cue-next" id="slot-b-next">—</div>
+            <div class="stage-cue-progress-wrap">
+              <div class="stage-cue-progress-bar" id="slot-b-progress"></div>
+            </div>
+          </div>
+          <div class="stage-cue-now-wrap">
+            <div class="stage-cue-now-label">Now</div>
+            <div class="stage-cue-current" id="slot-b-current">—</div>
+            <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-b-now-bar-wrap" style="display:none">
+              <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-b-now-bar"></div>
+            </div>
+          </div>
+          <div class="stage-cue-prev-wrap">
+            <div class="stage-cue-prev-label">Prev</div>
+            <div class="stage-cue-prev" id="slot-b-prev">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMERA -->
+    <div class="view" id="view-camera">
+      <select id="camera-type" onchange="Camera.setType(this.value)" style="position:absolute;top:12px;right:16px;z-index:10;background:var(--bg2);color:var(--dim);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:13px;font-family:system-ui,sans-serif">
+        <option value="camera">Camera</option>
+        <option value="stage">Stage Cue</option>
+        <option value="host">Host Cue</option>
+        <option value="conductor">Conductor</option>
+        <option value="description">Description</option>
+      </select>
+      <div class="camera-main">
+        <div class="camera-label" id="camera-label">—</div>
+        <div class="camera-cue-text" id="camera-cue">—</div>
+        <div class="camera-countdown" id="camera-countdown">—</div>
+        <div class="camera-next" id="camera-next">Next: <span>—</span></div>
+        <div class="camera-tc" id="camera-tc">--:--:--:--</div>
+      </div>
+    </div>
+
+    <!-- CONDUCTOR -->
+    <div class="view" id="view-conductor">
+      <div class="conductor-main">
+
+        <div class="conductor-section conductor-now-section">
+          <div class="conductor-label">NOW PLAYING</div>
+          <div class="conductor-track" id="conductor-track">—</div>
+          <div class="conductor-bpm" id="conductor-bpm"></div>
+          <div class="conductor-progress-wrap">
+            <div class="conductor-progress-bar" id="conductor-progress-bar"></div>
+          </div>
+          <div class="conductor-times">
+            <span id="conductor-elapsed">—</span>
+            <span id="conductor-remaining">—</span>
+          </div>
+        </div>
+
+        <div class="conductor-divider"></div>
+
+        <div class="conductor-section conductor-next-section">
+          <div class="conductor-label">UP NEXT</div>
+          <div class="conductor-next-track" id="conductor-next-track">—</div>
+          <div class="conductor-next-in" id="conductor-next-in">—</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CUE EDITOR -->
+    <div class="view" id="view-editor">
+      <div class="editor-toolbar">
+        <button class="btn primary" id="btn-add-cue">+ Add Song</button>
+        <button class="btn" id="btn-import-xlsx">Import XLSX</button>
+        <input type="file" id="import-file-input" accept=".xlsx" style="display:none">
+        <a class="btn" href="/api/export/xlsx" download>Export XLSX</a>
+        <a class="btn" href="/api/export/json" download>Export JSON</a>
+        <div class="spacer"></div>
+        <button class="btn" id="btn-edit-auth" style="color:var(--amber)">🔒 Unlock Editor</button>
+        <button class="btn primary" id="btn-save-cues" style="display:none">Save Songs</button>
+      </div>
+      <div id="cue-table-wrap">
+        <table id="cue-table">
+          <thead>
+            <tr>
+              <th>TC / Offset</th>
+              <th>Song / Track</th>
+              <th>Duration</th>
+              <th>BPM</th>
+              <th class="col-stage">Stage Cue</th>
+              <th class="col-host">Host Cue</th>
+              <th class="col-camera">Camera Cue</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cue-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="settings-grid">
+        <div class="panel">
+          <div class="panel-title">Timecode Source</div>
+          <div class="form-group">
+            <label class="form-label">Active Source</label>
+            <select class="form-input" id="cfg-tc-source" onchange="Settings.onSourceChange(this.value, true)">
+              <option value="internal">Internal Clock</option>
+              <option value="mtc">MTC (MIDI Timecode)</option>
+              <option value="rtpmidi">RTP-MIDI</option>
+              <option value="artnet">ArtNet Timecode</option>
+              <option value="ltc">SMPTE LTC</option>
+            </select>
+          </div>
+          <div class="form-group" id="midi-port-group" style="display:none">
+            <label class="form-label">MIDI Interface
+              <button class="btn" style="float:right;font-size:11px;padding:2px 8px" onclick="Settings.refreshPorts()">Refresh</button>
+            </label>
+            <select class="form-input" id="cfg-mtc-port">
+              <option value="">— select interface —</option>
+            </select>
+            <div id="midi-port-status" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
+          </div>
+          <div id="artnet-iface-group" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Network Adapter
+                <button class="btn" style="float:right;font-size:11px;padding:2px 8px" onclick="Settings.refreshInterfaces()">Refresh</button>
+              </label>
+              <select class="form-input" id="cfg-artnet-iface">
+                <option value="all">All Adapters</option>
+              </select>
+              <div id="artnet-iface-status" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
+            </div>
+            <button class="btn" style="background:var(--green);color:#000;margin-top:4px" onclick="Settings.applyArtNet()">Apply</button>
+          </div>
+          <div id="ltc-device-group" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Audio Input Device
+                <button class="btn" style="float:right;font-size:11px;padding:2px 8px" onclick="Settings.refreshAudioDevices()">Refresh</button>
+              </label>
+              <select class="form-input" id="cfg-ltc-device" onchange="Settings.onDeviceChange(this.value)">
+                <option value="">— select device —</option>
+              </select>
+              <div id="ltc-device-status" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
+            </div>
+            <div class="form-group" id="ltc-channel-group" style="display:none">
+              <label class="form-label">LTC Channel
+                <button class="btn" style="float:right;font-size:11px;padding:2px 8px;background:var(--green);color:#000" onclick="Settings.applyLTC()">Apply</button>
+              </label>
+              <select class="form-input" id="cfg-ltc-channel"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Input Level</label>
+              <div id="ltc-vu-wrap" style="height:18px;background:var(--bg3);border-radius:4px;overflow:hidden;border:1px solid var(--border)">
+                <div id="ltc-vu-bar" style="height:100%;width:0%;background:var(--green);transition:width 0.08s linear;border-radius:4px"></div>
+              </div>
+              <div id="ltc-vu-db" style="font-family:var(--font-tc);font-size:11px;color:var(--dim);margin-top:3px">— dBFS</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Frame Rate</label>
+            <select class="form-input" id="cfg-framerate">
+              <option value="25" selected>25 fps (PAL)</option>
+              <option value="30">30 fps (NTSC)</option>
+              <option value="24">24 fps (Film)</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Server</div>
+          <div class="form-group">
+            <label class="form-label">Port</label>
+            <input class="form-input" id="cfg-port" type="number" value="3000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Edit Password</label>
+            <input class="form-input" id="cfg-password" type="password" placeholder="(unchanged)">
+          </div>
+          <button class="btn primary" id="btn-save-config">Save Settings</button>
+        </div>
+        <div class="panel">
+          <div class="panel-title">OSC Destinations</div>
+          <table class="dest-table">
+            <thead><tr><th>Name</th><th>Host</th><th>Port</th><th></th></tr></thead>
+            <tbody id="osc-dest-tbody"></tbody>
+          </table>
+          <button class="btn" style="margin-top:8px;font-size:12px" id="btn-add-osc-dest">+ Add Destination</button>
+        </div>
+        <div class="panel">
+          <div class="panel-title">ArtNet Destinations</div>
+          <table class="dest-table">
+            <thead><tr><th>Name</th><th>Host</th><th></th></tr></thead>
+            <tbody id="artnet-dest-tbody"></tbody>
+          </table>
+          <button class="btn" style="margin-top:8px;font-size:12px" id="btn-add-artnet-dest">+ Add Destination</button>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1">
+          <div class="panel-title">Connected Screens</div>
+          <div style="margin-bottom:10px;font-size:12px;color:var(--dim)">
+            This screen: <strong id="this-screen-name-display"></strong>
+            &nbsp;<input id="this-screen-name-input" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:12px;color:var(--text);width:120px" placeholder="Screen name" onchange="Settings.renameThisScreen(this.value)">
+          </div>
+          <div id="screens-list-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST — V1 Console Classic -->
+    <div class="view" id="view-test">
+      <div class="con-top">
+        <div class="con-topbar">
+          <div class="con-topbar-left">
+            <span class="con-label-sm">Current Track</span>
+            <span class="con-receiving" id="con-receiving">●RECEIVING</span>
+          </div>
+          <span class="con-bpm-key" id="con-bpm-key"></span>
+        </div>
+        <div class="con-track-name" id="con-track-name">—</div>
+        <div class="con-progress-row">
+          <span class="con-time-val" id="con-elapsed">—</span>
+          <div class="con-prog-wrap"><div class="con-prog-bar" id="con-prog-bar"></div></div>
+          <span class="con-time-val right" id="con-remaining">—</span>
+        </div>
+        <div class="con-next-row">
+          <span class="con-next-lbl">Next</span>
+          <span class="con-next-name" id="con-next-track">—</span>
+          <span class="con-next-meta" id="con-next-meta"></span>
+        </div>
+      </div>
+      <div class="con-panels">
+        <div class="con-panel" id="con-panel-a">
+          <div class="con-panel-head">
+            <span class="con-panel-type" id="con-panel-a-type">STAGE CUE</span>
+            <select id="con-slot-a-type" onchange="TestStage.setSlotType('a',this.value)">
+              <option value="stage" selected>Stage</option>
+              <option value="host">Host</option>
+              <option value="camera">Camera</option>
+              <option value="conductor">Conductor</option>
+              <option value="description">Description</option>
+            </select>
+            <span class="con-pill" id="con-pill-a"></span>
+          </div>
+          <div class="con-panel-prev">
+            <span class="con-prev-lbl">PREV</span>
+            <span class="con-prev-text" id="con-prev-a">—</span>
+          </div>
+          <div class="con-panel-body"><div class="con-cue-text" id="con-cue-a">—</div></div>
+          <div class="con-panel-foot">
+            <div class="con-foot-row">
+              <span class="con-foot-label">T-MINUS</span>
+              <span class="con-foot-cd" id="con-foot-cd-a">—</span>
+            </div>
+            <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-a"></div></div>
+            <div class="con-now-row">
+              <span class="con-now-lbl prev" id="con-now-lbl-a">Now</span>
+              <span class="con-now-text prev" id="con-now-text-a">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="con-panel" id="con-panel-b">
+          <div class="con-panel-head">
+            <span class="con-panel-type" id="con-panel-b-type">HOST CUE</span>
+            <select id="con-slot-b-type" onchange="TestStage.setSlotType('b',this.value)">
+              <option value="stage">Stage</option>
+              <option value="host" selected>Host</option>
+              <option value="camera">Camera</option>
+              <option value="conductor">Conductor</option>
+              <option value="description">Description</option>
+            </select>
+            <span class="con-pill" id="con-pill-b"></span>
+          </div>
+          <div class="con-panel-prev">
+            <span class="con-prev-lbl">PREV</span>
+            <span class="con-prev-text" id="con-prev-b">—</span>
+          </div>
+          <div class="con-panel-body"><div class="con-cue-text" id="con-cue-b">—</div></div>
+          <div class="con-panel-foot">
+            <div class="con-foot-row">
+              <span class="con-foot-label">T-MINUS</span>
+              <span class="con-foot-cd" id="con-foot-cd-b">—</span>
+            </div>
+            <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-b"></div></div>
+            <div class="con-now-row">
+              <span class="con-now-lbl prev" id="con-now-lbl-b">Now</span>
+              <span class="con-now-text prev" id="con-now-text-b">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /view-container -->
+</div><!-- /app -->
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay hidden" id="auth-modal">
+  <div class="modal">
+    <h2>Unlock Editor</h2>
+    <p style="font-size:13px;color:var(--dim)">Enter the edit password to make changes.</p>
+    <input type="password" id="auth-input" placeholder="Password" style="font-size:15px">
+    <div id="auth-error" class="modal-error" style="display:none">Incorrect password</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" id="auth-submit">Unlock</button>
+      <button class="btn" id="auth-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- JAM MODAL -->
+<div class="modal-overlay hidden" id="jam-modal">
+  <div class="modal">
+    <h2>Jam Sync</h2>
+    <p style="font-size:13px;color:var(--dim)">Set timecode position (HH:MM:SS:FF)</p>
+    <input type="text" id="jam-input" placeholder="01:00:00:00" style="font-family:var(--font-tc);font-size:20px;letter-spacing:0.1em">
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" id="jam-submit">Jam</button>
+      <button class="btn" id="jam-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT RESULT MODAL -->
+<div class="modal-overlay hidden" id="import-result-modal">
+  <div class="modal" style="max-width:520px;width:90vw">
+    <h2 id="import-result-title"></h2>
+    <p id="import-result-msg" style="font-size:13px;color:var(--dim);white-space:pre-wrap;margin:0"></p>
+    <ul id="import-result-list" style="display:none;font-size:12px;color:var(--amber);padding:0 0 0 16px;margin:0;max-height:180px;overflow-y:auto;line-height:1.8"></ul>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" id="import-result-ok">OK</button>
+      <button class="btn" id="import-result-cancel" style="display:none">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT DROP OVERLAY -->
+<div id="import-drop-overlay">Drop XLSX to import</div>
+
+<script src="/cue-utils.js"></script>
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════════
+const State = {
+  songs: [],
+  config: {},
+  tc: '00:00:00:00',
+  tcFrames: 0,
+  tcRunning: false,
+  tcSource: 'internal',
+  localSongs: null,
+  authed: false,
+  leadinSeconds: 5,
+  outputLog: [],
+  screens: [],
+};
+
+// Screen identity — sessionStorage gives each tab its own unique ID
+const SCREEN_ID = sessionStorage.getItem('screen-id') || (() => {
+  const id = Math.random().toString(36).slice(2, 10);
+  sessionStorage.setItem('screen-id', id);
+  return id;
+})();
+let SCREEN_NAME = localStorage.getItem('screen-name') || 'Screen';
+
+function sendScreenHello() {
+  wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, cameraType: Camera.type });
+}
+function sendScreenUpdate() {
+  wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, cameraType: Camera.type });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ══════════════════════════════════════════════════════════════════════════════
+let ws = null;
+let wsReconnectTimer = null;
+
+function wsConnect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  setConnStatus('connecting');
+
+  ws.onopen = () => {
+    setConnStatus('connected');
+    clearTimeout(wsReconnectTimer);
+    setTimeout(sendScreenHello, 200);
+  };
+
+  ws.onclose = () => {
+    setConnStatus('disconnected');
+    wsReconnectTimer = setTimeout(wsConnect, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      handleServerMessage(msg);
+    } catch {}
+  };
+}
+
+function wsSend(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+function setConnStatus(s) {
+  const el = document.getElementById('conn-status');
+  el.className = 'conn-status ' + s;
+  el.textContent = s.toUpperCase();
+  // fix: use id for CSS
+  el.id = 'conn-status';
+  el.classList.add(s);
+}
+
+function handleServerMessage(msg) {
+  switch (msg.type) {
+    case 'init':
+      State.songs  = msg.songs  || [];
+      State.config = msg.config || {};
+      State.tcRunning = msg.tc?.running || false;
+      State.tc        = msg.tc?.tc      || '00:00:00:00';
+      State.tcSource  = msg.tc?.source  || 'internal';
+      applyConfigToUI();
+      updateTCDisplay(State.tc, State.tcRunning);
+      Views.refresh();
+      break;
+
+    case 'tc':
+      State.tc       = msg.tc;
+      State.tcFrames = msg.frames;
+      updateTCDisplay(msg.tc, State.tcRunning);
+      onTCTick();
+      break;
+
+    case 'tc_transport':
+      State.tcRunning = msg.running;
+      State.tc        = msg.tc;
+      updateTCDisplay(msg.tc, msg.running);
+      break;
+
+    case 'tc_jam':
+      State.tc = msg.tc;
+      updateTCDisplay(msg.tc, State.tcRunning);
+      break;
+
+    case 'songs_updated':
+      State.songs = msg.songs;
+      State.localSongs = null;
+      Views.refresh();
+      Editor.render();
+      break;
+
+    case 'config_updated':
+      State.config = msg.config;
+      State.tcSource = msg.config.tcSource || 'internal';
+      applyConfigToUI();
+      updateTCDisplay(State.tc, State.tcRunning);
+      break;
+
+    case 'auth_result':
+      if (msg.ok) {
+        State.authed = true;
+        closeAuthModal();
+        document.getElementById('btn-edit-auth').style.display = 'none';
+        document.getElementById('btn-save-cues').style.display = '';
+        document.getElementById('btn-save-config').disabled = false;
+        Editor.render();
+      } else {
+        document.getElementById('auth-error').style.display = '';
+      }
+      break;
+
+    case 'output_log':
+      addLogEntry(msg.entry);
+      break;
+
+    case 'ltc_level':
+      Settings.updateVU(msg.db);
+      break;
+
+    case 'screens_list':
+      State.screens = msg.screens;
+      if (Views.current === 'settings') Settings.renderScreens();
+      break;
+
+    case 'screen_command':
+      if (msg.view) Views.show(msg.view);
+      if (msg.slots) {
+        if (msg.slots.a) Stage.setSlotType('a', msg.slots.a);
+        if (msg.slots.b) Stage.setSlotType('b', msg.slots.b);
+      }
+      if (msg.cameraType) Camera.setType(msg.cameraType);
+      break;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TC HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+// FR, parseTC, parseDuration, formatHMSF, framesToDisplay → /cue-utils.js
+
+function formatTC(frames) {
+  const f = frames % FR;
+  const s = Math.floor(frames / FR) % 60;
+  const m = Math.floor(frames / (FR * 60)) % 60;
+  const h = Math.floor(frames / (FR * 3600));
+  return [h,m,s,f].map(n => String(n).padStart(2,'0')).join(':');
+}
+
+function updateTCDisplay(tc, running) {
+  const el = document.getElementById('tc-display');
+  el.textContent = tc;
+  el.className = running ? 'running' : 'stopped';
+  const badge = document.getElementById('tc-source-badge');
+  badge.textContent = (State.tcSource || 'internal').toUpperCase();
+  badge.className = running ? 'live' : '';
+  badge.id = 'tc-source-badge';
+}
+
+// ── Song/Cue helpers ──────────────────────────────────────────────────────────
+// getCurrentSong, getNextSong, getCurrentCue, getPrevCueGlobal,
+// getNextCueGlobal, durationCountdown → /cue-utils.js
+
+// Returns the current song name (always the last song-start that fired)
+function getCurrentSongName() {
+  return getCurrentSong()?.trackName || '';
+}
+
+// Absolute TC in frames for a cue = song TC + cue offset
+function cueAbsFrames(song, cue) {
+  return parseTC(song.timecode) + parseTC(cue.offset || '00:00:00:00');
+}
+
+// Next cue within a song (optionally filtered by field type)
+function getNextCue(song, type) {
+  if (!song) return null;
+  const now = State.tcFrames || parseTC(State.tc);
+  const songStart = parseTC(song.timecode);
+  const elapsed = now - songStart;
+  return (song.cues || []).find(c =>
+    parseTC(c.offset) > elapsed && (!type || c[type + 'Cue'])
+  ) || null;
+}
+
+function countdownFrames(absFrames) {
+  const now = State.tcFrames || parseTC(State.tc);
+  return Math.max(0, absFrames - now);
+}
+
+function countdownStr(absFrames) {
+  if (absFrames == null) return '—';
+  const diff = (State.tcFrames || parseTC(State.tc));
+  const rem = absFrames - diff;
+  if (rem < 0) return 'PAST';
+  return framesToDisplay(rem);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VIEWS (tick-based refresh)
+// ══════════════════════════════════════════════════════════════════════════════
+const Views = {
+  current: null,
+  refresh() {
+    this.update(this.current);
+  },
+  show(viewId) {
+    // Switch the visible tab and DOM view, then update
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + viewId));
+    this.update(viewId);
+    sendScreenUpdate();
+  },
+  update(viewId) {
+    this.current = viewId;
+    switch(viewId) {
+      case 'dashboard':  Dash.render(); break;
+      case 'waterfall':  WF.render();   break;
+      case 'stage':      Stage.render(); break;
+      case 'test':       TestStage.render(); break;
+      case 'camera':     Camera.render(); break;
+      case 'conductor':  Conductor.render(); break;
+      case 'editor':     Editor.render(); break;
+      case 'settings':   Settings.render(); break;
+    }
+  }
+};
+
+function onTCTick() {
+  // Never re-render editor or settings on TC tick — it destroys in-progress edits
+  if (Views.current !== 'editor' && Views.current !== 'settings') {
+    Views.refresh();
+  } else if (Views.current === 'editor') {
+    Editor.highlightCurrent();
+  }
+  checkLeadIn();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LEAD-IN WARNING
+// ══════════════════════════════════════════════════════════════════════════════
+let lastLeadInCueId = null;
+function checkLeadIn() {
+  const secs = parseInt(document.getElementById('leadin-seconds').value) || 5;
+  const leadInFrames = secs * FR;
+  const nextSong = getNextSong();
+  if (!nextSong) return;
+  const diff = parseTC(nextSong.timecode) - (State.tcFrames || parseTC(State.tc));
+  if (diff >= 0 && diff <= leadInFrames) {
+    if (lastLeadInCueId !== nextSong.id) {
+      lastLeadInCueId = nextSong.id;
+      document.getElementById('tc-display').classList.add('leadin-warning');
+      setTimeout(() => document.getElementById('tc-display').classList.remove('leadin-warning'), leadInFrames * (1000/FR));
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════════════════════
+const Dash = {
+  render() {
+    const curSong = getCurrentSong();
+    const nextSong = getNextSong();
+    const curCue  = getCurrentCue(curSong);
+    const nextGlobal = getNextCueGlobal(null);
+
+    // Current cue card
+    const cc = document.getElementById('dash-current');
+    cc.querySelector('.cue-card-tc').textContent   = curSong?.timecode || '—';
+    cc.querySelector('.cue-card-name').textContent = curSong?.trackName || 'No active song';
+    cc.querySelector('.cue-card-text').textContent = curCue?.stageCue || curCue?.description || '';
+
+    // Next cue card
+    const nc = document.getElementById('dash-next');
+    if (nextGlobal) {
+      const absTC = formatTC(nextGlobal.absFrames);
+      nc.querySelector('.cue-card-tc').textContent   = absTC;
+      nc.querySelector('.cue-card-name').textContent = nextGlobal.song.trackName;
+      nc.querySelector('.cue-card-text').textContent = nextGlobal.cue.stageCue || nextGlobal.cue.cameraCue || '';
+      document.getElementById('dash-countdown').textContent = countdownStr(nextGlobal.absFrames);
+    } else {
+      nc.querySelector('.cue-card-tc').textContent   = nextSong?.timecode || '—';
+      nc.querySelector('.cue-card-name').textContent = nextSong?.trackName || '—';
+      nc.querySelector('.cue-card-text').textContent = '';
+      document.getElementById('dash-countdown').textContent = nextSong ? countdownStr(parseTC(nextSong.timecode)) : '—';
+    }
+
+    // Status dots
+    dot('dot-running', State.tcRunning);
+    dot('dot-source',  State.tcRunning);
+    document.getElementById('status-tc-val').textContent  = State.tc;
+    document.getElementById('status-tc-src').textContent  = (State.tcSource||'internal').toUpperCase();
+    const totalCues = State.songs.reduce((n,s) => n + (s.cues?.length||0), 0);
+    document.getElementById('status-cue-count').textContent = `${State.songs.length} songs / ${totalCues} cues`;
+
+    const oscDests   = Object.keys(State.config.oscDestinations   || {}).length;
+    const artDests   = Object.keys(State.config.artnetDestinations || {}).length;
+    dot('dot-osc',    oscDests > 0);
+    dot('dot-artnet', artDests > 0);
+    document.getElementById('status-osc').textContent    = oscDests    ? `${oscDests} dest` : 'Not configured';
+    document.getElementById('status-artnet').textContent = artDests    ? `${artDests} dest` : 'Not configured';
+  }
+};
+
+function dot(id, on) {
+  const el = document.getElementById(id);
+  if (el) { el.classList.toggle('ok', !!on); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WATERFALL
+// ══════════════════════════════════════════════════════════════════════════════
+const WF_FILL_SECONDS = 5; // seconds before cue fires that the bar starts filling
+
+const WF = {
+  filters: new Set(['track','stage','host','camera','conductor']),
+
+  toggleFilter(type, btn) {
+    if (this.filters.has(type)) { this.filters.delete(type); btn.classList.remove('active','track','stage','host','camera','conductor'); }
+    else { this.filters.add(type); btn.classList.add('active', type); }
+    this.render();
+  },
+
+  render() {
+    const el           = document.getElementById('waterfall-rows');
+    const now          = State.tcFrames || parseTC(State.tc);
+    const pastWindow   = 30 * FR;
+    const futureWindow = 60 * FR; // 1 minute lookahead
+
+    const typeMap = [
+      { key: 'stage',      field: 'stageCue',     cls: 'wf-bar-stage',     rowCls: 'wf-row-stage' },
+      { key: 'host',       field: 'hostCue',      cls: 'wf-bar-host',      rowCls: 'wf-row-host' },
+      { key: 'camera',     field: 'cameraCue',    cls: 'wf-bar-camera',    rowCls: 'wf-row-camera' },
+      { key: 'conductor',  field: 'conductorCue', cls: 'wf-bar-conductor', rowCls: 'wf-row-conductor' },
+    ];
+
+    // Collect rows within window; track first cue beyond the window
+    const rows = [];
+    let cueIndex = 0;
+    let nextBeyond = null; // first upcoming cue outside the 1-min window
+    for (const song of State.songs) {
+      const songStart = parseTC(song.timecode);
+      rows.push({ type: 'song', song, diff: songStart - now });
+      for (const cue of (song.cues || [])) {
+        const abs  = songStart + parseTC(cue.offset);
+        const diff = abs - now;
+        if (diff < -pastWindow) continue;
+        if (diff > futureWindow) {
+          // Track the very first upcoming cue beyond the window
+          if (!nextBeyond && diff > 0) nextBeyond = { song, cue, diff, index: cueIndex + 1 };
+          continue;
+        }
+        cueIndex++;
+        rows.push({ type: 'cue', song, cue, diff, index: cueIndex });
+      }
+    }
+
+    const fillWindow = WF_FILL_SECONDS * FR;
+
+    const renderCueRow = (cue, diff, index, isNext = false) => {
+      const isPast = diff < 0;
+      const cdStr  = isPast ? '●' : framesToDisplay(Math.max(0, diff));
+      const cdCls  = isPast ? 'past' : diff < 10*FR ? 'urgent' : diff < 30*FR ? 'near' : '';
+      const active = isPast || diff <= fillWindow;
+      const pct    = isPast ? 100 : Math.max(0, Math.min(100, (1 - diff / fillWindow) * 100));
+      let out = '';
+      for (const t of typeMap) {
+        if (!this.filters.has(t.key)) continue;
+        const text = cue[t.field];
+        if (!text) continue;
+        out += `<div class="wf-bar-row${isNext ? ' wf-next-up' : ''}">
+          <div class="wf-bar-outer ${t.rowCls}">
+            <div class="wf-bar-inner ${active ? t.cls : ''}${isPast ? ' past' : ''}" style="width:${pct.toFixed(1)}%"></div>
+            <div class="wf-bar-label">
+              ${isNext ? '<span class="wf-next-label">NEXT</span>' : `<span class="wf-bar-num">${index}</span>`}
+              <span class="wf-bar-text">${esc(text)}</span>
+              <span class="wf-bar-cd ${cdCls}">${cdStr}</span>
+            </div>
+          </div>
+        </div>`;
+      }
+      return out;
+    };
+
+    let html = '';
+    for (const r of rows) {
+      if (r.type === 'song') {
+        if (!this.filters.has('track')) continue;
+        const { song, diff } = r;
+        const cdStr = diff < 0 ? '●' : framesToDisplay(diff);
+        html += `<div class="wf-track-header">
+          <span class="wf-track-name">${esc(song.trackName)}</span>
+          ${song.bpm ? `<span class="wf-track-bpm">♩${song.bpm}</span>` : ''}
+          <span class="wf-track-tc">${song.timecode}</span>
+          <span class="wf-bar-cd ${diff < 0 ? 'past' : diff < 10*FR ? 'urgent' : diff < 30*FR ? 'near' : ''}" style="width:auto">${cdStr}</span>
+        </div>`;
+      } else {
+        html += renderCueRow(r.cue, r.diff, r.index);
+      }
+    }
+
+    // Always pin the next cue beyond the window at the bottom
+    if (nextBeyond) {
+      html += `<div style="height:1px;background:var(--border);margin:8px 0"></div>`;
+      html += renderCueRow(nextBeyond.cue, nextBeyond.diff, nextBeyond.index, true);
+    }
+
+    el.innerHTML = html || '<div style="padding:24px;color:var(--dim);text-align:center">No cues in window</div>';
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STAGE MANAGER
+// ══════════════════════════════════════════════════════════════════════════════
+const Stage = {
+  slots: { a: 'stage', b: 'host' },
+
+  setSlotType(slot, type) {
+    this.slots[slot] = type;
+    const badge = document.getElementById(`slot-${slot}-badge`);
+    if (badge) { badge.textContent = type.toUpperCase(); badge.className = `stage-slot-type slot-${type}`; }
+    const sel = document.getElementById(`slot-${slot}-type`);
+    if (sel) sel.value = type;
+    this.render();
+    localStorage.setItem(`slot-${slot}-type`, type);
+    sendScreenUpdate();
+  },
+
+  render() { renderStage(this.slots); }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CAMERA
+// ══════════════════════════════════════════════════════════════════════════════
+const Camera = {
+  type: localStorage.getItem('camera-type') || 'camera',
+
+  setType(type) {
+    this.type = type;
+    localStorage.setItem('camera-type', type);
+    this.render();
+    sendScreenUpdate();
+  },
+
+  render() {
+    const song   = getCurrentSong();
+    const curCue = getCurrentCue(song);
+    const type   = this.type;
+    const nextG  = getNextCueGlobal(type);
+    document.getElementById('camera-label').textContent     = song?.trackName || '—';
+    document.getElementById('camera-cue').textContent       = getField(curCue, type) || '—';
+    document.getElementById('camera-countdown').textContent = nextG ? durationCountdown(nextG) > 0 ? countdownStr(nextG.absFrames) : 'NOW' : '—';
+    document.getElementById('camera-next').querySelector('span').textContent = getField(nextG?.cue, type) || '—';
+    document.getElementById('camera-tc').textContent        = State.tc;
+    // Sync dropdown in case render called before user interaction
+    const sel = document.getElementById('camera-type');
+    if (sel && sel.value !== type) sel.value = type;
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CONDUCTOR
+// ══════════════════════════════════════════════════════════════════════════════
+const Conductor = {
+  render() {
+    const song     = getCurrentSong();
+    const nextSong = getNextSong();
+    const nowF     = State.tcFrames || parseTC(State.tc);
+
+    // Current track
+    document.getElementById('conductor-track').textContent = song?.trackName || '—';
+    document.getElementById('conductor-bpm').textContent   = song?.bpm ? `♩ = ${song.bpm} BPM` : '';
+
+    // Progress bar + elapsed/remaining
+    if (song) {
+      const started = parseTC(song.timecode);
+      const elapsed = nowF - started;
+      document.getElementById('conductor-elapsed').textContent = formatHMSF(Math.max(0, elapsed));
+      if (song.duration) {
+        const durF      = parseDuration(song.duration);
+        const remaining = durF - elapsed;
+        const pct       = Math.min(100, Math.max(0, (elapsed / durF) * 100));
+        document.getElementById('conductor-remaining').textContent = remaining > 0 ? '-' + formatHMSF(remaining) : '0:00';
+        const bar = document.getElementById('conductor-progress-bar');
+        bar.style.width = pct + '%';
+        const remSec = Math.floor(Math.max(0, remaining) / FR);
+        bar.style.background = remSec <= 10 ? 'var(--red)'
+          : remSec <= 30 ? 'linear-gradient(90deg, var(--green), var(--amber))'
+          : 'linear-gradient(90deg, var(--green), var(--cyan))';
+      } else {
+        document.getElementById('conductor-remaining').textContent = '';
+        document.getElementById('conductor-progress-bar').style.width = '0%';
+      }
+    } else {
+      document.getElementById('conductor-elapsed').textContent   = '—';
+      document.getElementById('conductor-remaining').textContent = '';
+      document.getElementById('conductor-progress-bar').style.width = '0%';
+    }
+
+    // Next track
+    document.getElementById('conductor-next-track').textContent = nextSong?.trackName || '—';
+    if (nextSong) {
+      const diff = durationCountdown({ song: nextSong, cue: { offset: '00:00:00:00' }, absFrames: parseTC(nextSong.timecode) });
+      document.getElementById('conductor-next-in').textContent = diff > 0 ? 'in ' + framesToDisplay(diff) : 'NOW';
+    } else {
+      document.getElementById('conductor-next-in').textContent = '';
+    }
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EDITOR
+// ══════════════════════════════════════════════════════════════════════════════
+const Editor = {
+  // Render the full table from scratch
+  render() {
+    const tbody = document.getElementById('cue-tbody');
+    const songs = State.localSongs || State.songs;
+    if (!songs.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--dim)">No songs. Import an XLSX or click + Add Song.</td></tr>';
+      return;
+    }
+    const d = State.authed ? '' : 'disabled';
+    let html = '';
+    songs.forEach((song, si) => {
+      html += `<tr class="editor-song-row" data-si="${si}">
+        <td><input class="tc-input" type="text" value="${esc(song.timecode)}" ${d} data-si="${si}" data-field="timecode" placeholder="HH:MM:SS:FF" style="width:105px"></td>
+        <td><input class="col-track" type="text" value="${esc(song.trackName)}" ${d} data-si="${si}" data-field="trackName" style="min-width:180px;font-weight:700"></td>
+        <td><input type="text" value="${esc(song.duration)}" ${d} data-si="${si}" data-field="duration" placeholder="m:ss" style="width:60px"></td>
+        <td><input type="number" value="${song.bpm||''}" ${d} data-si="${si}" data-field="bpm" placeholder="BPM" style="width:60px"></td>
+        <td colspan="3"><input type="text" value="${esc(song.description)}" ${d} data-si="${si}" data-field="description" placeholder="Notes" style="width:100%"></td>
+        <td>${State.authed ? `<div class="row-actions">
+          <button class="row-btn btn-add-cue" data-si="${si}">+ Cue</button>
+          <button class="row-btn del btn-del-song" data-si="${si}">✕ Song</button>
+        </div>` : ''}</td>
+      </tr>`;
+      (song.cues || []).forEach((cue, ci) => {
+        html += `<tr class="editor-cue-row" data-si="${si}" data-ci="${ci}">
+          <td style="padding-left:28px"><input type="text" value="${esc(cue.offset)}" ${d} data-si="${si}" data-ci="${ci}" data-field="offset" style="width:95px;font-family:var(--font-tc);font-size:12px;color:var(--dim)"></td>
+          <td></td>
+          <td><input type="text" value="${esc(cue.duration||'')}" ${d} data-si="${si}" data-ci="${ci}" data-field="duration" style="width:55px;font-size:12px" placeholder="m:ss"></td>
+          <td></td>
+          <td><input class="col-stage" type="text" value="${esc(cue.stageCue)}" ${d} data-si="${si}" data-ci="${ci}" data-field="stageCue" style="min-width:100px"></td>
+          <td><input class="col-host"  type="text" value="${esc(cue.hostCue)}"  ${d} data-si="${si}" data-ci="${ci}" data-field="hostCue"  style="min-width:100px"></td>
+          <td><input class="col-camera" type="text" value="${esc(cue.cameraCue)}" ${d} data-si="${si}" data-ci="${ci}" data-field="cameraCue" style="min-width:100px"></td>
+          <td>${State.authed ? `<button class="row-btn del btn-del-cue" data-si="${si}" data-ci="${ci}">✕</button>` : ''}</td>
+        </tr>`;
+      });
+    });
+    tbody.innerHTML = html;
+    this.highlightCurrent();
+  },
+
+  _lastActiveSongId: null,
+  highlightCurrent() {
+    const tbody = document.getElementById('cue-tbody');
+    if (!tbody) return;
+    tbody.querySelectorAll('.editor-row-active').forEach(r => r.classList.remove('editor-row-active'));
+    const liveSong = getCurrentSong();
+    if (!liveSong) return;
+    const liveCue  = getCurrentCue(liveSong);
+    const songs    = State.localSongs || State.songs;
+    const si       = songs.findIndex(s => s.id === liveSong.id);
+    if (si < 0) return;
+    const songRow = tbody.querySelector(`tr.editor-song-row[data-si="${si}"]`);
+    if (songRow) {
+      songRow.classList.add('editor-row-active');
+      if (liveSong.id !== this._lastActiveSongId) {
+        this._lastActiveSongId = liveSong.id;
+        songRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+    if (liveCue) {
+      const ci = (songs[si].cues || []).findIndex(c => c.id === liveCue.id);
+      if (ci >= 0) {
+        const cueRow = tbody.querySelector(`tr.editor-cue-row[data-si="${si}"][data-ci="${ci}"]`);
+        if (cueRow) cueRow.classList.add('editor-row-active');
+      }
+    }
+  },
+
+  // Called once — sets up delegated listeners on the table body
+  initEvents() {
+    const tbody = document.getElementById('cue-tbody');
+
+    // Input changes — write directly to localSongs on every keystroke
+    tbody.addEventListener('input', e => {
+      const inp = e.target;
+      if (inp.tagName !== 'INPUT') return;
+      this.ensureLocal();
+      const si = inp.dataset.si != null ? parseInt(inp.dataset.si) : null;
+      const ci = inp.dataset.ci != null ? parseInt(inp.dataset.ci) : null;
+      const field = inp.dataset.field;
+      if (si === null || !field) return;
+      const value = field === 'bpm' ? (Number(inp.value) || null) : inp.value;
+      if (ci != null) {
+        State.localSongs[si].cues[ci][field] = value;
+      } else {
+        State.localSongs[si][field] = value;
+      }
+    });
+
+    // Button clicks — delete/add
+    tbody.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const si = btn.dataset.si != null ? parseInt(btn.dataset.si) : null;
+      const ci = btn.dataset.ci != null ? parseInt(btn.dataset.ci) : null;
+
+      if (btn.classList.contains('btn-del-song') && si != null) {
+        this.ensureLocal();
+        State.localSongs.splice(si, 1);
+        this.render();
+      } else if (btn.classList.contains('btn-del-cue') && si != null && ci != null) {
+        this.ensureLocal();
+        State.localSongs[si].cues.splice(ci, 1);
+        this.render();
+      } else if (btn.classList.contains('btn-add-cue') && si != null) {
+        this.ensureLocal();
+        State.localSongs[si].cues.push({
+          id: Date.now().toString(36), offset: '00:00:00:00',
+          stageCue: '', hostCue: '', conductorCue: '', cameraCue: '', description: '',
+          osc:    { enabled: false, address: '', args: '', destination: '', preRollFrames: 0 },
+          artnet: { enabled: false, universe: 0, channel: 1, value: 0, destination: '', preRollFrames: 0 }
+        });
+        this.render();
+      }
+    });
+  },
+
+  ensureLocal() {
+    if (!State.localSongs) State.localSongs = JSON.parse(JSON.stringify(State.songs));
+  },
+
+  addSong() {
+    if (!State.authed) { openAuthModal(); return; }
+    this.ensureLocal();
+    State.localSongs.push({
+      id: Date.now().toString(36), timecode: '01:00:00:00', trackName: 'New Song',
+      duration: '', bpm: null, description: '', cues: []
+    });
+    this.render();
+  },
+
+  save() {
+    if (!State.authed) { openAuthModal(); return; }
+    wsSend({ type: 'save_songs', songs: State.localSongs || State.songs });
+    State.localSongs = null;
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════════════════════════
+const Settings = {
+  render() {
+    const src = State.config.tcSource || 'internal';
+    document.getElementById('cfg-tc-source').value = src;
+    document.getElementById('cfg-port').value      = State.config.port || 3000;
+    this.onSourceChange(src);
+    this.renderOSCDests();
+    this.renderArtNetDests();
+    this.renderScreens();
+  },
+
+  renameThisScreen(name) {
+    SCREEN_NAME = name.trim() || 'Screen';
+    localStorage.setItem('screen-name', SCREEN_NAME);
+    sendScreenUpdate();
+  },
+
+  renderScreens() {
+    const nameInput = document.getElementById('this-screen-name-input');
+    const nameDisplay = document.getElementById('this-screen-name-display');
+    if (nameInput) nameInput.value = SCREEN_NAME;
+    if (nameDisplay) nameDisplay.textContent = SCREEN_NAME;
+
+    const wrap = document.getElementById('screens-list-wrap');
+    if (!wrap) return;
+    const screens = State.screens || [];
+    if (!screens.length) { wrap.innerHTML = '<div style="color:var(--dim);font-size:13px">No screens connected</div>'; return; }
+
+    const viewOpts = [
+      ['dashboard','Dashboard'],['waterfall','Waterfall'],['stage','Multi Cue'],
+      ['camera','Camera'],['conductor','Stage Display'],['editor','Cue Editor']
+    ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+
+    const typeOpts = [
+      ['camera','Camera'],['stage','Stage Cue'],['host','Host Cue'],['conductor','Conductor'],['description','Description']
+    ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="color:var(--dim);text-align:left">
+        <th style="padding:4px 8px">Name</th>
+        <th style="padding:4px 8px">View</th>
+        <th style="padding:4px 8px">Slot A</th>
+        <th style="padding:4px 8px">Slot B</th>
+        <th style="padding:4px 8px">Cam Type</th>
+        <th style="padding:4px 8px"></th>
+      </tr></thead>
+      <tbody>${screens.map(s => {
+        const isMe = s.id === SCREEN_ID;
+        return `<tr style="border-top:1px solid var(--border)${isMe ? ';opacity:0.5' : ''}">
+          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}</td>
+          <td style="padding:6px 8px"><select id="sc-view-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${viewOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-slota-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-slotb-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-cam-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
+          <td style="padding:6px 8px">${isMe ? '' : `<button class="btn" style="font-size:11px;padding:2px 10px" onclick="Settings.sendScreenCommand('${s.id}')">Send</button>`}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+
+    // Set current values on each dropdown
+    for (const s of screens) {
+      const vEl = document.getElementById(`sc-view-${s.id}`);
+      const aEl = document.getElementById(`sc-slota-${s.id}`);
+      const bEl = document.getElementById(`sc-slotb-${s.id}`);
+      const cEl = document.getElementById(`sc-cam-${s.id}`);
+      if (vEl) vEl.value = s.view || 'dashboard';
+      if (aEl) aEl.value = s.slots?.a || 'stage';
+      if (bEl) bEl.value = s.slots?.b || 'host';
+      if (cEl) cEl.value = s.cameraType || 'camera';
+    }
+  },
+
+  sendScreenCommand(targetId) {
+    const view     = document.getElementById(`sc-view-${targetId}`)?.value;
+    const slotA    = document.getElementById(`sc-slota-${targetId}`)?.value;
+    const slotB    = document.getElementById(`sc-slotb-${targetId}`)?.value;
+    const camType  = document.getElementById(`sc-cam-${targetId}`)?.value;
+    console.log('[Screen] Sending command', { targetId, view, slotA, slotB, camType, wsState: ws?.readyState });
+    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, cameraType: camType });
+  },
+
+  onSourceChange(src, sendToServer) {
+    document.getElementById('midi-port-group').style.display     = src === 'mtc'    ? '' : 'none';
+    document.getElementById('artnet-iface-group').style.display  = src === 'artnet' ? '' : 'none';
+    document.getElementById('ltc-device-group').style.display    = src === 'ltc'    ? '' : 'none';
+    if (src === 'mtc')    this.refreshPorts();
+    if (src === 'artnet') this.refreshInterfaces();
+    if (src === 'ltc')    this.refreshAudioDevices();
+    if (sendToServer) wsSend({ type: 'tc_source', source: src });
+  },
+
+  async refreshInterfaces() {
+    const sel    = document.getElementById('cfg-artnet-iface');
+    const status = document.getElementById('artnet-iface-status');
+    status.textContent = 'Scanning…';
+    try {
+      const { interfaces, current } = await fetch('/api/network/interfaces').then(r => r.json());
+      const saved = current || State.config.artnetInterface || 'all';
+      sel.innerHTML = interfaces.map(i =>
+        `<option value="${esc(i.ip)}"${i.ip === saved ? ' selected' : ''}>${esc(i.label)}</option>`
+      ).join('');
+      status.textContent = `${interfaces.length} adapter${interfaces.length !== 1 ? 's' : ''} found`;
+    } catch { status.textContent = 'Could not reach server'; }
+  },
+
+  applyArtNet() {
+    const iface = document.getElementById('cfg-artnet-iface').value;
+    wsSend({ type: 'apply_artnet', interface: iface });
+    State.tcSource = 'artnet';
+    updateTCDisplay(State.tc, State.tcRunning);
+  },
+
+  async refreshPorts() {
+    const sel = document.getElementById('cfg-mtc-port');
+    const status = document.getElementById('midi-port-status');
+    status.textContent = 'Scanning…';
+    try {
+      const { ports, error } = await fetch('/api/midi/ports').then(r => r.json());
+      if (error) { status.textContent = 'Error: ' + error; return; }
+      const saved = State.config.mtcPort || '';
+      sel.innerHTML = '<option value="">— select interface —</option>' +
+        ports.map(p => `<option value="${esc(p)}"${p === saved ? ' selected' : ''}>${esc(p)}</option>`).join('');
+      status.textContent = ports.length ? `${ports.length} interface${ports.length > 1 ? 's' : ''} found` : 'No MIDI interfaces found';
+    } catch { status.textContent = 'Could not reach server'; }
+  },
+
+  async refreshAudioDevices() {
+    const sel = document.getElementById('cfg-ltc-device');
+    const status = document.getElementById('ltc-device-status');
+    status.textContent = 'Scanning…';
+    try {
+      const { devices, error } = await fetch('/api/audio/devices').then(r => r.json());
+      if (error) { status.textContent = 'Error: ' + error; return; }
+      const saved = State.config.ltcDevice != null ? String(State.config.ltcDevice) : '';
+      sel.innerHTML = '<option value="">— select device —</option>' +
+        devices.map(d => `<option value="${d.index}"${String(d.index) === saved ? ' selected' : ''}>[${d.index}] ${esc(d.name)}</option>`).join('');
+      status.textContent = devices.length ? `${devices.length} device${devices.length > 1 ? 's' : ''} found` : 'No audio inputs found';
+      if (saved) this.onDeviceChange(saved);
+    } catch { status.textContent = 'Could not reach server'; }
+  },
+
+  async onDeviceChange(deviceIndex) {
+    const grp = document.getElementById('ltc-channel-group');
+    const sel = document.getElementById('cfg-ltc-channel');
+    if (!deviceIndex) { grp.style.display = 'none'; return; }
+    grp.style.display = '';
+    sel.innerHTML = '<option>Probing…</option>';
+    try {
+      const { channels } = await fetch(`/api/audio/probe/${deviceIndex}`).then(r => r.json());
+      const saved = parseInt(State.config.ltcChannel) || 1;
+      sel.innerHTML = Array.from({ length: channels }, (_, i) =>
+        `<option value="${i+1}"${i+1 === saved ? ' selected' : ''}>Channel ${i+1}</option>`
+      ).join('');
+    } catch { sel.innerHTML = '<option value="1">Channel 1</option>'; }
+  },
+
+  applyLTC() {
+    const device  = document.getElementById('cfg-ltc-device').value;
+    const channel = parseInt(document.getElementById('cfg-ltc-channel').value) || 1;
+    if (!device) return;
+    wsSend({ type: 'apply_ltc', device, channel });
+    State.tcSource = 'ltc';
+    updateTCDisplay(State.tc, State.tcRunning);
+  },
+
+  updateVU(db) {
+    // Only show VU when on LTC settings view
+    const bar   = document.getElementById('ltc-vu-bar');
+    const label = document.getElementById('ltc-vu-db');
+    if (!bar) return;
+    const pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100)); // -60dBFS → 0%,  0dBFS → 100%
+    bar.style.width = pct + '%';
+    bar.style.background = db > -6 ? 'var(--red)' : db > -18 ? 'var(--amber)' : 'var(--green)';
+    label.textContent = isFinite(db) ? `${db.toFixed(1)} dBFS` : '— dBFS';
+  },
+
+  renderOSCDests() {
+    const tbody = document.getElementById('osc-dest-tbody');
+    const dests = State.config.oscDestinations || {};
+    tbody.innerHTML = Object.entries(dests).map(([name,d]) => `
+      <tr>
+        <td><input value="${esc(name)}" data-key="${esc(name)}" class="osc-dest-name" onchange="Settings.renameOSCDest('${esc(name)}',this.value)"></td>
+        <td><input value="${esc(d.host||'')}" onchange="Settings.updateOSCDest('${esc(name)}','host',this.value)"></td>
+        <td><input type="number" value="${d.port||8000}" style="width:70px" onchange="Settings.updateOSCDest('${esc(name)}','port',Number(this.value))"></td>
+        <td><button class="row-btn del" onclick="Settings.removeOSCDest('${esc(name)}')">✕</button></td>
+      </tr>`).join('');
+  },
+
+  renderArtNetDests() {
+    const tbody = document.getElementById('artnet-dest-tbody');
+    const dests = State.config.artnetDestinations || {};
+    tbody.innerHTML = Object.entries(dests).map(([name,d]) => `
+      <tr>
+        <td><input value="${esc(name)}" onchange="Settings.renameArtNetDest('${esc(name)}',this.value)"></td>
+        <td><input value="${esc(d.host||'')}" onchange="Settings.updateArtNetDest('${esc(name)}','host',this.value)"></td>
+        <td><button class="row-btn del" onclick="Settings.removeArtNetDest('${esc(name)}')">✕</button></td>
+      </tr>`).join('');
+  },
+
+  updateOSCDest(name, field, val) {
+    if (!State.config.oscDestinations) State.config.oscDestinations = {};
+    if (!State.config.oscDestinations[name]) State.config.oscDestinations[name] = {};
+    State.config.oscDestinations[name][field] = val;
+  },
+
+  renameOSCDest(oldName, newName) {
+    if (oldName === newName || !newName) return;
+    const d = State.config.oscDestinations || {};
+    d[newName] = d[oldName];
+    delete d[oldName];
+    State.config.oscDestinations = d;
+  },
+
+  removeOSCDest(name) {
+    delete State.config.oscDestinations[name];
+    this.renderOSCDests();
+  },
+
+  addOSCDest() {
+    if (!State.authed) { openAuthModal(); return; }
+    const name = 'dest-' + Date.now().toString(36).slice(-4);
+    if (!State.config.oscDestinations) State.config.oscDestinations = {};
+    State.config.oscDestinations[name] = { host: '127.0.0.1', port: 8000 };
+    this.renderOSCDests();
+  },
+
+  updateArtNetDest(name, field, val) {
+    if (!State.config.artnetDestinations) State.config.artnetDestinations = {};
+    if (!State.config.artnetDestinations[name]) State.config.artnetDestinations[name] = {};
+    State.config.artnetDestinations[name][field] = val;
+  },
+
+  renameArtNetDest(oldName, newName) {
+    if (oldName === newName || !newName) return;
+    const d = State.config.artnetDestinations || {};
+    d[newName] = d[oldName];
+    delete d[oldName];
+    State.config.artnetDestinations = d;
+  },
+
+  removeArtNetDest(name) {
+    delete State.config.artnetDestinations[name];
+    this.renderArtNetDests();
+  },
+
+  addArtNetDest() {
+    if (!State.authed) { openAuthModal(); return; }
+    const name = 'dest-' + Date.now().toString(36).slice(-4);
+    if (!State.config.artnetDestinations) State.config.artnetDestinations = {};
+    State.config.artnetDestinations[name] = { host: '127.0.0.1' };
+    this.renderArtNetDests();
+  },
+
+  save() {
+    if (!State.authed) { openAuthModal(); return; }
+    const cfg = {
+      tcSource:           document.getElementById('cfg-tc-source').value,
+      mtcPort:            document.getElementById('cfg-mtc-port').value || '',
+      ltcDevice:          document.getElementById('cfg-ltc-device').value || '',
+      ltcChannel:         parseInt(document.getElementById('cfg-ltc-channel').value) || 1,
+      port:               parseInt(document.getElementById('cfg-port').value),
+      oscDestinations:    State.config.oscDestinations    || {},
+      artnetDestinations: State.config.artnetDestinations || {},
+    };
+    const pw = document.getElementById('cfg-password').value;
+    if (pw) cfg.editPassword = pw;
+    wsSend({ type: 'save_config', config: cfg });
+    wsSend({ type: 'tc_source',   source: cfg.tcSource });
+  }
+};
+
+function applyConfigToUI() {
+  const src = State.config.tcSource || 'internal';
+  document.getElementById('cfg-tc-source').value = src;
+  document.getElementById('cfg-port').value      = State.config.port || 3000;
+  Settings.onSourceChange(src);
+  Settings.renderOSCDests();
+  Settings.renderArtNetDests();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OUTPUT LOG
+// ══════════════════════════════════════════════════════════════════════════════
+function addLogEntry(entry) {
+  State.outputLog.unshift(entry);
+  if (State.outputLog.length > 100) State.outputLog.length = 100;
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('output-log-container');
+  el.innerHTML = State.outputLog.map(e => {
+    const t = new Date(e.time).toLocaleTimeString();
+    return `<div class="log-line">
+      <span class="ltime">${t}</span>
+      <span class="ltype ${e.type}">${e.type.toUpperCase()}</span>
+      <span class="lstatus ${e.success ? 'ok' : 'fail'}">${e.success ? 'OK' : 'FAIL'}</span>
+      <span class="lmsg">${esc(e.message||'')}</span>
+    </div>`;
+  }).join('');
+}
+
+const App = { clearLog() { State.outputLog = []; renderLog(); } };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTH MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+function openAuthModal() {
+  document.getElementById('auth-modal').classList.remove('hidden');
+  document.getElementById('auth-input').focus();
+}
+
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+  document.getElementById('auth-input').value = '';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function submitAuth() {
+  const pw = document.getElementById('auth-input').value;
+  wsSend({ type: 'auth', password: pw });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB ROUTING
+// ══════════════════════════════════════════════════════════════════════════════
+function switchTab(viewId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${viewId}`));
+  Views.current = viewId;
+  Views.refresh();
+  localStorage.setItem('activeView', viewId);
+  sendScreenUpdate();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// XLSX IMPORT
+// ══════════════════════════════════════════════════════════════════════════════
+async function importXLSX(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  let data;
+  try {
+    const res = await fetch('/api/import/xlsx', { method: 'POST', body: fd });
+    data = await res.json();
+  } catch(e) {
+    showImportModal('Import Failed', 'Network error: ' + e.message, [], null);
+    return;
+  }
+
+  if (data.error) {
+    showImportModal('Import Failed', data.error, [], null);
+    return;
+  }
+
+  if (data.count === 0) {
+    let msg = 'No songs were found in this file.';
+    if (data.diagnostics) {
+      const d = data.diagnostics;
+      msg += `\n\nSheet: "${d.sheetName}"  (${d.rowCount} rows)`;
+      if (d.headers.filter(Boolean).length) msg += `\nHeaders: ${d.headers.filter(Boolean).join('  |  ')}`;
+      if (d.firstDataRow.filter(Boolean).length) msg += `\nFirst data row: ${d.firstDataRow.filter(Boolean).join('  |  ')}`;
+    }
+    showImportModal('Nothing Imported', msg, data.warnings || [], null);
+    return;
+  }
+
+  const proceed = () => {
+    if (!State.authed) { openAuthModal(); return; }
+    wsSend({ type: 'save_songs', songs: data.songs });
+    switchTab('editor');
+  };
+
+  if (data.warnings && data.warnings.length > 0) {
+    showImportModal(
+      'Import Warnings',
+      `${data.count} song${data.count !== 1 ? 's' : ''} imported with warnings:`,
+      data.warnings,
+      proceed
+    );
+    return;
+  }
+
+  proceed();
+}
+
+function showImportModal(title, msg, warnings, onOk) {
+  const overlay  = document.getElementById('import-result-modal');
+  const titleEl  = document.getElementById('import-result-title');
+  const msgEl    = document.getElementById('import-result-msg');
+  const listEl   = document.getElementById('import-result-list');
+  const okBtn    = document.getElementById('import-result-ok');
+  const cancelBtn = document.getElementById('import-result-cancel');
+
+  titleEl.textContent = title;
+  titleEl.style.color = onOk ? 'var(--amber)' : 'var(--red)';
+  msgEl.textContent   = msg;
+
+  if (warnings.length) {
+    listEl.style.display = '';
+    listEl.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+  } else {
+    listEl.style.display = 'none';
+    listEl.innerHTML = '';
+  }
+
+  if (onOk) {
+    okBtn.textContent      = 'Import Anyway';
+    cancelBtn.style.display = '';
+    okBtn.onclick    = () => { overlay.classList.add('hidden'); onOk(); };
+    cancelBtn.onclick = () => overlay.classList.add('hidden');
+  } else {
+    okBtn.textContent      = 'OK';
+    cancelBtn.style.display = 'none';
+    okBtn.onclick = () => overlay.classList.add('hidden');
+  }
+
+  overlay.classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DEVICE NAME
+// ══════════════════════════════════════════════════════════════════════════════
+function loadDeviceName() {
+  const stored = localStorage.getItem('deviceName') || '';
+  document.getElementById('device-name-input').value = stored;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// URL PARAMS
+// ══════════════════════════════════════════════════════════════════════════════
+function applyURLParams() {
+  const params = new URLSearchParams(location.search);
+  const view = params.get('view');
+  const map = {
+    dashboard: 'dashboard', waterfall: 'waterfall',
+    stage: 'stage', 'stage-manager': 'stage',
+    camera: 'camera', conductor: 'conductor',
+    editor: 'editor', settings: 'settings'
+  };
+  if (view && map[view]) return map[view];
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WAKE LOCK
+// ══════════════════════════════════════════════════════════════════════════════
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      await navigator.wakeLock.request('screen');
+    }
+  } catch {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// UTILITY
+// ══════════════════════════════════════════════════════════════════════════════
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TEST VIEW — V1 Console Classic
+// ══════════════════════════════════════════════════════════════════════════════
+const TestStage = {
+  slots: { a: 'stage', b: 'host' },
+
+  setSlotType(slot, type) {
+    this.slots[slot] = type;
+    const sel = document.getElementById(`con-slot-${slot}-type`);
+    if (sel) sel.value = type;
+    this.render();
+    localStorage.setItem(`con-slot-${slot}-type`, type);
+  },
+
+  render() { renderTestStage(this.slots); }
+};
+
+function renderTestStage(slots) { renderConsoleView(slots); }
+
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EVENT WIRING
+// ══════════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => switchTab(t.dataset.view));
+  });
+
+  // TC controls
+  document.getElementById('btn-start').addEventListener('click', () => {
+    wsSend({ type: 'tc_start' });
+  });
+  document.getElementById('btn-stop').addEventListener('click', () => {
+    wsSend({ type: 'tc_stop' });
+  });
+  document.getElementById('btn-jam').addEventListener('click', () => {
+    document.getElementById('jam-modal').classList.remove('hidden');
+    document.getElementById('jam-input').focus();
+  });
+
+  // Jam modal
+  document.getElementById('jam-submit').addEventListener('click', () => {
+    const tc = document.getElementById('jam-input').value.trim();
+    if (tc) wsSend({ type: 'tc_jam', tc });
+    document.getElementById('jam-modal').classList.add('hidden');
+  });
+  document.getElementById('jam-cancel').addEventListener('click', () => {
+    document.getElementById('jam-modal').classList.add('hidden');
+  });
+  document.getElementById('jam-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('jam-submit').click();
+  });
+
+  // Auth modal
+  document.getElementById('btn-edit-auth').addEventListener('click', openAuthModal);
+  document.getElementById('auth-submit').addEventListener('click', submitAuth);
+  document.getElementById('auth-cancel').addEventListener('click', closeAuthModal);
+  document.getElementById('auth-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAuth();
+  });
+
+  // Editor
+  Editor.initEvents();
+  document.getElementById('btn-add-cue').addEventListener('click', () => Editor.addSong());
+  document.getElementById('btn-save-cues').addEventListener('click', () => Editor.save());
+  document.getElementById('btn-import-xlsx').addEventListener('click', () => {
+    document.getElementById('import-file-input').click();
+  });
+  document.getElementById('import-file-input').addEventListener('change', e => {
+    if (e.target.files[0]) importXLSX(e.target.files[0]);
+  });
+
+  // Settings
+  document.getElementById('btn-save-config').addEventListener('click', () => Settings.save());
+  document.getElementById('btn-save-config').disabled = !State.authed;
+  document.getElementById('btn-add-osc-dest').addEventListener('click', () => Settings.addOSCDest());
+  document.getElementById('btn-add-artnet-dest').addEventListener('click', () => Settings.addArtNetDest());
+
+  // Device name
+  loadDeviceName();
+  document.getElementById('device-name-input').addEventListener('change', e => {
+    localStorage.setItem('deviceName', e.target.value);
+  });
+
+  // Stage slot persistence
+  ['a','b'].forEach(slot => {
+    const saved = localStorage.getItem(`slot-${slot}-type`);
+    if (saved) {
+      document.getElementById(`slot-${slot}-type`).value = saved;
+      Stage.setSlotType(slot, saved);
+    }
+  });
+
+  // Test view slot persistence
+  ['a','b'].forEach(slot => {
+    const saved = localStorage.getItem(`con-slot-${slot}-type`);
+    if (saved) TestStage.setSlotType(slot, saved);
+  });
+
+  // XLSX drag-drop
+  document.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('import-drop-overlay').classList.add('visible'); });
+  document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('import-drop-overlay').classList.remove('visible'); });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('import-drop-overlay').classList.remove('visible');
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.name.endsWith('.xlsx')) importXLSX(file);
+  });
+
+  // URL param routing
+  const urlView = applyURLParams();
+  const savedView = localStorage.getItem('activeView') || 'dashboard';
+  switchTab(urlView || savedView);
+
+  // Wake lock
+  requestWakeLock();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) requestWakeLock(); });
+
+  // Connect WS
+  wsConnect();
+});
+</script>
+<script src="/stage-cue.js"></script>
+</body>
+</html>

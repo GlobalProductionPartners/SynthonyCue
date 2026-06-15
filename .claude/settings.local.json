@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/andrewnaysmith/synthony-cue/start-mac.command)",
+      "Bash(npm install:*)",
+      "Bash(timeout 5 node server.js)",
+      "Bash(node -e \":*)",
+      "Bash(curl -s http://localhost:3000/api/cues)",
+      "Bash(pkill -f \"node server.js\")",
+      "Bash(curl -s http://localhost:3001/api/songs)",
+      "Bash(curl -s -X POST -F \"file=@/Users/andrewnaysmith/synthony-cue/20260321 SYNTHONY Festival - Cue Sheet.xlsx\" http://localhost:3001/api/import/xlsx)",
+      "Bash(python3 -c \"import json,sys; songs=json.load\\(sys.stdin\\); print\\(f''''{len\\(songs\\)} songs, {sum\\(len\\(s[\"\"cues\"\"]\\) for s in songs\\)} cues''''\\)\")",
+      "Bash(curl -v http://localhost:3001/api/songs)",
+      "Bash(python3 -c \":*)",
+      "Bash(ngrok --version)",
+      "Bash(railway --version)",
+      "Bash(fly version:*)",
+      "Bash(brew --version)",
+      "Bash(curl -s -X POST http://localhost:3001/api/import/xlsx -F \"file=@/Users/andrewnaysmith/Downloads/20260321 SYNTHONY Festival - Cue Sheet.xlsx\")",
+      "Bash(find /Users/andrewnaysmith/Desktop /Users/andrewnaysmith/Documents /Users/andrewnaysmith/Downloads -name *Synthony* -o -name *SYNTHONY*)",
+      "Bash(find /Users/andrewnaysmith -name *.xlsx)",
+      "Bash(curl -s -X POST http://localhost:3001/api/import/xlsx -F \"file=@/Users/andrewnaysmith/synthony-cue/20260321 SYNTHONY Festival - Cue Sheet.xlsx\")",
+      "Bash(npm search:*)",
+      "Bash(ltcdump --version)",
+      "Bash(node -e \"const midi=require\\(''midi''\\);const i=new midi.Input\\(\\);for\\(let p=0;p<i.getPortCount\\(\\);p++\\)console.log\\(p,i.getPortName\\(p\\)\\)\")",
+      "Bash(ffmpeg -f avfoundation -i :3 -af \"pan=mono|c0=c3\" -ac 1 -ar 48000 -t 3 /tmp/loopback_ch4.wav)",
+      "Bash(ltcdump /tmp/loopback_ch4.wav)",
+      "Bash(lsof -ti:3001)"
+    ]
+  }
+}

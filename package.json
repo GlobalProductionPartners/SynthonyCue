@@ -1,0 +1,72 @@
+{
+  "name": "synthony-cue",
+  "version": "1.0.0",
+  "description": "Synthony live show cue system",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "electron": "electron .",
+    "dist": "electron-builder --mac",
+    "release": "electron-builder --mac --publish always",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "artnet": "^1.1.0",
+    "electron-updater": "^6.3.0",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "node-osc": "^9.1.0",
+    "ws": "^8.18.0",
+    "xlsx": "^0.18.5"
+  },
+  "optionalDependencies": {
+    "midi": "^2.0.0",
+    "node-ltc": "npm:null@^0.1.0",
+    "node-rtpmidi": "^0.4.1"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.synthony.cue",
+    "productName": "Synthony Cue",
+    "copyright": "Copyright © 2026 Synthony",
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "server.js",
+      "tc/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/{CHANGELOG.md,README.md,readme.md,.editorconfig}",
+      "!**/*.map",
+      "!*.command",
+      "!*.bat",
+      "!*.xlsx",
+      "!Screenshot*"
+    ],
+    "asarUnpack": [
+      "public/**/*",
+      "node_modules/midi/**/*",
+      "node_modules/node-rtpmidi/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        { "target": "dmg",  "arch": ["universal"] },
+        { "target": "zip",  "arch": ["universal"] }
+      ]
+    },
+    "dmg": {
+      "title": "Synthony Cue ${version}",
+      "window": { "width": 540, "height": 380 }
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "YOUR_GITHUB_USERNAME",
+      "repo":  "synthony-cue"
+    }
+  }
+}

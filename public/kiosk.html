@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synthony Cue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/stage-cue.css">
+<link rel="stylesheet" href="/cue-console.css">
+<style>
+:root {
+  --bg:     #000000;
+  --bg2:    #0a0a0a;
+  --bg3:    #111111;
+  --border: #222222;
+  --text:   #c9d1d9;
+  --dim:    #6e7681;
+  --cyan:   #00e5ff;
+  --amber:  #ffd60a;
+  --green:  #30d158;
+  --red:    #ff453a;
+  --font-tc: 'JetBrains Mono', 'Courier New', monospace;
+  --font-ui: system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-ui); overflow: hidden; }
+
+/* ── Main layout ── */
+#app { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+
+/* ── Views ── */
+.view { display: none; flex: 1; flex-direction: column; min-height: 0; }
+.view.active { display: flex; }
+
+/* ── Conductor (Stage Display) ── */
+.conductor-main {
+  flex: 1; display: flex; flex-direction: column;
+  padding: clamp(24px, 4vw, 64px); gap: 0;
+}
+.conductor-section { display: flex; flex-direction: column; gap: 12px; }
+.conductor-now-section { flex: 1.4; justify-content: center; }
+.conductor-next-section { flex: 1; justify-content: center; }
+.conductor-divider { height: 1px; background: var(--border); margin: 24px 0; flex-shrink: 0; }
+.conductor-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--dim); }
+.conductor-track { font-family: var(--font-ui); font-size: clamp(32px, 6vw, 80px); font-weight: 700; color: #fff; line-height: 1.1; }
+.conductor-bpm { font-family: var(--font-tc); font-size: clamp(14px, 2vw, 22px); color: var(--dim); }
+.conductor-progress-wrap { height: 32px; background: var(--bg3); border-radius: 6px; overflow: hidden; margin: 8px 0; }
+.conductor-progress-bar { height: 100%; width: 0%; border-radius: 5px; background: linear-gradient(90deg, var(--green), var(--cyan)); transition: none; }
+.conductor-times { display: flex; justify-content: space-between; font-family: var(--font-tc); font-size: clamp(24px, 3.5vw, 52px); font-weight: 700; color: var(--dim); }
+.conductor-next-track { font-family: var(--font-ui); font-size: clamp(22px, 4vw, 52px); font-weight: 700; color: var(--text); opacity: 0.6; line-height: 1.15; }
+.conductor-next-in { font-family: var(--font-tc); font-size: clamp(16px, 2.5vw, 28px); color: var(--amber); }
+
+/* ── Camera ── */
+#view-camera { align-items: stretch; justify-content: stretch; }
+.camera-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+.camera-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--purple, #bf5af2); padding: 4px 16px; border: 1px solid var(--purple, #bf5af2); border-radius: 12px; }
+.camera-cue-text { font-family: var(--font-ui); font-size: clamp(28px, 8vw, 96px); font-weight: 800; color: var(--text); line-height: 1.1; }
+.camera-next { font-size: clamp(14px, 2.5vw, 24px); color: var(--dim); }
+.camera-next span { color: var(--purple, #bf5af2); }
+.camera-countdown { font-family: var(--font-tc); font-size: clamp(20px, 4vw, 52px); font-weight: 700; color: var(--purple, #bf5af2); }
+.camera-tc { font-family: var(--font-tc); font-size: clamp(14px, 2vw, 20px); color: var(--dim); }
+
+/* ── Multi Cue (Stage) ── */
+/* Stage view CSS → /stage-cue.css */
+
+/* ── Hamburger button ── */
+#hamburger {
+  position: fixed; top: 14px; right: 14px; z-index: 1000;
+  width: 40px; height: 40px; border-radius: 8px;
+  background: rgba(10,10,10,0.85); border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  cursor: pointer; opacity: 0.4; transition: opacity 0.2s;
+}
+#hamburger:hover { opacity: 1; }
+#hamburger span { display: block; width: 18px; height: 2px; background: var(--text); border-radius: 2px; }
+
+/* ── Menu panel ── */
+#menu-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 280px; z-index: 999;
+  background: var(--bg2); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 0;
+  transform: translateX(100%); transition: transform 0.22s ease;
+}
+#menu-panel.open { transform: translateX(0); }
+.menu-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.menu-header strong { font-size: 13px; color: var(--text); }
+#menu-close { background: none; border: none; color: var(--dim); font-size: 20px; cursor: pointer; line-height: 1; }
+.menu-section { padding: 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.menu-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim); }
+.menu-btn { padding: 8px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); cursor: pointer; text-align: left; }
+.menu-btn.active { border-color: var(--cyan); color: var(--cyan); }
+.menu-select { width: 100%; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); }
+.menu-input { width: 100%; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); }
+.menu-row { display: flex; flex-direction: column; gap: 4px; }
+
+/* ── TC corner display ── */
+#tc-corner {
+  position: fixed; bottom: 10px; left: 14px; z-index: 1000;
+  font-family: var(--font-tc); font-size: 13px; color: var(--dim);
+  opacity: 0.4; pointer-events: none;
+}
+
+/* Test view → /cue-console.css */
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- CONDUCTOR (Stage Display) — default view -->
+  <div class="view active" id="view-conductor">
+    <div class="conductor-main">
+      <div class="conductor-section conductor-now-section">
+        <div class="conductor-label">NOW PLAYING</div>
+        <div class="conductor-track" id="conductor-track">—</div>
+        <div class="conductor-bpm" id="conductor-bpm"></div>
+        <div class="conductor-progress-wrap">
+          <div class="conductor-progress-bar" id="conductor-progress-bar"></div>
+        </div>
+        <div class="conductor-times">
+          <span id="conductor-elapsed">—</span>
+          <span id="conductor-remaining">—</span>
+        </div>
+      </div>
+      <div class="conductor-divider"></div>
+      <div class="conductor-section conductor-next-section">
+        <div class="conductor-label">UP NEXT</div>
+        <div class="conductor-next-track" id="conductor-next-track">—</div>
+        <div class="conductor-next-in" id="conductor-next-in">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMERA -->
+  <div class="view" id="view-camera">
+    <div class="camera-main">
+      <div class="camera-label" id="camera-label">—</div>
+      <div class="camera-cue-text" id="camera-cue">—</div>
+      <div class="camera-countdown" id="camera-countdown">—</div>
+      <div class="camera-next" id="camera-next">Next: <span>—</span></div>
+      <div class="camera-tc" id="camera-tc">--:--:--:--</div>
+    </div>
+  </div>
+
+  <!-- MULTI CUE -->
+  <div class="view" id="view-stage">
+    <div class="stage-top">
+      <div class="stage-track-label">Now Playing</div>
+      <div class="stage-song-name" id="stage-song-name">—</div>
+      <div class="stage-progress-wrap">
+        <div class="stage-progress-bar" id="stage-progress-bar"></div>
+      </div>
+      <div class="stage-progress-time">
+        <span id="stage-elapsed">—</span>
+        <span id="stage-remaining">—</span>
+      </div>
+    </div>
+    <div class="stage-bottom">
+      <div class="stage-slot" id="slot-a">
+        <div class="stage-slot-header">
+          <span class="stage-slot-type slot-stage" id="slot-a-badge">STAGE</span>
+        </div>
+        <div class="stage-cue-next-wrap">
+          <div class="stage-cue-next-header">
+            <span class="stage-cue-next-label">Next</span>
+            <span class="stage-countdown" id="slot-a-countdown">—</span>
+          </div>
+          <div class="stage-cue-next" id="slot-a-next">—</div>
+          <div class="stage-cue-progress-wrap">
+            <div class="stage-cue-progress-bar" id="slot-a-progress"></div>
+          </div>
+        </div>
+        <div class="stage-cue-now-wrap">
+          <div class="stage-cue-now-label">Now</div>
+          <div class="stage-cue-current" id="slot-a-current">—</div>
+          <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-a-now-bar-wrap" style="display:none">
+            <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-a-now-bar"></div>
+          </div>
+        </div>
+        <div class="stage-cue-prev-wrap">
+          <div class="stage-cue-prev-label">Prev</div>
+          <div class="stage-cue-prev" id="slot-a-prev">—</div>
+        </div>
+      </div>
+      <div class="stage-slot" id="slot-b">
+        <div class="stage-slot-header">
+          <span class="stage-slot-type slot-host" id="slot-b-badge">HOST</span>
+        </div>
+        <div class="stage-cue-next-wrap">
+          <div class="stage-cue-next-header">
+            <span class="stage-cue-next-label">Next</span>
+            <span class="stage-countdown" id="slot-b-countdown">—</span>
+          </div>
+          <div class="stage-cue-next" id="slot-b-next">—</div>
+          <div class="stage-cue-progress-wrap">
+            <div class="stage-cue-progress-bar" id="slot-b-progress"></div>
+          </div>
+        </div>
+        <div class="stage-cue-now-wrap">
+          <div class="stage-cue-now-label">Now</div>
+          <div class="stage-cue-current" id="slot-b-current">—</div>
+          <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-b-now-bar-wrap" style="display:none">
+            <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-b-now-bar"></div>
+          </div>
+        </div>
+        <div class="stage-cue-prev-wrap">
+          <div class="stage-cue-prev-label">Prev</div>
+          <div class="stage-cue-prev" id="slot-b-prev">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST — V1 Console Classic -->
+  <div class="view" id="view-test">
+    <div class="con-top">
+      <div class="con-topbar">
+        <div class="con-topbar-left">
+          <span class="con-label-sm">Current Track</span>
+          <span class="con-receiving" id="con-receiving">●RECEIVING</span>
+        </div>
+        <span class="con-bpm-key" id="con-bpm-key"></span>
+      </div>
+      <div class="con-track-name" id="con-track-name">—</div>
+      <div class="con-progress-row">
+        <span class="con-time-val" id="con-elapsed">—</span>
+        <div class="con-prog-wrap"><div class="con-prog-bar" id="con-prog-bar"></div></div>
+        <span class="con-time-val right" id="con-remaining">—</span>
+      </div>
+      <div class="con-next-row">
+        <span class="con-next-lbl">Next</span>
+        <span class="con-next-name" id="con-next-track">—</span>
+        <span class="con-next-meta" id="con-next-meta"></span>
+      </div>
+    </div>
+    <div class="con-panels">
+      <div class="con-panel" id="con-panel-a">
+        <div class="con-panel-head">
+          <span class="con-panel-type" id="con-panel-a-type">STAGE CUE</span>
+          <span class="con-pill" id="con-pill-a"></span>
+        </div>
+        <div class="con-panel-prev">
+          <span class="con-prev-lbl">PREV</span>
+          <span class="con-prev-text" id="con-prev-a">—</span>
+        </div>
+        <div class="con-panel-body"><div class="con-cue-text" id="con-cue-a">—</div></div>
+        <div class="con-panel-foot">
+          <div class="con-foot-row">
+            <span class="con-foot-label">T-MINUS</span>
+            <span class="con-foot-cd" id="con-foot-cd-a">—</span>
+          </div>
+          <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-a"></div></div>
+          <div class="con-now-row">
+            <span class="con-now-lbl prev" id="con-now-lbl-a">Now</span>
+            <span class="con-now-text prev" id="con-now-text-a">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="con-panel" id="con-panel-b">
+        <div class="con-panel-head">
+          <span class="con-panel-type" id="con-panel-b-type">HOST CUE</span>
+          <span class="con-pill" id="con-pill-b"></span>
+        </div>
+        <div class="con-panel-prev">
+          <span class="con-prev-lbl">PREV</span>
+          <span class="con-prev-text" id="con-prev-b">—</span>
+        </div>
+        <div class="con-panel-body"><div class="con-cue-text" id="con-cue-b">—</div></div>
+        <div class="con-panel-foot">
+          <div class="con-foot-row">
+            <span class="con-foot-label">T-MINUS</span>
+            <span class="con-foot-cd" id="con-foot-cd-b">—</span>
+          </div>
+          <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-b"></div></div>
+          <div class="con-now-row">
+            <span class="con-now-lbl prev" id="con-now-lbl-b">Now</span>
+            <span class="con-now-text prev" id="con-now-text-b">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- TC corner -->
+<div id="tc-corner">--:--:--:--</div>
+
+<!-- Hamburger -->
+<div id="hamburger" onclick="Menu.toggle()">
+  <span></span><span></span><span></span>
+</div>
+
+<!-- Menu panel -->
+<div id="menu-panel">
+  <div class="menu-header">
+    <strong>Screen Settings</strong>
+    <button id="menu-close" onclick="Menu.close()">✕</button>
+  </div>
+  <div class="menu-section">
+    <div class="menu-label">Screen Name</div>
+    <input class="menu-input" id="menu-screen-name" placeholder="Screen name" onchange="setScreenName(this.value)">
+  </div>
+  <div class="menu-section">
+    <div class="menu-label">View</div>
+    <button class="menu-btn active" id="view-btn-conductor" onclick="switchView('conductor')">Stage Display</button>
+    <button class="menu-btn" id="view-btn-stage" onclick="switchView('stage')">Multi Cue</button>
+    <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Camera</button>
+    <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Test</button>
+  </div>
+  <div class="menu-section" id="menu-test-section" style="display:none">
+    <div class="menu-label">Panel A Type</div>
+    <select class="menu-select" id="menu-test-slot-a" onchange="setTestSlotType('a', this.value)">
+      <option value="stage">Stage Cue</option>
+      <option value="host">Host Cue</option>
+      <option value="camera">Camera</option>
+      <option value="conductor">Conductor</option>
+      <option value="description">Description</option>
+    </select>
+    <div class="menu-label" style="margin-top:6px">Panel B Type</div>
+    <select class="menu-select" id="menu-test-slot-b" onchange="setTestSlotType('b', this.value)">
+      <option value="stage">Stage Cue</option>
+      <option value="host" selected>Host Cue</option>
+      <option value="camera">Camera</option>
+      <option value="conductor">Conductor</option>
+      <option value="description">Description</option>
+    </select>
+  </div>
+  <div class="menu-section" id="menu-slot-section" style="display:none">
+    <div class="menu-label">Slot A Type</div>
+    <select class="menu-select" id="menu-slot-a" onchange="setSlotType('a', this.value)">
+      <option value="stage">Stage Cue</option>
+      <option value="host">Host Cue</option>
+      <option value="camera">Camera</option>
+      <option value="conductor">Conductor</option>
+      <option value="description">Description</option>
+    </select>
+    <div class="menu-label" style="margin-top:6px">Slot B Type</div>
+    <select class="menu-select" id="menu-slot-b" onchange="setSlotType('b', this.value)">
+      <option value="stage">Stage Cue</option>
+      <option value="host" selected>Host Cue</option>
+      <option value="camera">Camera</option>
+      <option value="conductor">Conductor</option>
+      <option value="description">Description</option>
+    </select>
+  </div>
+  <div class="menu-section" id="menu-cam-section" style="display:none">
+    <div class="menu-label">Cue Type</div>
+    <select class="menu-select" id="menu-cam-type" onchange="setCameraType(this.value)">
+      <option value="camera">Camera</option>
+      <option value="stage">Stage Cue</option>
+      <option value="host">Host Cue</option>
+      <option value="conductor">Conductor</option>
+      <option value="description">Description</option>
+    </select>
+  </div>
+</div>
+
+<script src="/cue-utils.js"></script>
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+// FR, parseTC, parseDuration, formatHMSF, framesToDisplay, getCurrentSong,
+// getNextSong, getCurrentCue, getPrevCueGlobal, getNextCueGlobal,
+// durationCountdown, renderConsoleView → /cue-utils.js
+const State = { songs: [], tc: '00:00:00:00', tcFrames: 0, tcRunning: false, tcSource: 'internal' };
+const testSlots = { a: localStorage.getItem('kiosk-con-slot-a') || 'stage', b: localStorage.getItem('kiosk-con-slot-b') || 'host' };
+
+// Screen identity
+// sessionStorage gives each tab/window its own unique ID
+const SCREEN_ID = sessionStorage.getItem('screen-id') || (() => {
+  const id = Math.random().toString(36).slice(2, 10);
+  sessionStorage.setItem('screen-id', id);
+  return id;
+})();
+let SCREEN_NAME = localStorage.getItem('screen-name') || 'Display';
+
+// Current view + slot config
+let currentView  = localStorage.getItem('kiosk-view') || 'conductor';
+const slots      = { a: localStorage.getItem('kiosk-slot-a') || 'stage', b: localStorage.getItem('kiosk-slot-b') || 'host' };
+let cameraType   = localStorage.getItem('kiosk-cam-type') || 'camera';
+
+/* getField → /stage-cue.js */
+
+// ── Renderers ─────────────────────────────────────────────────────────────────
+function renderConductor() {
+  const song  = getCurrentSong();
+  const nowF  = State.tcFrames || parseTC(State.tc);
+  const nextSong = getNextSong();
+  document.getElementById('conductor-track').textContent = song?.trackName || '—';
+  document.getElementById('conductor-bpm').textContent   = song?.bpm ? `♩ = ${song.bpm} BPM` : '';
+  if (song) {
+    const started = parseTC(song.timecode);
+    const elapsed = nowF - started;
+    document.getElementById('conductor-elapsed').textContent = formatHMSF(Math.max(0, elapsed));
+    if (song.duration) {
+      const durF = parseDuration(song.duration);
+      const remaining = durF - elapsed;
+      const pct = Math.min(100, Math.max(0, (elapsed / durF) * 100));
+      document.getElementById('conductor-remaining').textContent = remaining > 0 ? '-' + formatHMSF(remaining) : '0:00';
+      const bar = document.getElementById('conductor-progress-bar');
+      bar.style.width = pct + '%';
+      const remSec = Math.floor(Math.max(0, remaining) / FR);
+      bar.style.background = remSec <= 10 ? 'var(--red)' : remSec <= 30 ? 'linear-gradient(90deg,var(--green),var(--amber))' : 'linear-gradient(90deg,var(--green),var(--cyan))';
+    } else {
+      document.getElementById('conductor-remaining').textContent = '';
+      document.getElementById('conductor-progress-bar').style.width = '0%';
+    }
+  } else {
+    document.getElementById('conductor-elapsed').textContent = '—';
+    document.getElementById('conductor-remaining').textContent = '';
+    document.getElementById('conductor-progress-bar').style.width = '0%';
+  }
+  document.getElementById('conductor-next-track').textContent = nextSong?.trackName || '—';
+  if (nextSong) {
+    const diff = durationCountdown({ song: nextSong, cue: { offset: '00:00:00:00' }, absFrames: parseTC(nextSong.timecode) });
+    document.getElementById('conductor-next-in').textContent = diff > 0 ? 'in ' + framesToDisplay(diff) : 'NOW';
+  } else {
+    document.getElementById('conductor-next-in').textContent = '';
+  }
+}
+
+function renderCamera() {
+  const song   = getCurrentSong();
+  const curCue = getCurrentCue(song);
+  const nextG  = getNextCueGlobal(cameraType);
+  document.getElementById('camera-label').textContent  = song?.trackName || '—';
+  document.getElementById('camera-cue').textContent    = getField(curCue, cameraType) || '—';
+  document.getElementById('camera-countdown').textContent = nextG ? framesToDisplay(durationCountdown(nextG)) : '—';
+  document.getElementById('camera-next').querySelector('span').textContent = getField(nextG?.cue, cameraType) || '—';
+  document.getElementById('camera-tc').textContent = State.tc;
+}
+
+/* renderStage → /stage-cue.js */
+
+function renderTestView() { renderConsoleView(testSlots); }
+
+function renderCurrent() {
+  document.getElementById('tc-corner').textContent = State.tc;
+  if (currentView === 'conductor') renderConductor();
+  else if (currentView === 'camera') renderCamera();
+  else if (currentView === 'stage') renderStage(slots);
+  else if (currentView === 'test')  renderTestView();
+}
+
+// ── View switching ────────────────────────────────────────────────────────────
+function switchView(view) {
+  currentView = view;
+  localStorage.setItem('kiosk-view', view);
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+  document.querySelectorAll('[id^="view-btn-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('view-btn-' + view);
+  if (btn) btn.classList.add('active');
+  document.getElementById('menu-slot-section').style.display = view === 'stage'  ? '' : 'none';
+  document.getElementById('menu-cam-section').style.display  = view === 'camera' ? '' : 'none';
+  document.getElementById('menu-test-section').style.display = view === 'test'   ? '' : 'none';
+  renderCurrent();
+  sendScreenUpdate();
+}
+
+function setTestSlotType(slot, type) {
+  testSlots[slot] = type;
+  localStorage.setItem(`kiosk-con-slot-${slot}`, type);
+  renderCurrent();
+  sendScreenUpdate();
+}
+
+function setSlotType(slot, type) {
+  slots[slot] = type;
+  localStorage.setItem(`kiosk-slot-${slot}`, type);
+  const badge = document.getElementById(`slot-${slot}-badge`);
+  badge.textContent = type.toUpperCase();
+  badge.className = `stage-slot-type slot-${type}`;
+  renderCurrent();
+  sendScreenUpdate();
+}
+
+function setCameraType(type) {
+  cameraType = type;
+  localStorage.setItem('kiosk-cam-type', type);
+  renderCurrent();
+  sendScreenUpdate();
+}
+
+function setScreenName(name) {
+  SCREEN_NAME = name.trim() || 'Display';
+  localStorage.setItem('screen-name', SCREEN_NAME);
+  sendScreenUpdate();
+}
+
+// ── Menu ──────────────────────────────────────────────────────────────────────
+const Menu = {
+  open()  { document.getElementById('menu-panel').classList.add('open'); },
+  close() { document.getElementById('menu-panel').classList.remove('open'); },
+  toggle() { document.getElementById('menu-panel').classList.toggle('open'); }
+};
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+let ws, wsTimer;
+function wsConnect() {
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onopen = () => {
+    clearTimeout(wsTimer);
+    setTimeout(sendScreenHello, 200);
+  };
+  ws.onclose = () => { wsTimer = setTimeout(wsConnect, 3000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (evt) => {
+    try { handleMsg(JSON.parse(evt.data)); } catch {}
+  };
+}
+function wsSend(obj) {
+  if (ws?.readyState === 1) ws.send(JSON.stringify(obj));
+}
+function sendScreenHello() {
+  wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType });
+}
+function sendScreenUpdate() {
+  wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType });
+}
+
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'init':
+      State.songs     = msg.songs || [];
+      State.tcSource  = msg.tc?.source  || 'internal';
+      State.tc        = msg.tc?.tc      || '00:00:00:00';
+      State.tcRunning = msg.tc?.running || false;
+      State.tcFrames  = 0;
+      renderCurrent();
+      break;
+    case 'tc':
+      State.tc       = msg.tc;
+      State.tcFrames = msg.frames;
+      renderCurrent();
+      break;
+    case 'tc_transport':
+      State.tcRunning = msg.running;
+      State.tc        = msg.tc;
+      renderCurrent();
+      break;
+    case 'songs_updated':
+      State.songs = msg.songs;
+      renderCurrent();
+      break;
+    case 'screen_command':
+      if (msg.view) switchView(msg.view);
+      if (msg.slots?.a) setSlotType('a', msg.slots.a);
+      if (msg.slots?.b) setSlotType('b', msg.slots.b);
+      if (msg.cameraType) setCameraType(msg.cameraType);
+      break;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('menu-screen-name').value  = SCREEN_NAME;
+  document.getElementById('menu-slot-a').value        = slots.a;
+  document.getElementById('menu-slot-b').value        = slots.b;
+  document.getElementById('menu-cam-type').value      = cameraType;
+  document.getElementById('menu-test-slot-a').value = testSlots.a;
+  document.getElementById('menu-test-slot-b').value = testSlots.b;
+  switchView(currentView);
+  wsConnect();
+
+  // Wake lock
+  if (navigator.wakeLock) {
+    navigator.wakeLock.request('screen').catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) navigator.wakeLock.request('screen').catch(() => {});
+    });
+  }
+
+  // Close menu on outside click
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('menu-panel');
+    const burger = document.getElementById('hamburger');
+    if (panel.classList.contains('open') && !panel.contains(e.target) && !burger.contains(e.target)) {
+      Menu.close();
+    }
+  });
+});
+</script>
+<script src="/stage-cue.js"></script>
+</body>
+</html>
