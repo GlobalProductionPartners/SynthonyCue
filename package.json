@@ -65,7 +65,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "YOUR_GITHUB_USERNAME",
+      "owner": "IWANTWOO",
       "repo":  "synthony-cue"
     }
   }
