@@ -1054,6 +1054,7 @@ function handleServerMessage(msg) {
         document.getElementById('btn-save-cues').style.display = '';
         document.getElementById('btn-save-config').disabled = false;
         Editor.render();
+        if (_pendingImport) { const fn = _pendingImport; _pendingImport = null; fn(); }
       } else {
         document.getElementById('auth-error').style.display = '';
       }
@@ -1939,6 +1940,8 @@ function switchTab(viewId) {
 // ══════════════════════════════════════════════════════════════════════════════
 // XLSX IMPORT
 // ══════════════════════════════════════════════════════════════════════════════
+let _pendingImport = null; // survives auth redirect
+
 async function importXLSX(file) {
   const fd = new FormData();
   fd.append('file', file);
@@ -1968,23 +1971,27 @@ async function importXLSX(file) {
     return;
   }
 
-  const proceed = () => {
-    if (!State.authed) { openAuthModal(); return; }
+  // Songs found — import immediately, show warnings as info only (non-blocking)
+  const doImport = () => {
     wsSend({ type: 'save_songs', songs: data.songs });
     switchTab('editor');
+    if (data.warnings?.length) {
+      showImportModal(
+        `Imported ${data.count} song${data.count !== 1 ? 's' : ''}`,
+        'The following rows were skipped:',
+        data.warnings,
+        null
+      );
+    }
   };
 
-  if (data.warnings && data.warnings.length > 0) {
-    showImportModal(
-      'Import Warnings',
-      `${data.count} song${data.count !== 1 ? 's' : ''} imported with warnings:`,
-      data.warnings,
-      proceed
-    );
+  if (!State.authed) {
+    _pendingImport = doImport;
+    openAuthModal();
     return;
   }
 
-  proceed();
+  doImport();
 }
 
 function showImportModal(title, msg, warnings, onOk) {
@@ -1996,7 +2003,7 @@ function showImportModal(title, msg, warnings, onOk) {
   const cancelBtn = document.getElementById('import-result-cancel');
 
   titleEl.textContent = title;
-  titleEl.style.color = onOk ? 'var(--amber)' : 'var(--red)';
+  titleEl.style.color = onOk ? 'var(--amber)' : title.startsWith('Imported') ? 'var(--green)' : 'var(--red)';
   msgEl.textContent   = msg;
 
   if (warnings.length) {

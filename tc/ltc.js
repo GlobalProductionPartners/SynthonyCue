@@ -17,7 +17,7 @@ let captureProc = null;
 // Returns array of { index, name } for available audio input devices
 exports.getDevices = function() {
   return new Promise((resolve) => {
-    const ff = spawn('ffmpeg', ['-f', 'avfoundation', '-list_devices', 'true', '-i', '""']);
+    const ff = spawn('ffmpeg', ['-f', 'avfoundation', '-list_devices', 'true', '-i', '""'], { stdio: ['ignore', 'ignore', 'pipe'] });
     let out = '';
     ff.stderr.on('data', d => out += d.toString());
     ff.on('close', () => {
@@ -40,7 +40,7 @@ exports.getDevices = function() {
 // Probe a device to get its channel count
 exports.probeDevice = function(deviceIndex) {
   return new Promise((resolve) => {
-    const ff = spawn('ffmpeg', ['-f', 'avfoundation', '-i', `:${deviceIndex}`, '-t', '0.5', '-f', 'null', '-']);
+    const ff = spawn('ffmpeg', ['-f', 'avfoundation', '-i', `:${deviceIndex}`, '-t', '0.5', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
     let out = '';
     ff.stderr.on('data', d => out += d.toString());
     const done = () => {
@@ -73,13 +73,19 @@ exports.start = function start(cb, deviceIndex, channel) {
 
   function captureChunk() {
     if (!running) return;
-    captureProc = spawn('ffmpeg', [
-      '-y', '-f', 'avfoundation', '-i', `:${idx}`,
-      '-af', `pan=mono|c0=c${chanIdx}`,
-      '-ac', '1', '-ar', '48000',
-      '-t', '1',
-      CHUNK_WAV
-    ]);
+    try {
+      captureProc = spawn('ffmpeg', [
+        '-y', '-f', 'avfoundation', '-i', `:${idx}`,
+        '-af', `pan=mono|c0=c${chanIdx}`,
+        '-ac', '1', '-ar', '48000',
+        '-t', '1',
+        CHUNK_WAV
+      ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    } catch (e) {
+      console.warn('[LTC] spawn failed:', e.message);
+      if (running) loopTimer = setTimeout(captureChunk, 5000);
+      return;
+    }
     captureProc.stderr.on('data', () => {});
     captureProc.on('close', (code) => {
       if (!running) return;
@@ -98,8 +104,9 @@ exports.start = function start(cb, deviceIndex, channel) {
       }
       loopTimer = setTimeout(captureChunk, 0);
     });
-    captureProc.on('error', () => {
-      if (running) loopTimer = setTimeout(captureChunk, 500);
+    captureProc.on('error', (e) => {
+      log('[LTC] capture error:', e.message);
+      if (running) loopTimer = setTimeout(captureChunk, 5000);
     });
   }
 
@@ -119,11 +126,16 @@ exports.startMonitor = function(deviceIndex, channel, onLevel) {
   const idx     = (deviceIndex != null && deviceIndex !== '') ? String(deviceIndex) : '1';
   const chanIdx = Math.max(0, (parseInt(channel) || 1) - 1);
 
-  monitorProc = spawn('ffmpeg', [
-    '-f', 'avfoundation', '-i', `:${idx}`,
-    '-af', `pan=mono|c0=c${chanIdx},ebur128`,
-    '-f', 'null', '-'
-  ]);
+  try {
+    monitorProc = spawn('ffmpeg', [
+      '-f', 'avfoundation', '-i', `:${idx}`,
+      '-af', `pan=mono|c0=c${chanIdx},ebur128`,
+      '-f', 'null', '-'
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  } catch (e) {
+    console.warn('[LTC] monitor spawn failed:', e.message);
+    return;
+  }
 
   monitorProc.stderr.on('data', (data) => {
     const str = data.toString();
