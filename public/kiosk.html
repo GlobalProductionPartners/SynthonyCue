@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/stage-cue.css">
 <link rel="stylesheet" href="/cue-console.css">
+<link rel="stylesheet" href="/show-overview.css">
 <style>
 :root {
   --bg:     #000000;
@@ -64,16 +65,43 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* ── Multi Cue (Stage) ── */
 /* Stage view CSS → /stage-cue.css */
 
-/* ── Hamburger button ── */
+/* ── Kiosk header ── */
+#kiosk-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 10;
+}
+#kiosk-header .kh-logo {
+  font-family: var(--font-ui); font-weight: 800;
+  font-size: clamp(12px, 2vw, 18px);
+  letter-spacing: 0.05em; color: var(--cyan); white-space: nowrap;
+}
+#kiosk-header .kh-tc {
+  font-family: var(--font-tc); font-size: clamp(18px, 3.5vw, 36px);
+  color: var(--cyan); letter-spacing: 0.08em; white-space: nowrap;
+  padding: 4px 12px; background: var(--bg3); border-radius: 6px;
+  border: 1px solid var(--border);
+}
+#kiosk-header .kh-tc.running { border-color: var(--cyan); text-shadow: 0 0 12px var(--cyan); }
+#kiosk-header .kh-tc.stopped { color: var(--dim); }
+.kh-spacer { flex: 1; }
+#kiosk-header .kh-clock {
+  font-family: var(--font-tc); font-size: clamp(14px, 2.5vw, 24px);
+  color: var(--dim); letter-spacing: 0.08em; white-space: nowrap;
+  padding: 4px 12px; background: var(--bg3); border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+/* ── Hamburger (inline in header) ── */
 #hamburger {
-  position: fixed; top: 14px; right: 14px; z-index: 1000;
-  width: 40px; height: 40px; border-radius: 8px;
-  background: rgba(10,10,10,0.85); border: 1px solid var(--border);
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 6px;
+  background: var(--bg3); border: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
-  cursor: pointer; opacity: 0.4; transition: opacity 0.2s;
+  cursor: pointer; opacity: 0.6; transition: opacity 0.2s;
 }
 #hamburger:hover { opacity: 1; }
-#hamburger span { display: block; width: 18px; height: 2px; background: var(--text); border-radius: 2px; }
+#hamburger span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 2px; }
 
 /* ── Menu panel ── */
 #menu-panel {
@@ -94,18 +122,31 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .menu-input { width: 100%; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); }
 .menu-row { display: flex; flex-direction: column; gap: 4px; }
 
-/* ── TC corner display ── */
-#tc-corner {
-  position: fixed; bottom: 10px; left: 14px; z-index: 1000;
-  font-family: var(--font-tc); font-size: 13px; color: var(--dim);
-  opacity: 0.4; pointer-events: none;
-}
+/* ── TC corner (hidden — superseded by header) ── */
+#tc-corner { display: none; }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
 
 /* Test view → /cue-console.css */
 </style>
 </head>
 <body>
 <div id="app">
+
+  <!-- Header bar -->
+  <div id="kiosk-header">
+    <span class="kh-logo">SYNTHONY CUE</span>
+    <span class="kh-tc stopped" id="kh-tc">00:00:00:00</span>
+    <div class="kh-spacer"></div>
+    <span class="kh-clock" id="kh-clock">--:--:--</span>
+    <div id="hamburger" onclick="Menu.toggle()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
 
   <!-- CONDUCTOR (Stage Display) — default view -->
   <div class="view active" id="view-conductor">
@@ -281,15 +322,55 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     </div>
   </div>
 
+  <!-- SHOW OVERVIEW -->
+  <div class="view" id="view-overview">
+    <div class="ov-cue-col">
+      <div class="ov-prev">
+        <span class="ov-prev-lbl">PREV</span>
+        <span class="ov-prev-text" id="ov-prev-text">—</span>
+      </div>
+      <div class="ov-current">
+        <div class="ov-current-lbl" id="ov-current-lbl">NOW</div>
+        <div class="ov-current-text" id="ov-current-text">—</div>
+      </div>
+      <div class="ov-next">
+        <div class="ov-next-header">
+          <span class="ov-next-lbl">NEXT</span>
+          <span class="ov-next-cd" id="ov-next-cd">—</span>
+        </div>
+        <div class="ov-next-text" id="ov-next-text">—</div>
+        <div class="ov-next-bar-wrap"><div class="ov-next-bar" id="ov-next-bar"></div></div>
+      </div>
+    </div>
+    <div class="ov-setlist-col">
+      <div class="ov-col-header">
+        <span class="ov-col-title">SET LIST</span>
+        <span class="ov-col-count" id="ov-setlist-count">– / –</span>
+      </div>
+      <div class="ov-setlist-body" id="ov-setlist-body"></div>
+    </div>
+    <div class="ov-cuelist-col">
+      <div class="ov-col-header">
+        <span class="ov-col-title">CUE LIST</span>
+        <div class="ov-col-spacer"></div>
+        <select class="ov-cue-type-sel" id="ov-cue-type-sel" onchange="Overview.setCueType(this.value)">
+          <option value="any">Auto</option>
+          <option value="stage">Stage</option>
+          <option value="host">Host</option>
+          <option value="conductor">Conductor</option>
+          <option value="camera">Camera</option>
+          <option value="description">Description</option>
+        </select>
+        <span class="ov-col-count" id="ov-cuelist-count">0</span>
+      </div>
+      <div class="ov-cuelist-body" id="ov-cuelist-body"></div>
+    </div>
+  </div>
+
 </div><!-- /app -->
 
-<!-- TC corner -->
-<div id="tc-corner">--:--:--:--</div>
-
-<!-- Hamburger -->
-<div id="hamburger" onclick="Menu.toggle()">
-  <span></span><span></span><span></span>
-</div>
+<!-- TC corner (hidden — TC shown in header) -->
+<div id="tc-corner" style="display:none"></div>
 
 <!-- Menu panel -->
 <div id="menu-panel">
@@ -303,10 +384,11 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   </div>
   <div class="menu-section">
     <div class="menu-label">View</div>
-    <button class="menu-btn active" id="view-btn-conductor" onclick="switchView('conductor')">Stage Display</button>
-    <button class="menu-btn" id="view-btn-stage" onclick="switchView('stage')">Multi Cue</button>
-    <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Camera</button>
-    <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Test</button>
+    <button class="menu-btn active" id="view-btn-conductor" onclick="switchView('conductor')">Simple View</button>
+    <button class="menu-btn" id="view-btn-stage" onclick="switchView('stage')">Stage</button>
+    <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Single Cue</button>
+    <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Multi Cue</button>
+    <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
   </div>
   <div class="menu-section" id="menu-test-section" style="display:none">
     <div class="menu-label">Panel A Type</div>
@@ -364,7 +446,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 // FR, parseTC, parseDuration, formatHMSF, framesToDisplay, getCurrentSong,
 // getNextSong, getCurrentCue, getPrevCueGlobal, getNextCueGlobal,
 // durationCountdown, renderConsoleView → /cue-utils.js
-const State = { songs: [], tc: '00:00:00:00', tcFrames: 0, tcRunning: false, tcSource: 'internal' };
+const State = { songs: [], tc: '00:00:00:00', tcFrames: 0, tcRunning: false, tcSource: 'internal', config: {} };
 const testSlots = { a: localStorage.getItem('kiosk-con-slot-a') || 'stage', b: localStorage.getItem('kiosk-con-slot-b') || 'host' };
 
 // Screen identity
@@ -438,10 +520,16 @@ function renderTestView() { renderConsoleView(testSlots); }
 
 function renderCurrent() {
   document.getElementById('tc-corner').textContent = State.tc;
-  if (currentView === 'conductor') renderConductor();
+  const khTc = document.getElementById('kh-tc');
+  if (khTc) {
+    khTc.textContent = State.tc;
+    khTc.className = 'kh-tc' + (State.tcRunning ? ' running' : ' stopped');
+  }
+  if (currentView === 'conductor')   renderConductor();
   else if (currentView === 'camera') renderCamera();
-  else if (currentView === 'stage') renderStage(slots);
-  else if (currentView === 'test')  renderTestView();
+  else if (currentView === 'stage')  renderStage(slots);
+  else if (currentView === 'test')   renderTestView();
+  else if (currentView === 'overview') Overview.render();
 }
 
 // ── View switching ────────────────────────────────────────────────────────────
@@ -524,11 +612,15 @@ function handleMsg(msg) {
   switch (msg.type) {
     case 'init':
       State.songs     = msg.songs || [];
+      State.config    = msg.config || {};
       State.tcSource  = msg.tc?.source  || 'internal';
       State.tc        = msg.tc?.tc      || '00:00:00:00';
       State.tcRunning = msg.tc?.running || false;
       State.tcFrames  = 0;
       renderCurrent();
+      break;
+    case 'config_updated':
+      State.config = msg.config || {};
       break;
     case 'tc':
       State.tc       = msg.tc;
@@ -564,6 +656,19 @@ document.addEventListener('DOMContentLoaded', () => {
   switchView(currentView);
   wsConnect();
 
+  // Wall clock — update every second
+  function updateClock() {
+    const el = document.getElementById('kh-clock');
+    if (!el) return;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    el.textContent = `${hh}:${mm}:${ss}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
   // Wake lock
   if (navigator.wakeLock) {
     navigator.wakeLock.request('screen').catch(() => {});
@@ -582,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+<script src="/show-overview.js"></script>
 <script src="/stage-cue.js"></script>
 </body>
 </html>

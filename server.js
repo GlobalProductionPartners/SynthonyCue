@@ -19,7 +19,8 @@ let config = loadJSON(CONFIG_PATH, {
   oscDestinations: {},
   artnetDestinations: {},
   tcSource: 'internal',
-  artnetInterface: 'all'
+  artnetInterface: 'all',
+  cueHoldMode: 'timed'
 });
 
 let songs = loadJSON(SONGS_PATH, []);
@@ -39,8 +40,79 @@ const server = http.createServer(app);
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
-app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/',      (_req, res) => res.sendFile(path.join(__dirname, 'public', 'kiosk.html')));
+app.use(express.urlencoded({ extended: false }));
+
+// ── Session auth helpers ──────────────────────────────────────────────────────
+function getSessionToken(req) {
+  const cookie = req.headers.cookie || '';
+  const m = cookie.match(/\bsyn_sess=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function isAuthedReq(req) {
+  return getSessionToken(req) === config.editPassword;
+}
+function sessionCookie(password, expire = true) {
+  const exp = expire ? `; Expires=${new Date(Date.now() + 86400000 * 30).toUTCString()}` : '';
+  return `syn_sess=${encodeURIComponent(password)}; Path=/; HttpOnly; SameSite=Strict${exp}`;
+}
+
+// ── Login / logout ────────────────────────────────────────────────────────────
+app.get('/login', (req, res) => {
+  if (isAuthedReq(req)) { res.redirect('/admin'); return; }
+  const err = req.query.error ? '<p class="err">Incorrect password — try again.</p>' : '';
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Synthony Cue — Login</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;color:#c9d1d9;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{background:#0a0a0a;border:1px solid #222;border-radius:12px;padding:40px 36px;width:320px;display:flex;flex-direction:column;gap:20px}
+h1{font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6e7681}
+input{width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:6px;color:#c9d1d9;font-size:15px;outline:none}
+input:focus{border-color:#30d158}
+button{padding:10px;background:#30d158;color:#000;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer}
+button:hover{background:#3de66a}
+.err{font-size:12px;color:#ff453a}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Synthony Cue</h1>
+  ${err}
+  <form method="POST" action="/login">
+    <input type="password" name="password" placeholder="Admin password" autofocus>
+    <br><br>
+    <button type="submit">Enter</button>
+  </form>
+</div>
+</body>
+</html>`);
+});
+
+app.post('/login', (req, res) => {
+  if (req.body.password === config.editPassword) {
+    res.setHeader('Set-Cookie', sessionCookie(config.editPassword));
+    res.redirect('/admin');
+  } else {
+    res.redirect('/login?error=1');
+  }
+});
+
+app.get('/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', 'syn_sess=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+  res.redirect('/login');
+});
+
+// ── Admin (requires session) ──────────────────────────────────────────────────
+app.get('/admin', (req, res) => {
+  if (!isAuthedReq(req)) { res.redirect('/login'); return; }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'kiosk.html')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
@@ -55,8 +127,10 @@ function broadcastScreensList() {
   broadcast({ type: 'screens_list', screens: list });
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   clients.add(ws);
+  // Auto-auth WebSocket connections that carry a valid session cookie
+  if (isAuthedReq(req)) authedClients.set(ws, true);
   safeSend(ws, { type: 'init', songs, config: sanitiseConfig(config), tc: TC.state() });
 
   ws.on('message', (raw) => {
@@ -89,7 +163,7 @@ const TC = (() => {
   const FRAME_RATE = 25;
   let running = false, startWall = 0, offsetFrames = 0;
   let lastTC = '00:00:00:00', interval = null, source = 'internal';
-  let externalTC = null, externalWall = 0; // last received external TC + wall time
+  let externalTC = null, externalWall = 0, signalLost = true;
 
   function parse(tc) {
     if (!tc) return 0;
@@ -107,12 +181,37 @@ const TC = (() => {
     return offsetFrames + Math.floor((Date.now() - startWall) / 1000 * FRAME_RATE);
   }
   function externalFrames() {
-    // Interpolate from last received LTC value; cap at 3s to prevent runaway
-    const elapsed = Math.min(Date.now() - externalWall, 3000);
-    return externalTC + Math.floor(elapsed / 1000 * FRAME_RATE);
+    return externalTC + Math.floor((Date.now() - externalWall) / 1000 * FRAME_RATE);
   }
+  const SIGNAL_TIMEOUT_MS = 2000; // 2s without a packet = signal lost
   function tick() {
-    const frames = (source !== 'internal' && externalTC !== null) ? externalFrames() : currentFrames();
+    if (source !== 'internal') {
+      if (externalTC === null) return; // no packet received yet for this source
+      const staleness = Date.now() - externalWall;
+      if (staleness > SIGNAL_TIMEOUT_MS) {
+        if (!signalLost) {
+          signalLost = true;
+          broadcast({ type: 'tc_transport', running: false, tc: format(externalTC + Math.floor(SIGNAL_TIMEOUT_MS / 1000 * FRAME_RATE)) });
+          console.log('[TC] External signal lost');
+        }
+        return;
+      }
+      if (signalLost) {
+        signalLost = false;
+        broadcast({ type: 'tc_transport', running: true, tc: format(externalFrames()) });
+        console.log('[TC] External signal resumed');
+      }
+      const frames = externalFrames();
+      const tc = format(frames);
+      if (tc !== lastTC) {
+        lastTC = tc;
+        broadcast({ type: 'tc', tc, frames });
+        checkCueFires(frames);
+      }
+      return;
+    }
+    // Internal clock
+    const frames = currentFrames();
     const tc = format(frames);
     if (tc !== lastTC) {
       lastTC = tc;
@@ -158,7 +257,17 @@ const TC = (() => {
     if (!interval) interval = setInterval(tick, 1000 / FRAME_RATE);
     if (source !== src) { source = src; console.log(`[TC] Source switched to ${src}`); }
   }
-  function setSource(src) { source = src; console.log(`[TC] Source set to ${src}`); }
+  function setSource(src) {
+    if (src !== source && src !== 'internal') {
+      // Switching to an external source — clear stale signal state immediately
+      externalTC = null;
+      externalWall = 0;
+      signalLost = true;
+      broadcast({ type: 'tc_transport', running: false, tc: format(offsetFrames) });
+    }
+    source = src;
+    console.log(`[TC] Source set to ${src}`);
+  }
 
   return { start, stop, jam, receiveExternal, setSource, parse, format,
     state: () => ({ running, tc: format(currentFrames()), source }),
@@ -250,9 +359,9 @@ function verifyEdit(ws, msg) {
 
 function handleClientMessage(ws, msg) {
   switch (msg.type) {
-    case 'tc_start':  TC.start(msg.tc); break;
-    case 'tc_stop':   TC.stop(); break;
-    case 'tc_jam':    TC.jam(msg.tc); break;
+    case 'tc_start':  if (TC.state().source === 'internal') TC.start(msg.tc); break;
+    case 'tc_stop':   if (TC.state().source === 'internal') TC.stop();  break;
+    case 'tc_jam':    if (TC.state().source === 'internal') TC.jam(msg.tc); break;
     case 'tc_source': TC.setSource(msg.source); break;
 
     case 'apply_artnet': {
@@ -538,10 +647,11 @@ function parseSynthonySheet(rows) {
       currentSong = { id: uid(), timecode: toTC(tc), trackName, duration, bpm,
         description: trackDesc, cues: [] };
       result.push(currentSong);
-      // Capture cue content sitting on the track row itself (e.g. conductor cue on "Show start")
-      if (stageCue || hostCue || conductorCue) {
+      // Capture cue content on the track row itself (conductor, stage, host, or description at track start)
+      if (stageCue || hostCue || conductorCue || desc) {
         currentSong.cues.push(blankCue({ stageCue, hostCue, conductorCue,
-          cameraCue: cameraNotes || '', description: desc }));
+          cameraCue: cameraNotes || '', description: desc,
+          duration: desc ? (duration || '') : '' }));
       }
       continue;
     }
@@ -563,7 +673,7 @@ function parseSynthonySheet(rows) {
     if (tc === null) { errors.push(`Row ${i+1}: cue row has no TC, skipped`); continue; }
     const target = currentSong || preShow;
     const offset = Math.max(0, tc - tcToSec(target.timecode));
-    const cueDesc = [desc, cameraNotes, pyro].filter(Boolean).join(' | ');
+    const cueDesc = [desc, pyro].filter(Boolean).join(' | ');
     target.cues.push(blankCue({ offset: toTC(offset), stageCue, hostCue, conductorCue,
       cameraCue: cameraCue || cameraNotes, description: cueDesc }));
   }

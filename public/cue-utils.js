@@ -71,6 +71,12 @@ function getCurrentCue(song) {
 
 // ── Global cue helpers ────────────────────────────────────────────────────────
 
+// description uses cue.description; all other types use cue[type+'Cue']
+function _hasCueField(cue, type) {
+  if (type === 'description') return !!cue.description;
+  return !!(cue[type + 'Cue']);
+}
+
 // Past cues across ALL songs, most-recent first. skip=0 → last fired, skip=1 → one before.
 function getPrevCueGlobal(type, skip = 0) {
   const now = State.tcFrames || parseTC(State.tc);
@@ -79,7 +85,7 @@ function getPrevCueGlobal(type, skip = 0) {
     const songStart = parseTC(song.timecode);
     for (const cue of (song.cues || [])) {
       const abs = songStart + parseTC(cue.offset);
-      if (abs <= now && (!type || cue[type + 'Cue'])) candidates.push({ song, cue, absFrames: abs });
+      if (abs <= now && (!type || _hasCueField(cue, type))) candidates.push({ song, cue, absFrames: abs });
     }
   }
   candidates.sort((a, b) => a.absFrames - b.absFrames);
@@ -99,7 +105,7 @@ function getNextCueGlobal(type, skip = 0) {
     const elapsed  = now - curStart;
 
     const curCues = (curSong.cues || [])
-      .filter(c => parseTC(c.offset) > elapsed && (!type || c[type + 'Cue']))
+      .filter(c => parseTC(c.offset) > elapsed && (!type || _hasCueField(c, type)))
       .sort((a, b) => parseTC(a.offset) - parseTC(b.offset));
     for (const cue of curCues) {
       if (count++ === skip) return { song: curSong, cue, absFrames: curStart + parseTC(cue.offset) };
@@ -109,7 +115,7 @@ function getNextCueGlobal(type, skip = 0) {
       const song   = State.songs[i];
       const sStart = parseTC(song.timecode);
       const sCues  = (song.cues || [])
-        .filter(c => !type || c[type + 'Cue'])
+        .filter(c => !type || _hasCueField(c, type))
         .sort((a, b) => parseTC(a.offset) - parseTC(b.offset));
       for (const cue of sCues) {
         if (count++ === skip) return { song, cue, absFrames: sStart + parseTC(cue.offset) };
@@ -124,7 +130,7 @@ function getNextCueGlobal(type, skip = 0) {
     const sStart = parseTC(song.timecode);
     for (const cue of (song.cues || [])) {
       const abs = sStart + parseTC(cue.offset);
-      if (abs > now && (!type || cue[type + 'Cue'])) cands.push({ song, cue, absFrames: abs });
+      if (abs > now && (!type || _hasCueField(cue, type))) cands.push({ song, cue, absFrames: abs });
     }
   }
   cands.sort((a, b) => a.absFrames - b.absFrames);
@@ -229,6 +235,7 @@ function renderConsoleView(slots) {
 
   const PRE_FIRE_F = 5 * FR;
   const HOLD_F     = 5 * FR;
+  const holdMode   = State.config?.cueHoldMode || 'timed';
   const labelMap = { stage: 'STAGE CUE', host: 'HOST CUE', camera: 'CAMERA', conductor: 'CONDUCTOR', description: 'DESCRIPTION' };
 
   for (const slot of ['a', 'b']) {
@@ -237,7 +244,7 @@ function renderConsoleView(slots) {
     const lastFired   = getPrevCueGlobal(type);
     const lastElapsed = lastFired ? nowF - lastFired.absFrames : 0;
     const lastDurF    = lastFired?.cue?.duration ? parseDuration(lastFired.cue.duration) : 0;
-    const liveWindowF = lastDurF > 0 ? lastDurF : HOLD_F;
+    const liveWindowF = holdMode === 'until-next' ? Infinity : (lastDurF > 0 ? lastDurF : HOLD_F);
     const sameSong    = !song || !lastFired || lastFired.song === song;
     const isLive      = !!lastFired && lastElapsed < liveWindowF && sameSong;
     const remToNext   = nextGlobal ? durationCountdown(nextGlobal) : Infinity;
@@ -273,24 +280,30 @@ function renderConsoleView(slots) {
 
     const footCdEl  = document.getElementById(`con-foot-cd-${slot}`);
     const miniBarEl = document.getElementById(`con-mini-bar-${slot}`);
+
+    // Countdown text
     if (isLive) {
-      const remHoldF = Math.max(0, liveWindowF - lastElapsed);
-      const remSec   = Math.floor(remHoldF / FR);
-      if (footCdEl)  { footCdEl.textContent = framesToDisplay(remHoldF); footCdEl.classList.toggle('urgent', remSec <= 1); }
-      if (miniBarEl) {
-        miniBarEl.style.width = Math.min(100, Math.max(0, (remHoldF / liveWindowF) * 100)) + '%';
-        miniBarEl.className = 'con-mini-bar live' + (remSec <= 1 ? ' urgent' : '');
-      }
-    } else if (isPreFire) {
-      if (footCdEl)  { footCdEl.textContent = framesToDisplay(remToNext); footCdEl.classList.remove('urgent'); }
-      if (miniBarEl) {
-        miniBarEl.style.width = Math.min(100, Math.max(0, (remToNext / PRE_FIRE_F) * 100)) + '%';
-        miniBarEl.className = 'con-mini-bar';
-      }
-    } else {
       const remSec = isFinite(remToNext) ? Math.floor(remToNext / FR) : Infinity;
-      if (footCdEl)  { footCdEl.textContent = isFinite(remToNext) ? framesToDisplay(remToNext) : '—'; footCdEl.classList.toggle('urgent', remSec <= 10); }
-      if (miniBarEl) { miniBarEl.style.width = '0%'; miniBarEl.className = 'con-mini-bar'; }
+      if (footCdEl) { footCdEl.textContent = isFinite(remToNext) ? framesToDisplay(remToNext) : '∞'; footCdEl.classList.toggle('urgent', remSec <= 10); }
+    } else if (isPreFire || isFinite(remToNext)) {
+      const remSec = Math.floor(remToNext / FR);
+      if (footCdEl) { footCdEl.textContent = framesToDisplay(remToNext); footCdEl.classList.toggle('urgent', remSec <= 5); }
+    } else {
+      if (footCdEl) { footCdEl.textContent = '—'; footCdEl.classList.remove('urgent'); }
+    }
+
+    // Progress bar: elapsed since last cue / total gap to next cue
+    if (miniBarEl) {
+      const lastAbsF = lastFired ? lastFired.absFrames : null;
+      const nextAbsF = nextGlobal ? nextGlobal.absFrames : null;
+      if (lastAbsF !== null && nextAbsF !== null && nextAbsF > lastAbsF) {
+        const pct = Math.min(100, Math.max(0, (nowF - lastAbsF) / (nextAbsF - lastAbsF) * 100));
+        miniBarEl.style.width = pct + '%';
+        miniBarEl.className = 'con-mini-bar' + (isLive ? ' live' : '');
+      } else {
+        miniBarEl.style.width = isLive ? '100%' : '0%';
+        miniBarEl.className = 'con-mini-bar' + (isLive ? ' live' : '');
+      }
     }
 
     const nowLblEl  = document.getElementById(`con-now-lbl-${slot}`);

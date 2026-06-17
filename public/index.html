@@ -8,6 +8,7 @@
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Synthony Cue&quot;,&quot;short_name&quot;:&quot;CueSystem&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#060809&quot;,&quot;theme_color&quot;:&quot;#060809&quot;}">
 <link rel="stylesheet" href="/stage-cue.css">
 <link rel="stylesheet" href="/cue-console.css">
+<link rel="stylesheet" href="/show-overview.css">
 <style>
 /* ── Reset & Base ──────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -68,6 +69,7 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
   white-space: nowrap;
 }
 .btn:hover { background: var(--bg); border-color: var(--dim); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 .btn.primary { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
 .btn.primary:hover { opacity: 0.85; }
 .btn.danger  { background: var(--red);  color: #fff; border-color: var(--red); }
@@ -336,6 +338,7 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
 .col-host    { color: var(--amber); }
 .col-camera  { color: var(--purple); }
 .col-conductor { color: var(--cyan); }
+.col-desc      { color: var(--dim); }
 .col-osc     { color: var(--blue); }
 .col-artnet  { color: #ff6b35; }
 .row-actions { display: flex; gap: 4px; }
@@ -378,6 +381,25 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
 }
 .modal h2 { font-family: var(--font-ui); font-size: 20px; }
 .modal-error { color: var(--red); font-size: 13px; }
+.jam-song-list {
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px;
+  display: flex; flex-direction: column;
+}
+.jam-song-row {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 9px 12px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.1s;
+}
+.jam-song-row:last-child { border-bottom: none; }
+.jam-song-row:hover { background: var(--bg3); }
+.jam-song-row.selected { background: rgba(0,229,255,0.08); border-left: 3px solid var(--cyan); padding-left: 9px; }
+.jam-song-num { font-family: var(--font-tc); font-size: 10px; color: var(--dim); min-width: 16px; text-align: right; flex-shrink: 0; }
+.jam-song-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jam-song-tc { font-family: var(--font-tc); font-size: 11px; color: var(--dim); flex-shrink: 0; }
+.jam-divider { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 11px; }
+.jam-divider::before, .jam-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* ── Import Overlay ────────────────────────────────────────────────────────── */
 #import-drop-overlay {
@@ -452,14 +474,12 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
 
   <!-- TABS -->
   <div id="view-tabs">
-    <button class="tab" data-view="dashboard">Dashboard</button>
-    <button class="tab" data-view="waterfall">Waterfall</button>
+    <button class="tab" data-view="overview">Show Overview</button>
+    <button class="tab" data-view="conductor">Simple View</button>
+    <button class="tab" data-view="camera">Single Cue</button>
     <button class="tab" data-view="stage">Multi Cue</button>
-    <button class="tab" data-view="camera">Camera</button>
-    <button class="tab" data-view="conductor">Stage Display</button>
     <button class="tab" data-view="editor">Cue Editor</button>
     <button class="tab" data-view="settings">Settings</button>
-    <button class="tab" data-view="test">Test</button>
   </div>
 
   <!-- VIEWS -->
@@ -505,20 +525,6 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
       </div>
     </div>
 
-    <!-- WATERFALL -->
-    <div class="view" id="view-waterfall">
-      <div class="waterfall-controls">
-        <span style="font-size:12px;color:var(--dim)">Filter:</span>
-        <button class="pill track active"  data-filter="track"     onclick="WF.toggleFilter('track',this)">Track</button>
-        <button class="pill stage active"  data-filter="stage"     onclick="WF.toggleFilter('stage',this)">Stage</button>
-        <button class="pill host active"   data-filter="host"      onclick="WF.toggleFilter('host',this)">Host</button>
-        <button class="pill camera active" data-filter="camera"    onclick="WF.toggleFilter('camera',this)">Camera</button>
-        <button class="pill conductor active" data-filter="conductor" onclick="WF.toggleFilter('conductor',this)">Conductor</button>
-      </div>
-      <div id="waterfall-scroll">
-        <div id="waterfall-rows"></div>
-      </div>
-    </div>
 
     <!-- MULTI CUE -->
     <div class="view" id="view-stage">
@@ -658,8 +664,8 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
         <a class="btn" href="/api/export/xlsx" download>Export XLSX</a>
         <a class="btn" href="/api/export/json" download>Export JSON</a>
         <div class="spacer"></div>
-        <button class="btn" id="btn-edit-auth" style="color:var(--amber)">🔒 Unlock Editor</button>
-        <button class="btn primary" id="btn-save-cues" style="display:none">Save Songs</button>
+        <a class="btn" href="/logout" style="color:var(--dim)">Logout</a>
+        <button class="btn primary" id="btn-save-cues">Save Songs</button>
       </div>
       <div id="cue-table-wrap">
         <table id="cue-table">
@@ -671,7 +677,9 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
               <th>BPM</th>
               <th class="col-stage">Stage Cue</th>
               <th class="col-host">Host Cue</th>
+              <th class="col-conductor">Conductor</th>
               <th class="col-camera">Camera Cue</th>
+              <th class="col-desc">Description</th>
               <th></th>
             </tr>
           </thead>
@@ -714,7 +722,6 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
               </select>
               <div id="artnet-iface-status" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
             </div>
-            <button class="btn" style="background:var(--green);color:#000;margin-top:4px" onclick="Settings.applyArtNet()">Apply</button>
           </div>
           <div id="ltc-device-group" style="display:none">
             <div class="form-group">
@@ -727,9 +734,7 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
               <div id="ltc-device-status" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
             </div>
             <div class="form-group" id="ltc-channel-group" style="display:none">
-              <label class="form-label">LTC Channel
-                <button class="btn" style="float:right;font-size:11px;padding:2px 8px;background:var(--green);color:#000" onclick="Settings.applyLTC()">Apply</button>
-              </label>
+              <label class="form-label">LTC Channel</label>
               <select class="form-input" id="cfg-ltc-channel"></select>
             </div>
             <div class="form-group">
@@ -740,6 +745,7 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
               <div id="ltc-vu-db" style="font-family:var(--font-tc);font-size:11px;color:var(--dim);margin-top:3px">— dBFS</div>
             </div>
           </div>
+          <button class="btn primary" style="width:100%;margin-bottom:4px" onclick="Settings.applySource()">Apply Source</button>
           <div class="form-group">
             <label class="form-label">Frame Rate</label>
             <select class="form-input" id="cfg-framerate">
@@ -756,10 +762,22 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
             <input class="form-input" id="cfg-port" type="number" value="3000">
           </div>
           <div class="form-group">
-            <label class="form-label">Edit Password</label>
-            <input class="form-input" id="cfg-password" type="password" placeholder="(unchanged)">
+            <label class="form-label">Change Admin Password</label>
+            <input class="form-input" id="cfg-password" type="password" placeholder="Leave blank to keep current">
           </div>
           <button class="btn primary" id="btn-save-config">Save Settings</button>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Cue Behaviour</div>
+          <div class="form-group">
+            <label class="form-label">Cue Hold Mode</label>
+            <select class="form-input" id="cfg-cue-hold-mode" onchange="Settings.previewHoldMode(this.value)">
+              <option value="timed">Timed</option>
+              <option value="until-next">Until Next Cue</option>
+            </select>
+            <div id="cfg-hold-mode-desc" style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5"></div>
+          </div>
+          <button class="btn primary" id="btn-save-config-cue">Apply</button>
         </div>
         <div class="panel">
           <div class="panel-title">OSC Destinations</div>
@@ -788,113 +806,66 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); bord
       </div>
     </div>
 
-    <!-- TEST — V1 Console Classic -->
-    <div class="view" id="view-test">
-      <div class="con-top">
-        <div class="con-topbar">
-          <div class="con-topbar-left">
-            <span class="con-label-sm">Current Track</span>
-            <span class="con-receiving" id="con-receiving">●RECEIVING</span>
+
+    <!-- SHOW OVERVIEW -->
+    <div class="view" id="view-overview">
+      <!-- Column 1: Cue display -->
+      <div class="ov-cue-col">
+        <div class="ov-prev">
+          <span class="ov-prev-lbl">PREV</span>
+          <span class="ov-prev-text" id="ov-prev-text">—</span>
+        </div>
+        <div class="ov-current">
+          <div class="ov-current-lbl" id="ov-current-lbl">NOW</div>
+          <div class="ov-current-text" id="ov-current-text">—</div>
+        </div>
+        <div class="ov-next">
+          <div class="ov-next-header">
+            <span class="ov-next-lbl">NEXT</span>
+            <span class="ov-next-cd" id="ov-next-cd">—</span>
           </div>
-          <span class="con-bpm-key" id="con-bpm-key"></span>
-        </div>
-        <div class="con-track-name" id="con-track-name">—</div>
-        <div class="con-progress-row">
-          <span class="con-time-val" id="con-elapsed">—</span>
-          <div class="con-prog-wrap"><div class="con-prog-bar" id="con-prog-bar"></div></div>
-          <span class="con-time-val right" id="con-remaining">—</span>
-        </div>
-        <div class="con-next-row">
-          <span class="con-next-lbl">Next</span>
-          <span class="con-next-name" id="con-next-track">—</span>
-          <span class="con-next-meta" id="con-next-meta"></span>
+          <div class="ov-next-text" id="ov-next-text">—</div>
+          <div class="ov-next-bar-wrap"><div class="ov-next-bar" id="ov-next-bar"></div></div>
         </div>
       </div>
-      <div class="con-panels">
-        <div class="con-panel" id="con-panel-a">
-          <div class="con-panel-head">
-            <span class="con-panel-type" id="con-panel-a-type">STAGE CUE</span>
-            <select id="con-slot-a-type" onchange="TestStage.setSlotType('a',this.value)">
-              <option value="stage" selected>Stage</option>
-              <option value="host">Host</option>
-              <option value="camera">Camera</option>
-              <option value="conductor">Conductor</option>
-              <option value="description">Description</option>
-            </select>
-            <span class="con-pill" id="con-pill-a"></span>
-          </div>
-          <div class="con-panel-prev">
-            <span class="con-prev-lbl">PREV</span>
-            <span class="con-prev-text" id="con-prev-a">—</span>
-          </div>
-          <div class="con-panel-body"><div class="con-cue-text" id="con-cue-a">—</div></div>
-          <div class="con-panel-foot">
-            <div class="con-foot-row">
-              <span class="con-foot-label">T-MINUS</span>
-              <span class="con-foot-cd" id="con-foot-cd-a">—</span>
-            </div>
-            <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-a"></div></div>
-            <div class="con-now-row">
-              <span class="con-now-lbl prev" id="con-now-lbl-a">Now</span>
-              <span class="con-now-text prev" id="con-now-text-a">—</span>
-            </div>
-          </div>
+      <!-- Column 2: Set list -->
+      <div class="ov-setlist-col">
+        <div class="ov-col-header">
+          <span class="ov-col-title">SET LIST</span>
+          <span class="ov-col-count" id="ov-setlist-count">– / –</span>
         </div>
-        <div class="con-panel" id="con-panel-b">
-          <div class="con-panel-head">
-            <span class="con-panel-type" id="con-panel-b-type">HOST CUE</span>
-            <select id="con-slot-b-type" onchange="TestStage.setSlotType('b',this.value)">
-              <option value="stage">Stage</option>
-              <option value="host" selected>Host</option>
-              <option value="camera">Camera</option>
-              <option value="conductor">Conductor</option>
-              <option value="description">Description</option>
-            </select>
-            <span class="con-pill" id="con-pill-b"></span>
-          </div>
-          <div class="con-panel-prev">
-            <span class="con-prev-lbl">PREV</span>
-            <span class="con-prev-text" id="con-prev-b">—</span>
-          </div>
-          <div class="con-panel-body"><div class="con-cue-text" id="con-cue-b">—</div></div>
-          <div class="con-panel-foot">
-            <div class="con-foot-row">
-              <span class="con-foot-label">T-MINUS</span>
-              <span class="con-foot-cd" id="con-foot-cd-b">—</span>
-            </div>
-            <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-b"></div></div>
-            <div class="con-now-row">
-              <span class="con-now-lbl prev" id="con-now-lbl-b">Now</span>
-              <span class="con-now-text prev" id="con-now-text-b">—</span>
-            </div>
-          </div>
+        <div class="ov-setlist-body" id="ov-setlist-body"></div>
+      </div>
+      <!-- Column 3: Cue list -->
+      <div class="ov-cuelist-col">
+        <div class="ov-col-header">
+          <span class="ov-col-title">CUE LIST</span>
+          <div class="ov-col-spacer"></div>
+          <select class="ov-cue-type-sel" id="ov-cue-type-sel" onchange="Overview.setCueType(this.value)">
+            <option value="any">Auto</option>
+            <option value="stage">Stage</option>
+            <option value="host">Host</option>
+            <option value="conductor">Conductor</option>
+            <option value="camera">Camera</option>
+            <option value="description">Description</option>
+          </select>
+          <span class="ov-col-count" id="ov-cuelist-count">0</span>
         </div>
+        <div class="ov-cuelist-body" id="ov-cuelist-body"></div>
       </div>
     </div>
 
   </div><!-- /view-container -->
 </div><!-- /app -->
 
-<!-- AUTH MODAL -->
-<div class="modal-overlay hidden" id="auth-modal">
-  <div class="modal">
-    <h2>Unlock Editor</h2>
-    <p style="font-size:13px;color:var(--dim)">Enter the edit password to make changes.</p>
-    <input type="password" id="auth-input" placeholder="Password" style="font-size:15px">
-    <div id="auth-error" class="modal-error" style="display:none">Incorrect password</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn primary" id="auth-submit">Unlock</button>
-      <button class="btn" id="auth-cancel">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <!-- JAM MODAL -->
 <div class="modal-overlay hidden" id="jam-modal">
-  <div class="modal">
+  <div class="modal" style="min-width:360px;max-width:460px;width:90vw">
     <h2>Jam Sync</h2>
-    <p style="font-size:13px;color:var(--dim)">Set timecode position (HH:MM:SS:FF)</p>
-    <input type="text" id="jam-input" placeholder="01:00:00:00" style="font-family:var(--font-tc);font-size:20px;letter-spacing:0.1em">
+    <div class="jam-song-list" id="jam-song-list"></div>
+    <div class="jam-divider">or enter manually</div>
+    <input type="text" id="jam-input" placeholder="HH:MM:SS:FF" style="font-family:var(--font-tc);font-size:20px;letter-spacing:0.1em;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);width:100%">
     <div style="display:flex;gap:8px">
       <button class="btn primary" id="jam-submit">Jam</button>
       <button class="btn" id="jam-cancel">Cancel</button>
@@ -932,7 +903,7 @@ const State = {
   tcRunning: false,
   tcSource: 'internal',
   localSongs: null,
-  authed: false,
+  authed: true,
   leadinSeconds: 5,
   outputLog: [],
   screens: [],
@@ -1046,19 +1017,6 @@ function handleServerMessage(msg) {
       updateTCDisplay(State.tc, State.tcRunning);
       break;
 
-    case 'auth_result':
-      if (msg.ok) {
-        State.authed = true;
-        closeAuthModal();
-        document.getElementById('btn-edit-auth').style.display = 'none';
-        document.getElementById('btn-save-cues').style.display = '';
-        document.getElementById('btn-save-config').disabled = false;
-        Editor.render();
-        if (_pendingImport) { const fn = _pendingImport; _pendingImport = null; fn(); }
-      } else {
-        document.getElementById('auth-error').style.display = '';
-      }
-      break;
 
     case 'output_log':
       addLogEntry(msg.entry);
@@ -1105,6 +1063,10 @@ function updateTCDisplay(tc, running) {
   badge.textContent = (State.tcSource || 'internal').toUpperCase();
   badge.className = running ? 'live' : '';
   badge.id = 'tc-source-badge';
+  const isInternal = (State.tcSource || 'internal') === 'internal';
+  document.getElementById('btn-start').disabled = !isInternal;
+  document.getElementById('btn-stop').disabled  = !isInternal;
+  document.getElementById('btn-jam').disabled   = !isInternal;
 }
 
 // ── Song/Cue helpers ──────────────────────────────────────────────────────────
@@ -1163,14 +1125,12 @@ const Views = {
   update(viewId) {
     this.current = viewId;
     switch(viewId) {
-      case 'dashboard':  Dash.render(); break;
-      case 'waterfall':  WF.render();   break;
       case 'stage':      Stage.render(); break;
-      case 'test':       TestStage.render(); break;
       case 'camera':     Camera.render(); break;
       case 'conductor':  Conductor.render(); break;
       case 'editor':     Editor.render(); break;
       case 'settings':   Settings.render(); break;
+      case 'overview':   Overview.render(); break;
     }
   }
 };
@@ -1470,30 +1430,31 @@ const Editor = {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--dim)">No songs. Import an XLSX or click + Add Song.</td></tr>';
       return;
     }
-    const d = State.authed ? '' : 'disabled';
     let html = '';
     songs.forEach((song, si) => {
       html += `<tr class="editor-song-row" data-si="${si}">
-        <td><input class="tc-input" type="text" value="${esc(song.timecode)}" ${d} data-si="${si}" data-field="timecode" placeholder="HH:MM:SS:FF" style="width:105px"></td>
-        <td><input class="col-track" type="text" value="${esc(song.trackName)}" ${d} data-si="${si}" data-field="trackName" style="min-width:180px;font-weight:700"></td>
-        <td><input type="text" value="${esc(song.duration)}" ${d} data-si="${si}" data-field="duration" placeholder="m:ss" style="width:60px"></td>
-        <td><input type="number" value="${song.bpm||''}" ${d} data-si="${si}" data-field="bpm" placeholder="BPM" style="width:60px"></td>
-        <td colspan="3"><input type="text" value="${esc(song.description)}" ${d} data-si="${si}" data-field="description" placeholder="Notes" style="width:100%"></td>
-        <td>${State.authed ? `<div class="row-actions">
+        <td><input class="tc-input" type="text" value="${esc(song.timecode)}" data-si="${si}" data-field="timecode" placeholder="HH:MM:SS:FF" style="width:105px"></td>
+        <td><input class="col-track" type="text" value="${esc(song.trackName)}" data-si="${si}" data-field="trackName" style="min-width:180px;font-weight:700"></td>
+        <td><input type="text" value="${esc(song.duration)}" data-si="${si}" data-field="duration" placeholder="m:ss" style="width:60px"></td>
+        <td><input type="number" value="${song.bpm||''}" data-si="${si}" data-field="bpm" placeholder="BPM" style="width:60px"></td>
+        <td colspan="3"><input type="text" value="${esc(song.description)}" data-si="${si}" data-field="description" placeholder="Notes" style="width:100%"></td>
+        <td><div class="row-actions">
           <button class="row-btn btn-add-cue" data-si="${si}">+ Cue</button>
           <button class="row-btn del btn-del-song" data-si="${si}">✕ Song</button>
-        </div>` : ''}</td>
+        </div></td>
       </tr>`;
       (song.cues || []).forEach((cue, ci) => {
         html += `<tr class="editor-cue-row" data-si="${si}" data-ci="${ci}">
-          <td style="padding-left:28px"><input type="text" value="${esc(cue.offset)}" ${d} data-si="${si}" data-ci="${ci}" data-field="offset" style="width:95px;font-family:var(--font-tc);font-size:12px;color:var(--dim)"></td>
+          <td style="padding-left:28px"><input type="text" value="${esc(cue.offset)}" data-si="${si}" data-ci="${ci}" data-field="offset" style="width:95px;font-family:var(--font-tc);font-size:12px;color:var(--dim)"></td>
           <td></td>
-          <td><input type="text" value="${esc(cue.duration||'')}" ${d} data-si="${si}" data-ci="${ci}" data-field="duration" style="width:55px;font-size:12px" placeholder="m:ss"></td>
+          <td><input type="text" value="${esc(cue.duration||'')}" data-si="${si}" data-ci="${ci}" data-field="duration" style="width:55px;font-size:12px" placeholder="m:ss"></td>
           <td></td>
-          <td><input class="col-stage" type="text" value="${esc(cue.stageCue)}" ${d} data-si="${si}" data-ci="${ci}" data-field="stageCue" style="min-width:100px"></td>
-          <td><input class="col-host"  type="text" value="${esc(cue.hostCue)}"  ${d} data-si="${si}" data-ci="${ci}" data-field="hostCue"  style="min-width:100px"></td>
-          <td><input class="col-camera" type="text" value="${esc(cue.cameraCue)}" ${d} data-si="${si}" data-ci="${ci}" data-field="cameraCue" style="min-width:100px"></td>
-          <td>${State.authed ? `<button class="row-btn del btn-del-cue" data-si="${si}" data-ci="${ci}">✕</button>` : ''}</td>
+          <td><input class="col-stage"     type="text" value="${esc(cue.stageCue)}"     data-si="${si}" data-ci="${ci}" data-field="stageCue"     style="min-width:100px"></td>
+          <td><input class="col-host"      type="text" value="${esc(cue.hostCue)}"      data-si="${si}" data-ci="${ci}" data-field="hostCue"      style="min-width:100px"></td>
+          <td><input class="col-conductor" type="text" value="${esc(cue.conductorCue)}" data-si="${si}" data-ci="${ci}" data-field="conductorCue" style="min-width:100px"></td>
+          <td><input class="col-camera"    type="text" value="${esc(cue.cameraCue)}"    data-si="${si}" data-ci="${ci}" data-field="cameraCue"    style="min-width:100px"></td>
+          <td><input class="col-desc"      type="text" value="${esc(cue.description)}"  data-si="${si}" data-ci="${ci}" data-field="description"  style="min-width:120px;color:var(--dim)"></td>
+          <td><button class="row-btn del btn-del-cue" data-si="${si}" data-ci="${ci}">✕</button></td>
         </tr>`;
       });
     });
@@ -1583,7 +1544,6 @@ const Editor = {
   },
 
   addSong() {
-    if (!State.authed) { openAuthModal(); return; }
     this.ensureLocal();
     State.localSongs.push({
       id: Date.now().toString(36), timecode: '01:00:00:00', trackName: 'New Song',
@@ -1593,7 +1553,6 @@ const Editor = {
   },
 
   save() {
-    if (!State.authed) { openAuthModal(); return; }
     wsSend({ type: 'save_songs', songs: State.localSongs || State.songs });
     State.localSongs = null;
   }
@@ -1767,6 +1726,13 @@ const Settings = {
     updateTCDisplay(State.tc, State.tcRunning);
   },
 
+  applySource() {
+    const src = document.getElementById('cfg-tc-source').value;
+    if (src === 'artnet')  this.applyArtNet();
+    else if (src === 'ltc') this.applyLTC();
+    else { wsSend({ type: 'tc_source', source: src }); State.tcSource = src; updateTCDisplay(State.tc, State.tcRunning); }
+  },
+
   updateVU(db) {
     // Only show VU when on LTC settings view
     const bar   = document.getElementById('ltc-vu-bar');
@@ -1821,7 +1787,6 @@ const Settings = {
   },
 
   addOSCDest() {
-    if (!State.authed) { openAuthModal(); return; }
     const name = 'dest-' + Date.now().toString(36).slice(-4);
     if (!State.config.oscDestinations) State.config.oscDestinations = {};
     State.config.oscDestinations[name] = { host: '127.0.0.1', port: 8000 };
@@ -1848,7 +1813,6 @@ const Settings = {
   },
 
   addArtNetDest() {
-    if (!State.authed) { openAuthModal(); return; }
     const name = 'dest-' + Date.now().toString(36).slice(-4);
     if (!State.config.artnetDestinations) State.config.artnetDestinations = {};
     State.config.artnetDestinations[name] = { host: '127.0.0.1' };
@@ -1856,13 +1820,13 @@ const Settings = {
   },
 
   save() {
-    if (!State.authed) { openAuthModal(); return; }
     const cfg = {
       tcSource:           document.getElementById('cfg-tc-source').value,
       mtcPort:            document.getElementById('cfg-mtc-port').value || '',
       ltcDevice:          document.getElementById('cfg-ltc-device').value || '',
       ltcChannel:         parseInt(document.getElementById('cfg-ltc-channel').value) || 1,
       port:               parseInt(document.getElementById('cfg-port').value),
+      cueHoldMode:        document.getElementById('cfg-cue-hold-mode').value,
       oscDestinations:    State.config.oscDestinations    || {},
       artnetDestinations: State.config.artnetDestinations || {},
     };
@@ -1870,13 +1834,25 @@ const Settings = {
     if (pw) cfg.editPassword = pw;
     wsSend({ type: 'save_config', config: cfg });
     wsSend({ type: 'tc_source',   source: cfg.tcSource });
+  },
+
+  previewHoldMode(val) {
+    const desc = document.getElementById('cfg-hold-mode-desc');
+    if (!desc) return;
+    if (val === 'until-next') {
+      desc.textContent = 'Cue stays on screen until the next timecode fires, no matter how much time passes.';
+    } else {
+      desc.textContent = 'Cue clears after its set duration, or after 5 seconds if no duration is set.';
+    }
   }
 };
 
 function applyConfigToUI() {
   const src = State.config.tcSource || 'internal';
-  document.getElementById('cfg-tc-source').value = src;
-  document.getElementById('cfg-port').value      = State.config.port || 3000;
+  document.getElementById('cfg-tc-source').value    = src;
+  document.getElementById('cfg-port').value         = State.config.port || 3000;
+  document.getElementById('cfg-cue-hold-mode').value = State.config.cueHoldMode || 'timed';
+  Settings.previewHoldMode(State.config.cueHoldMode || 'timed');
   Settings.onSourceChange(src);
   Settings.renderOSCDests();
   Settings.renderArtNetDests();
@@ -1906,24 +1882,6 @@ function renderLog() {
 
 const App = { clearLog() { State.outputLog = []; renderLog(); } };
 
-// ══════════════════════════════════════════════════════════════════════════════
-// AUTH MODAL
-// ══════════════════════════════════════════════════════════════════════════════
-function openAuthModal() {
-  document.getElementById('auth-modal').classList.remove('hidden');
-  document.getElementById('auth-input').focus();
-}
-
-function closeAuthModal() {
-  document.getElementById('auth-modal').classList.add('hidden');
-  document.getElementById('auth-input').value = '';
-  document.getElementById('auth-error').style.display = 'none';
-}
-
-function submitAuth() {
-  const pw = document.getElementById('auth-input').value;
-  wsSend({ type: 'auth', password: pw });
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TAB ROUTING
@@ -1940,8 +1898,6 @@ function switchTab(viewId) {
 // ══════════════════════════════════════════════════════════════════════════════
 // XLSX IMPORT
 // ══════════════════════════════════════════════════════════════════════════════
-let _pendingImport = null; // survives auth redirect
-
 async function importXLSX(file) {
   const fd = new FormData();
   fd.append('file', file);
@@ -1984,12 +1940,6 @@ async function importXLSX(file) {
       );
     }
   };
-
-  if (!State.authed) {
-    _pendingImport = doImport;
-    openAuthModal();
-    return;
-  }
 
   doImport();
 }
@@ -2091,6 +2041,35 @@ function renderTestStage(slots) { renderConsoleView(slots); }
 
 
 
+function openJamModal() {
+  const songs = (State.songs || []).filter(s =>
+    !s.trackName?.toLowerCase().includes('next track')
+  );
+  const list = document.getElementById('jam-song-list');
+  if (songs.length) {
+    list.innerHTML = songs.map((s, i) => `
+      <div class="jam-song-row" data-tc="${s.timecode || '00:00:00:00'}" data-idx="${i}">
+        <span class="jam-song-num">${i + 1}</span>
+        <span class="jam-song-name">${s.trackName || '—'}</span>
+        <span class="jam-song-tc">${s.timecode || '00:00:00:00'}</span>
+      </div>`).join('');
+    list.querySelectorAll('.jam-song-row').forEach(row => {
+      row.addEventListener('click', () => {
+        list.querySelectorAll('.jam-song-row').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        document.getElementById('jam-input').value = row.dataset.tc;
+      });
+    });
+    list.style.display = '';
+  } else {
+    list.innerHTML = '';
+    list.style.display = 'none';
+  }
+  document.getElementById('jam-input').value = '';
+  document.getElementById('jam-modal').classList.remove('hidden');
+  document.getElementById('jam-input').focus();
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // EVENT WIRING
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2107,10 +2086,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-stop').addEventListener('click', () => {
     wsSend({ type: 'tc_stop' });
   });
-  document.getElementById('btn-jam').addEventListener('click', () => {
-    document.getElementById('jam-modal').classList.remove('hidden');
-    document.getElementById('jam-input').focus();
-  });
+  document.getElementById('btn-jam').addEventListener('click', openJamModal);
 
   // Jam modal
   document.getElementById('jam-submit').addEventListener('click', () => {
@@ -2125,13 +2101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') document.getElementById('jam-submit').click();
   });
 
-  // Auth modal
-  document.getElementById('btn-edit-auth').addEventListener('click', openAuthModal);
-  document.getElementById('auth-submit').addEventListener('click', submitAuth);
-  document.getElementById('auth-cancel').addEventListener('click', closeAuthModal);
-  document.getElementById('auth-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitAuth();
-  });
 
   // Editor
   Editor.initEvents();
@@ -2144,9 +2113,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.files[0]) importXLSX(e.target.files[0]);
   });
 
-  // Settings
+  // Settings — always clickable; Settings.save() handles auth gating internally
   document.getElementById('btn-save-config').addEventListener('click', () => Settings.save());
-  document.getElementById('btn-save-config').disabled = !State.authed;
+  document.getElementById('btn-save-config-cue').addEventListener('click', () => Settings.save());
   document.getElementById('btn-add-osc-dest').addEventListener('click', () => Settings.addOSCDest());
   document.getElementById('btn-add-artnet-dest').addEventListener('click', () => Settings.addArtNetDest());
 
@@ -2194,6 +2163,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wsConnect();
 });
 </script>
+<script src="/show-overview.js"></script>
 <script src="/stage-cue.js"></script>
 </body>
 </html>

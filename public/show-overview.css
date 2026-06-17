@@ -1,0 +1,294 @@
+/* ── Show Overview ──────────────────────────────────────────────────────────── */
+
+#view-overview.active {
+  display: grid !important;
+  flex-direction: unset;
+  grid-template-columns: 3fr 1fr 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Column 1: Cue display ──────────────────────────────────────────────────── */
+.ov-cue-col {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* PREV — compressed, heavily faded */
+.ov-prev {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 22px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+.ov-prev-lbl {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+.ov-prev-text {
+  font-size: clamp(11px, 1.2vw, 16px);
+  font-weight: 500;
+  color: var(--dim);
+  text-transform: uppercase;
+  opacity: 0.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  font-style: italic;
+}
+
+/* NOW — the hero area */
+.ov-current {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 32px 28px;
+  overflow: hidden;
+  min-height: 0;
+}
+.ov-current-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+.ov-current-lbl.live {
+  color: var(--green);
+  opacity: 1;
+}
+.ov-current-text {
+  font-weight: 800;
+  color: rgba(255,255,255,0.25);
+  line-height: 1.05;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 72px;
+  letter-spacing: -0.01em;
+}
+.ov-current-text.live {
+  color: var(--green);
+}
+
+/* NEXT — amber footer */
+.ov-next {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 14px 22px 14px;
+  background: rgba(255,214,10,0.04);
+}
+.ov-next-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.ov-next-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.ov-next-cd {
+  font-family: var(--font-tc);
+  font-size: clamp(11px, 1.1vw, 14px);
+  font-weight: 700;
+  color: var(--amber);
+  opacity: 0.8;
+}
+.ov-next-text {
+  font-size: clamp(18px, 2.4vw, 34px);
+  font-weight: 700;
+  color: var(--amber);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 10px;
+  line-height: 1.1;
+}
+.ov-next-bar-wrap {
+  height: 3px;
+  background: rgba(255,214,10,0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ov-next-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--amber);
+  border-radius: 2px;
+}
+
+/* ── Column headers (shared) ─────────────────────────────────────────────────── */
+.ov-col-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.ov-col-title {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.ov-col-spacer { flex: 1; }
+.ov-col-count {
+  font-family: var(--font-tc);
+  font-size: 10px;
+  color: var(--dim);
+  opacity: 0.6;
+}
+.ov-cue-type-sel {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--dim);
+  font-size: 9px;
+  font-family: var(--font-ui);
+  padding: 2px 6px;
+  cursor: pointer;
+  appearance: auto;
+}
+.ov-cue-type-sel:focus { outline: none; border-color: var(--dim); }
+
+/* ── Column 2: Set list ──────────────────────────────────────────────────────── */
+.ov-setlist-col {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.ov-setlist-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ov-song-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: opacity 0.15s;
+}
+.ov-song-item.past { opacity: 0.28; }
+.ov-song-item.active {
+  background: rgba(48,209,88,0.07);
+  border-left: 3px solid var(--green);
+  padding-left: 9px;
+  opacity: 1;
+}
+.ov-song-num {
+  font-family: var(--font-tc);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dim);
+  min-width: 18px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.ov-song-item.active .ov-song-num { color: var(--amber); }
+.ov-song-info { flex: 1; overflow: hidden; min-width: 0; }
+.ov-song-name {
+  font-size: clamp(11px, 1.1vw, 14px);
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ov-song-item.active .ov-song-name { color: var(--green); }
+.ov-song-meta {
+  font-family: var(--font-tc);
+  font-size: 9px;
+  color: var(--dim);
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+/* ── Column 3: Cue list ──────────────────────────────────────────────────────── */
+.ov-cuelist-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ov-cuelist-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ov-cue-song-hdr {
+  padding: 5px 12px 4px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  transition: opacity 0.15s;
+}
+.ov-cue-song-hdr.past { opacity: 0.3; }
+.ov-cue-song-hdr.active {
+  color: var(--green);
+  background: rgba(48,209,88,0.06);
+  opacity: 1;
+}
+
+.ov-cue-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: opacity 0.15s;
+}
+.ov-cue-row.past { opacity: 0.25; }
+.ov-cue-row.active {
+  background: rgba(48,209,88,0.08);
+  border-left: 3px solid var(--green);
+  padding-left: 9px;
+  opacity: 1;
+}
+.ov-cue-tc {
+  font-family: var(--font-tc);
+  font-size: 10px;
+  color: var(--dim);
+}
+.ov-cue-row.active .ov-cue-tc { color: rgba(48,209,88,0.6); }
+.ov-cue-text {
+  font-size: clamp(11px, 1.1vw, 14px);
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.ov-cue-row.active .ov-cue-text { color: var(--green); }
