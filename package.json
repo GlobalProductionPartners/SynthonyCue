@@ -1,6 +1,6 @@
 {
   "name": "synthony-cue",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "description": "Synthony live show cue system",
   "main": "electron/main.js",
   "scripts": {
