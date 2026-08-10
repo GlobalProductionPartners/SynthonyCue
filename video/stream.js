@@ -38,9 +38,21 @@ function buildArgs(url, o) {
   const args = [];
   const isNetwork = /^(rtsp|rtmp|rtmps|srt|udp|rtp|http|https):/i.test(url);
 
-  // TCP for RTSP: UDP drops badly on congested show networks.
-  if (/^rtsp:/i.test(url)) args.push('-rtsp_transport', 'tcp');
-  if (isNetwork) args.push('-fflags', 'nobuffer', '-flags', 'low_delay');
+  if (/^rtsp:/i.test(url)) {
+    // TCP is safer on congested show networks; UDP shaves latency but drops.
+    args.push('-rtsp_transport', o.transport === 'udp' ? 'udp' : 'tcp');
+    // Kill the RTSP jitter/reorder buffer — the single biggest latency source
+    // on a LAN where packets don't actually reorder.
+    args.push('-reorder_queue_size', '0', '-max_delay', '0');
+  }
+  if (isNetwork) {
+    // Don't sit analysing the stream, and don't pre-buffer: show frames as
+    // they arrive. probesize/analyzeduration low = fast first frame + no lead
+    // buffer; nobuffer/low_delay = no decode-side queue.
+    args.push('-fflags', 'nobuffer', '-flags', 'low_delay',
+              '-avioflags', 'direct',
+              '-probesize', '32', '-analyzeduration', '0');
+  }
   // A live network source paces itself. Generators and files do not — without
   // -re ffmpeg races ahead and emits frames as fast as the CPU allows, which
   // saturates the link (measured: 116 Mbps from a 10fps test pattern).
@@ -52,6 +64,7 @@ function buildArgs(url, o) {
   args.push(
     '-an',                                   // cue displays never want audio
     '-vf', `scale=${o.width}:-2,fps=${o.fps}`,
+    '-fps_mode', 'drop',                     // drop late frames, never queue them
     '-f', 'mjpeg',
     '-q:v', String(o.quality),               // 2 best … 31 worst
     '-'
@@ -127,6 +140,12 @@ function spawnFFmpeg() {
 }
 
 function writeFrame(res, frame) {
+  // Latency control: if this client already has more than ~1.5 frames waiting
+  // in its socket buffer, it is falling behind — drop this frame rather than
+  // pile on. MJPEG has no inter-frame dependency, so a dropped frame costs
+  // nothing and the viewer always sees the freshest available image. Without
+  // this, a slightly-slow consumer accumulates seconds of lag (bufferbloat).
+  if (res.writableLength > frame.length * 1.5) return;
   try {
     res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`);
     res.write(frame);
@@ -143,6 +162,7 @@ exports.configure = function configure(config, statusCb) {
     width:   Math.min(1920, Math.max(160, parseInt(config.videoWidth) || 1280)),
     fps:     Math.min(60, Math.max(1, parseInt(config.videoFps) || 15)),
     quality: Math.min(31, Math.max(2, parseInt(config.videoQuality) || 6)),
+    transport: config.videoTransport === 'udp' ? 'udp' : 'tcp',
     verbose: !!config.videoVerbose
   };
   return opts;

@@ -652,6 +652,7 @@ function handleClientMessage(ws, msg) {
       if (msg.width   != null) config.videoWidth   = parseInt(msg.width)   || 1280;
       if (msg.fps     != null) config.videoFps     = parseInt(msg.fps)     || 15;
       if (msg.quality != null) config.videoQuality = parseInt(msg.quality) || 6;
+      if (msg.transport)          config.videoTransport = msg.transport === 'udp' ? 'udp' : 'tcp';
       saveJSON(CONFIG_PATH, config);
       Video.configure(config, broadcastVideoStatus);
       Video.restart();

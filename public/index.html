@@ -802,6 +802,13 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
               <label class="form-label" for="cfg-video-quality">Quality</label>
               <input class="form-input" id="cfg-video-quality" type="number" min="2" max="31" value="6">
             </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-video-transport">RTSP</label>
+              <select class="form-input" id="cfg-video-transport">
+                <option value="tcp">TCP (reliable)</option>
+                <option value="udp">UDP (lower latency)</option>
+              </select>
+            </div>
           </div>
           <div class="video-preview-wrap">
             <img id="video-preview" class="video-preview" alt="">
@@ -1817,6 +1824,7 @@ const Settings = {
     set('cfg-video-width',   c.videoWidth   || 1280);
     set('cfg-video-fps',     c.videoFps     || 15);
     set('cfg-video-quality', c.videoQuality || 6);
+    const t = document.getElementById('cfg-video-transport'); if (t) t.value = c.videoTransport || 'tcp';
   },
 
   applyVideo(sourceOverride) {
@@ -1833,7 +1841,8 @@ const Settings = {
       source,
       width:   val('cfg-video-width', 1280),
       fps:     val('cfg-video-fps', 15),
-      quality: val('cfg-video-quality', 6)
+      quality: val('cfg-video-quality', 6),
+      transport: document.getElementById('cfg-video-transport')?.value || 'tcp'
     });
     setTimeout(() => this.refreshVideoPreview(), 600);
   },
