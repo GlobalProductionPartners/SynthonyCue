@@ -831,7 +831,17 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
               same bundle automatically (on boot and every 6h).
             </div>
           </div>
+          <div class="form-group">
+            <label class="form-label" for="upd-url">Update source (GitHub repo or URL)</label>
+            <input class="form-input" id="upd-url" type="text" placeholder="github:owner/repo  or  https://…/bundle.tar.gz">
+            <div class="form-hint">
+              GitHub form pulls the latest release's .tar.gz asset (private repos
+              need updateToken set in the server's config.json). Check downloads
+              and stages it; Apply installs it. Clients follow automatically.
+            </div>
+          </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="btn-upd-check">Check Source</button>
             <button class="btn" id="btn-upd-upload">Upload</button>
             <button class="btn primary" id="btn-upd-apply">Apply to Server</button>
           </div>
@@ -1820,8 +1830,26 @@ const Settings = {
       const r = document.getElementById('upd-running');
       const u = document.getElementById('upd-uploaded');
       if (r) r.textContent = st.running || '—';
+      const uUrl = document.getElementById('upd-url');
+      if (uUrl && !uUrl.value && State.config?.updateUrl) uUrl.value = State.config.updateUrl;
       if (u) u.textContent = st.uploaded ? `${st.uploaded.version} (${(st.uploaded.size/1048576).toFixed(1)} MB)` : 'none';
     } catch {}
+  },
+  async checkUpdate() {
+    const out = document.getElementById('upd-result');
+    const url = (document.getElementById('upd-url')?.value || '').trim();
+    out.className = 'probe-result busy'; out.textContent = 'Checking source…';
+    try {
+      const res = await fetch('/api/update/check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(url ? { url } : {})
+      }).then(r => r.json());
+      if (res.ok) {
+        out.className = 'probe-result ok';
+        out.textContent = `Staged ${res.version} (${res.sizeMB} MB${res.release ? ', release ' + res.release : ''}) — press Apply to install`;
+      } else { out.className = 'probe-result bad'; out.textContent = 'FAILED — ' + (res.error || 'unknown'); }
+    } catch (e) { out.className = 'probe-result bad'; out.textContent = 'FAILED — ' + e.message; }
+    this.refreshUpdate();
   },
   async uploadUpdate() {
     const inp = document.getElementById('upd-file');
@@ -2482,6 +2510,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-test-video').addEventListener('click', () => Settings.applyTestPattern());
   document.getElementById('btn-preview-video').addEventListener('click', () => Settings.refreshVideoPreview());
   document.getElementById('btn-probe-video').addEventListener('click', () => Settings.probeVideo());
+  document.getElementById('btn-upd-check').addEventListener('click', () => Settings.checkUpdate());
   document.getElementById('btn-upd-upload').addEventListener('click', () => Settings.uploadUpdate());
   document.getElementById('btn-upd-apply').addEventListener('click', () => Settings.applyUpdate());
   document.getElementById('btn-add-osc-dest').addEventListener('click', () => Settings.addOSCDest());

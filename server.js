@@ -86,6 +86,46 @@ const RUNNING_VERSION = (() => {
   try { return fs.readFileSync(path.join(__dirname, 'VERSION'), 'utf8').trim(); }
   catch { return 'dev'; }
 })();
+// Validate a bundle buffer and store it as the fleet's latest. The VERSION
+// inside the tarball is authoritative no matter where the bytes came from.
+function storeBundle(buffer) {
+  const { execFileSync } = require('child_process');
+  fs.mkdirSync(UPDATES_DIR, { recursive: true });
+  const tmp = path.join(UPDATES_DIR, 'incoming.tar.gz');
+  fs.writeFileSync(tmp, buffer);
+  try {
+    const list = execFileSync('tar', ['tzf', tmp], { timeout: 30000 }).toString();
+    if (!/\/server\.js$/m.test(list) || !/\/VERSION$/m.test(list)) {
+      throw new Error('Not a Synthony bundle (missing server.js/VERSION)');
+    }
+    const vline = execFileSync('bash', ['-c', `tar xzOf ${JSON.stringify(tmp)} --wildcards '*/VERSION' | head -1`], { timeout: 30000 }).toString().trim();
+    fs.renameSync(tmp, path.join(UPDATES_DIR, 'latest.tar.gz'));
+    fs.writeFileSync(path.join(UPDATES_DIR, 'latest.version'), vline);
+    return vline;
+  } catch (e) { try { fs.unlinkSync(tmp); } catch {} throw e; }
+}
+
+// Resolve an update source to a downloadable bundle URL.
+//   github:owner/repo  or  https://github.com/owner/repo
+//     → latest release asset matching *.tar.gz (config.updateToken for private)
+//   any other https://…tar.gz → used directly
+async function resolveUpdateSource(src) {
+  const gh = /^(?:github:|https?:\/\/github\.com\/)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(String(src).trim());
+  if (!gh) return { url: String(src).trim(), headers: {} };
+  const headers = { 'User-Agent': 'synthony-cue', 'Accept': 'application/vnd.github+json' };
+  if (config.updateToken) headers['Authorization'] = `Bearer ${config.updateToken}`;
+  const rel = await fetch(`https://api.github.com/repos/${gh[1]}/${gh[2]}/releases/latest`, { headers });
+  if (!rel.ok) throw new Error(`GitHub: ${rel.status} ${rel.statusText} for ${gh[1]}/${gh[2]}`);
+  const j = await rel.json();
+  const asset = (j.assets || []).find(a => /\.tar\.gz$/.test(a.name));
+  if (!asset) throw new Error(`Release ${j.tag_name} has no .tar.gz asset`);
+  // Private repos must download via the API asset URL with octet-stream.
+  if (config.updateToken) {
+    return { url: asset.url, headers: { ...headers, 'Accept': 'application/octet-stream' }, tag: j.tag_name, name: asset.name };
+  }
+  return { url: asset.browser_download_url, headers: {}, tag: j.tag_name, name: asset.name };
+}
+
 function latestUploaded() {
   try {
     const f = path.join(UPDATES_DIR, 'latest.tar.gz');
@@ -346,7 +386,7 @@ function broadcastVideoStatus(st) {
 }
 
 function sanitiseConfig(cfg) {
-  const { editPassword, sessionSecret, ...safe } = cfg;
+  const { editPassword, sessionSecret, updateToken, ...safe } = cfg;
   return safe;
 }
 
@@ -853,22 +893,31 @@ app.post('/api/update/upload', updateUpload.single('bundle'), (req, res) => {
   if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
   if (!req.file) { res.status(400).json({ error: 'No file' }); return; }
   try {
-    // Validate before accepting: must be a bundle with server.js + VERSION.
-    fs.mkdirSync(UPDATES_DIR, { recursive: true });
-    const tmp = path.join(UPDATES_DIR, 'incoming.tar.gz');
-    fs.writeFileSync(tmp, req.file.buffer);
-    const { execFileSync } = require('child_process');
-    const list = execFileSync('tar', ['tzf', tmp], { timeout: 30000 }).toString();
-    if (!/\/server\.js$/m.test(list) || !/\/VERSION$/m.test(list)) {
-      fs.unlinkSync(tmp);
-      res.status(400).json({ error: 'Not a Synthony bundle (missing server.js/VERSION)' }); return;
-    }
-    const vline = execFileSync('bash', ['-c', `tar xzOf ${JSON.stringify(tmp)} --wildcards '*/VERSION' | head -1`], { timeout: 30000 }).toString().trim();
-    fs.renameSync(tmp, path.join(UPDATES_DIR, 'latest.tar.gz'));
-    fs.writeFileSync(path.join(UPDATES_DIR, 'latest.version'), vline);
+    const vline = storeBundle(req.file.buffer);
     flightLog('UPDATE-UPLOADED', vline);
     res.json({ ok: true, version: vline, running: RUNNING_VERSION });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Pull an update from a remote source (GitHub release or direct URL).
+// Body: { url } — persisted to config so Check works with one click next time.
+app.post('/api/update/check', async (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const src = String(req.body?.url || config.updateUrl || '').trim();
+  if (!src) { res.status(400).json({ error: 'No update source configured' }); return; }
+  if (req.body?.url && req.body.url !== config.updateUrl) {
+    config.updateUrl = src; saveJSON(CONFIG_PATH, config);
+  }
+  try {
+    const r = await resolveUpdateSource(src);
+    const dl = await fetch(r.url, { headers: r.headers, redirect: 'follow' });
+    if (!dl.ok) throw new Error(`Download: ${dl.status} ${dl.statusText}`);
+    const buf = Buffer.from(await dl.arrayBuffer());
+    if (buf.length > 200 * 1024 * 1024) throw new Error('Bundle too large');
+    const vline = storeBundle(buf);
+    flightLog('UPDATE-FETCHED', `${vline} from ${src}${r.tag ? ' (' + r.tag + ')' : ''}`);
+    res.json({ ok: true, version: vline, running: RUNNING_VERSION, source: src, release: r.tag || null, sizeMB: +(buf.length / 1048576).toFixed(1) });
+  } catch (e) { res.status(502).json({ error: e.message }); }
 });
 app.post('/api/update/apply', (req, res) => {
   if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
