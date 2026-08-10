@@ -82,7 +82,7 @@ function renderStage(slots, prefix = '') {
     const prevEl = $(`slot-${slot}-prev`);
     if (nextEl) {
       nextEl.textContent = nextGlobal ? (getField(nextGlobal.cue, type) || '—') : '—';
-      fitText(nextEl, nextEl, 20, Math.round(window.innerHeight * 0.06));
+      nextEl.style.fontSize = '';   // size is uniform now — clear any fitted leftover
     }
     if (curEl)  curEl.textContent  = nowGlobal  ? (getField(nowGlobal.cue,  type) || '—') : '—';
     if (prevEl) prevEl.textContent = prevGlobal ? (getField(prevGlobal.cue, type) || '—') : '—';

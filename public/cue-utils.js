@@ -340,7 +340,7 @@ function renderConsoleView(slots) {
         cueEl.textContent = '—';
         cueEl.classList.remove('is-live');
       }
-      fitText(cueEl, _cueBox, 18, Math.round(window.innerHeight * 0.06));
+      cueEl.style.fontSize = '';    // uniform size from CSS, not per-cue fitting
     }
 
     const footCdEl  = document.getElementById(`con-foot-cd-${slot}`);
