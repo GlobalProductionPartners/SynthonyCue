@@ -33,7 +33,9 @@ REMOTE_V=$(curl -sf --max-time 5 "${URL}api/update/status" | sed -n 's/.*"upload
 echo "$(date +%T) updating: $LOCAL_V -> $REMOTE_V"
 TMP=$(mktemp /tmp/synthony-update.XXXXXX.tar.gz)
 curl -sf --max-time 120 -o "$TMP" "${URL}api/update/bundle" || { echo "download failed"; rm -f "$TMP"; exit 1; }
-tar tzf "$TMP" | grep -q "/server.js$" || { echo "bad bundle"; rm -f "$TMP"; exit 1; }
+# grep must consume the whole stream: with pipefail, grep -q quitting early
+# SIGPIPEs tar and fails the pipeline on a perfectly good bundle.
+tar tzf "$TMP" 2>/dev/null | grep "/server.js$" >/dev/null || { echo "bad bundle"; rm -f "$TMP"; exit 1; }
 tar xzf "$TMP" -C "$DIR" --strip-components=1 && echo "extracted $REMOTE_V into $DIR"
 rm -f "$TMP"
 chmod +x "$DIR"/deploy/*.sh 2>/dev/null || true

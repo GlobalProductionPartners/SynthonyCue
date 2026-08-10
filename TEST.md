@@ -116,7 +116,16 @@ monitor, the Zowietek encoder, and a console sending Art-Net timecode.
 - [ ] Settings → LTC → device list populates from `arecord -l` (`hw:1,0` style)
 - [ ] Feed LTC → timecode locks; level meter moves
 
-## 14. Update cycle
+## 14. OTA updates
+
+- [x] Admin → Settings → UPDATES shows the running build *(verified live)*
+- [x] Upload a bundle → validated, version listed *(verified live)*
+- [x] Apply → server installs over itself and restarts in ~5s *(verified live)*
+- [x] Client pulls the stored bundle when versions differ *(verified live)*
+- [ ] Client timer fires on boot (+2min) and every 6h — check
+      `systemctl list-timers synthony-update.timer`
+
+## 15. Update cycle (manual)
 
 - [ ] Extract a new bundle over the old folder, re-run installer
 - [ ] Show data, config, saved shows and logs all survive
