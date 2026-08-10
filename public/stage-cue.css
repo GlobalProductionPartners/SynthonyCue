@@ -86,7 +86,7 @@
 }
 .stage-cue-next {
   font-family: var(--font-ui); font-size: clamp(18px, 2.8vw, 40px); font-weight: 500;
-  color: var(--text); line-height: 1.15; text-transform: uppercase;
+  color: var(--text); line-height: 1.15;
   letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden;
 }
 .stage-cue-progress-wrap {
@@ -108,7 +108,7 @@
 }
 .stage-cue-current {
   font-family: var(--font-ui); font-size: clamp(16px, 2vw, 38px); font-weight: 700;
-  color: var(--text); line-height: 1.2; text-transform: uppercase;
+  color: var(--text); line-height: 1.2;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -124,7 +124,7 @@
 }
 .stage-cue-prev {
   font-family: var(--font-ui); font-size: clamp(12px, 1.5vw, 24px);
-  color: var(--text-3); text-transform: uppercase;
+  color: var(--text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 

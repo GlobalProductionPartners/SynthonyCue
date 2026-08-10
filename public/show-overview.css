@@ -45,7 +45,7 @@
   font-size: clamp(11px, 1.2vw, 16px);
   font-weight: 500;
   color: var(--text-3);
-  text-transform: uppercase;
+ 
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -76,7 +76,7 @@
   font-weight: 700;
   color: var(--text-3);      /* was rgba(255,255,255,0.25) — ~2.4:1, under AA */
   line-height: 1.02;
-  text-transform: uppercase;
+ 
   white-space: nowrap;
   overflow: hidden;
   font-size: clamp(40px, 5.5vw, 84px);
@@ -115,7 +115,7 @@
   font-size: clamp(18px, 2.4vw, 34px);
   font-weight: 700;
   color: var(--text);
-  text-transform: uppercase;
+ 
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -281,7 +281,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-transform: uppercase;
   line-height: 1.2;
 }
 .ov-cue-row.active .ov-cue-text { color: var(--text); font-weight: 700; }
