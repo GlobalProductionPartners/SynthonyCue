@@ -104,7 +104,10 @@ function memInfo() {
       const out = require('child_process').execSync('vm_stat', { timeout: 3000 }).toString();
       const page = parseInt((out.match(/page size of (\d+)/) || [])[1]) || 16384;
       const g = (k) => parseInt((out.match(new RegExp(k + ':\\s+(\\d+)')) || [])[1]) || 0;
-      const usedPages = g('Pages active') + g('Pages wired down') + g('Pages occupied by compressor');
+      // Activity Monitor's "Memory Used" = App Memory (anonymous − purgeable)
+      // + wired + compressed. active+wired+compressed under-reports ~10%.
+      const usedPages = g('Anonymous pages') - g('Pages purgeable')
+                      + g('Pages wired down') + g('Pages occupied by compressor');
       if (usedPages) return { usedMB: Math.round(usedPages * page / 1048576), totalMB };
     } catch {}
   }
