@@ -698,14 +698,21 @@ function renderCamera() {
 let videoAttached = false;
 
 function attachVideo() {
-  if (videoAttached) return;
   const img = document.getElementById('video-img');
   const ph  = document.getElementById('video-placeholder');
   const msg = document.getElementById('video-msg');
   if (!img) return;
 
+  // Always tear down any prior stream first — entering a video view (or
+  // switching video↔videofull, or the source changing) must reload, not keep
+  // a stale/dead <img> src. The old bug was an early-return when already
+  // attached, which left the previous connection frozen on screen.
+  img.onload = img.onerror = null;
+  img.removeAttribute('src');
+  img.classList.remove('live');
+
   if (!State.config || !State.config.videoSource) {
-    img.classList.remove('live');
+    videoAttached = false;
     ph.classList.remove('hidden');
     msg.textContent = 'No source configured';
     return;
@@ -895,10 +902,13 @@ function handleMsg(msg) {
       // Reconnect only when the source actually changed — a config save for
       // anything else must not interrupt a live picture.
       if ((currentView === 'video' || currentView === 'videofull') && State.config.videoSource !== prevSource) {
-        detachVideo(); attachVideo();
+        attachVideo();   // idempotent — always re-establishes a fresh stream
       }
       break;
     }
+    case 'reload':
+      location.reload();
+      break;
     case 'blackout':
       document.body.classList.toggle('is-blackout', !!msg.on);
       break;

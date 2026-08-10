@@ -1358,6 +1358,7 @@ const SysRes = {
         <th style="padding:4px 8px">Machine</th><th style="padding:4px 8px">CPU</th>
         <th style="padding:4px 8px">Memory</th><th style="padding:4px 8px">Temp</th>
         <th style="padding:4px 8px">Disk free</th><th style="padding:4px 8px">Up</th><th style="padding:4px 8px">Age</th>
+        <th style="padding:4px 8px">Actions</th>
       </tr></thead><tbody>${rows.map(r => {
         const memPct = r.memTotalMB ? Math.round(100 * r.memUsedMB / r.memTotalMB) : null;
         const age = Math.round((Date.now() - r.at) / 1000);
@@ -1372,11 +1373,28 @@ const SysRes = {
           <td style="padding:6px 8px"><span class="val muted">${r.disk ? (r.disk.freeMB > 1024 ? (r.disk.freeMB / 1024).toFixed(1) + ' GB' : r.disk.freeMB + ' MB') : '—'}</span></td>
           <td style="padding:6px 8px;color:var(--text-2)">${fmtUp(r.uptimeSec)}</td>
           <td style="padding:6px 8px;font-family:var(--font-tc);font-size:11px;color:${ageCol}">${age}s</td>
+          <td style="padding:6px 8px;white-space:nowrap">
+            <button class="row-btn" onclick="SysRes.reload('${esc(r.host)}')" title="Reload this machine's display(s)">Reload</button>
+            <button class="row-btn del" onclick="SysRes.reboot('${esc(r.host)}', ${r.role === 'server' ? 'true' : 'false'})" title="Reboot the Pi">Reboot</button>
+          </td>
         </tr>`;
       }).join('')}</tbody></table>`;
   },
   async poll() {
     try { this.render(await fetch('/api/system').then(r => r.json())); } catch {}
+  },
+  async reload(host) {
+    await fetch('/api/system/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reload', host }) }).catch(() => {});
+  },
+  async reboot(host, isServer) {
+    const warn = isServer
+      ? `Reboot the SERVER (${host})? Every display drops until it comes back (~40s).`
+      : `Reboot ${host}? Its display goes dark until it reboots (~40s).`;
+    if (!confirm(warn)) return;
+    const r = await fetch('/api/system/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reboot', host }) }).then(r => r.json()).catch(() => null);
+    if (r && r.queued) alert(`${host} will reboot within ~10s (agent poll).`);
   }
 };
 setInterval(() => SysRes.poll(), 5000);

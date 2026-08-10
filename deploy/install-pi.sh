@@ -128,6 +128,12 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-stats
 sudo systemctl restart synthony-stats
 
+# ── Allow the app to reboot this Pi (reboot only, nothing else) ──────────────
+say "Granting reboot permission (reboot only)"
+echo "$RUN_USER ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot" \
+  | sudo tee /etc/sudoers.d/synthony-reboot >/dev/null
+sudo chmod 440 /etc/sudoers.d/synthony-reboot
+
 # ── OTA updater (both roles) ──────────────────────────────────────────────────
 say "Installing OTA updater"
 chmod +x "$DIR/deploy/synthony-update.sh"

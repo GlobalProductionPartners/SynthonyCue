@@ -50,9 +50,14 @@ while true; do
   read -r DISK_TOTAL DISK_FREE < <(df -Pk / 2>/dev/null | awk 'NR==2 {print int($2/1024), int($4/1024)}')
   UPTIME=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
 
-  curl -sf -o /dev/null --max-time 4 -X POST -H 'Content-Type: application/json' \
+  RESP=$(curl -sf --max-time 4 -X POST -H 'Content-Type: application/json' \
     -d "{\"host\":\"$HOST\",\"cpu\":${CPU:-null},\"load\":${LOAD:-null},\"memUsedMB\":${MEM_USED:-null},\"memTotalMB\":${MEM_TOTAL:-null},\"temp\":${TEMP:-null},\"disk\":{\"freeMB\":${DISK_FREE:-null},\"totalMB\":${DISK_TOTAL:-null}},\"uptimeSec\":${UPTIME:-null}}" \
-    "${URL}api/system/report" || true
+    "${URL}api/system/report" 2>/dev/null || true)
+
+  # The server queues admin actions (e.g. reboot) in the report response.
+  case "$RESP" in
+    *'"reboot"'*) echo "$(date +%T) reboot commanded by admin"; sudo -n reboot ;;
+  esac
 
   sleep 10
 done

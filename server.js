@@ -190,6 +190,7 @@ function localStats() {
   };
 }
 const remoteStats = new Map();   // host → last report
+const pendingHostCommands = new Map();  // host → [ 'reboot', ... ] delivered on next report
 
 // ── Flight recorder ───────────────────────────────────────────────────────────
 // Append-only show-day log: every fired output, TC event, save, and screen
@@ -871,7 +872,45 @@ app.post('/api/system/report', (req, res) => {
     uptimeSec: num(b.uptimeSec),
     at: Date.now()
   });
-  res.json({ ok: true });
+  const cmds = pendingHostCommands.get(host) || [];
+  pendingHostCommands.delete(host);
+  if (cmds.length) flightLog('AGENT-COMMAND', `${host} <- ${cmds.join(',')}`);
+  res.json({ ok: true, commands: cmds });
+});
+
+// Admin: reboot a machine (queued for its stats agent) or reload a screen's
+// browser (immediate, via the screen socket). action: 'reboot' | 'reload'.
+app.post('/api/system/restart', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const action = req.body?.action === 'reload' ? 'reload' : 'reboot';
+  const host   = String(req.body?.host || '').slice(0, 60);
+  const screenId = String(req.body?.screenId || '');
+
+  if (action === 'reload') {
+    // Reload every screen registered on this host (both displays of a Pi),
+    // or one specific screen if given.
+    let n = 0;
+    for (const sc of screens.values()) {
+      const match = screenId ? sc.id === screenId : (host && (sc.name || '').replace(/-\d+$/, '') === host);
+      if (match && sc.ws?.readyState === 1) { safeSend(sc.ws, { type: 'reload' }); n++; }
+    }
+    flightLog('SCREEN-RELOAD', host || screenId);
+    res.json({ ok: true, action, reloaded: n });
+    return;
+  }
+
+  // reboot: the server can reboot itself; others go via their stats agent.
+  if (!host) { res.status(400).json({ error: 'host required' }); return; }
+  if (host === os.hostname().replace(/\.local$/i, '')) {
+    flightLog('REBOOT-SELF');
+    res.json({ ok: true, action, self: true });
+    const { execFile } = require('child_process');
+    setTimeout(() => execFile('sudo', ['-n', 'reboot'], () => {}), 800);
+    return;
+  }
+  pendingHostCommands.set(host, ['reboot']);
+  flightLog('REBOOT-QUEUED', host);
+  res.json({ ok: true, action, queued: host });
 });
 
 // ── OTA endpoints ─────────────────────────────────────────────────────────────
