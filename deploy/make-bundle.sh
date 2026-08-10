@@ -23,7 +23,7 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$DIR/dist" "$STAGE/$NAME"
 
 # Runtime only. electron/, build/ and dist/ are macOS packaging concerns.
-for item in server.js package.json package-lock.json start-linux.sh public tc video output data config.json deploy; do
+for item in server.js package.json package-lock.json start-linux.sh public tc video output data config.json deploy TEST.md; do
   [ -e "$item" ] && cp -R "$item" "$STAGE/$NAME/"
 done
 

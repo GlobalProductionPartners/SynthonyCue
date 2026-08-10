@@ -7,6 +7,7 @@ const fs   = require('fs');
 const path = require('path');
 const multer = require('multer');
 const crypto = require('crypto');
+const os = require('os');
 const XLSX = require('xlsx');
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -74,6 +75,48 @@ try {
     handleSnapshot: (_q, r) => r.status(503).json({ error: 'Video module not available' })
   };
 }
+
+// ── System resources ──────────────────────────────────────────────────────────
+// The server reports its own machine; display-only Pis run a small agent
+// (deploy/synthony-stats.sh) that POSTs the same shape here every 10s.
+let _cpuPrev = null;
+function cpuPercent() {
+  const cpus = os.cpus();
+  let idle = 0, total = 0;
+  for (const c of cpus) { for (const k in c.times) total += c.times[k]; idle += c.times.idle; }
+  const prev = _cpuPrev; _cpuPrev = { idle, total };
+  if (!prev || total <= prev.total) return null;
+  return Math.round((1 - (idle - prev.idle) / (total - prev.total)) * 100);
+}
+function memInfo() {
+  // Linux MemAvailable is the honest number; os.freemem() (MemFree) badly
+  // overstates usage because cache counts as "used".
+  try {
+    const mi = fs.readFileSync('/proc/meminfo', 'utf8');
+    const g = (k) => parseInt((mi.match(new RegExp(k + ':\\s+(\\d+)')) || [])[1]) || 0;
+    const totalKB = g('MemTotal'), availKB = g('MemAvailable');
+    if (totalKB) return { usedMB: Math.round((totalKB - availKB) / 1024), totalMB: Math.round(totalKB / 1024) };
+  } catch {}
+  return { usedMB: Math.round((os.totalmem() - os.freemem()) / 1048576), totalMB: Math.round(os.totalmem() / 1048576) };
+}
+function localStats() {
+  let temp = null;
+  try { temp = Math.round(parseInt(fs.readFileSync('/sys/class/thermal/thermal_zone0/temp', 'utf8')) / 1000); } catch {}
+  let disk = null;
+  try { const st = fs.statfsSync(DATA_DIR); disk = { freeMB: Math.round(st.bavail * st.bsize / 1048576), totalMB: Math.round(st.blocks * st.bsize / 1048576) }; } catch {}
+  const mem = memInfo();
+  return {
+    host: os.hostname().replace(/\.local$/i, ''),
+    role: 'server',
+    cpu: cpuPercent(),
+    load: Math.round(os.loadavg()[0] * 100) / 100,
+    memUsedMB: mem.usedMB, memTotalMB: mem.totalMB,
+    temp, disk,
+    uptimeSec: Math.round(os.uptime()),
+    at: Date.now()
+  };
+}
+const remoteStats = new Map();   // host → last report
 
 // ── Flight recorder ───────────────────────────────────────────────────────────
 // Append-only show-day log: every fired output, TC event, save, and screen
@@ -717,6 +760,33 @@ app.get('/api/network/interfaces', (_req, res) => {
 // ── Video source ──────────────────────────────────────────────────────────────
 // MJPEG is the only live video a browser plays with no extra library, which
 // matters because a show Pi has no internet to fetch one. See video/stream.js.
+// System resources: local machine + every reporting Pi. Admin-only read.
+app.get('/api/system', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  // Drop reporters not heard from in 2 minutes
+  const cutoff = Date.now() - 120000;
+  for (const [h, r] of remoteStats) if (r.at < cutoff) remoteStats.delete(h);
+  res.json({ local: localStats(), remotes: Array.from(remoteStats.values()).sort((a, b) => a.host.localeCompare(b.host)) });
+});
+// Telemetry in from display Pis — LAN-benign data, but bound and sanitise it.
+app.post('/api/system/report', (req, res) => {
+  const b = req.body || {};
+  const host = String(b.host || '').slice(0, 60);
+  if (!host) { res.status(400).json({ error: 'host required' }); return; }
+  if (!remoteStats.has(host) && remoteStats.size >= 50) { res.status(429).json({ error: 'too many reporters' }); return; }
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  remoteStats.set(host, {
+    host, role: 'display',
+    cpu: num(b.cpu), load: num(b.load),
+    memUsedMB: num(b.memUsedMB), memTotalMB: num(b.memTotalMB),
+    temp: num(b.temp),
+    disk: b.disk && num(b.disk.freeMB) != null ? { freeMB: num(b.disk.freeMB), totalMB: num(b.disk.totalMB) } : null,
+    uptimeSec: num(b.uptimeSec),
+    at: Date.now()
+  });
+  res.json({ ok: true });
+});
+
 app.get('/api/video/stream',   (req, res) => Video.handleStream(req, res));
 app.get('/api/video/snapshot', (req, res) => Video.handleSnapshot(req, res));
 app.get('/api/video/state',    (_req, res) => res.json(Video.state()));

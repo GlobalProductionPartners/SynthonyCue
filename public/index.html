@@ -918,6 +918,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
           <button class="btn" style="margin-top:8px;font-size:12px" id="btn-add-artnet-dest">+ Add Destination</button>
         </div>
         <div class="panel" style="grid-column: 1 / -1">
+          <div class="sec panel-sec"><span class="sep">//</span> SYSTEM <span class="sep">/</span> RESOURCES</div>
+          <div id="sys-resources"><div style="color:var(--text-3);font-size:12px">Waiting for first sample…</div></div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1">
           <div class="sec panel-sec"><span class="sep">//</span> CONNECTED SCREENS</div>
           <div style="margin-bottom:10px;font-size:12px;color:var(--dim)">
             This screen: <strong id="this-screen-name-display"></strong>
@@ -1459,6 +1463,60 @@ const WF = {
 // ══════════════════════════════════════════════════════════════════════════════
 // STAGE MANAGER
 // ══════════════════════════════════════════════════════════════════════════════
+// ── System resources ─────────────────────────────────────────────────────────
+const SysRes = {
+  render(data) {
+    const wrap = document.getElementById('sys-resources');
+    if (!wrap || !data || !data.local) return;   // 401/error → keep last state
+    const rows = [data.local, ...(data.remotes || [])].filter(Boolean);
+    const bar = (pct, warnAt, hotAt) => {
+      if (pct == null) return '<span class="val">—</span>';
+      const col = pct >= hotAt ? 'var(--urgent)' : pct >= warnAt ? 'var(--warn)' : 'var(--text-2)';
+      return `<div style="display:flex;align-items:center;gap:8px;min-width:120px">
+        <div style="flex:1;height:4px;background:var(--surface);border-radius:2px;overflow:hidden">
+          <div style="width:${Math.min(100, pct)}%;height:100%;background:${col}"></div>
+        </div><span class="val" style="font-size:11px">${pct}%</span></div>`;
+    };
+    const tempCell = (t) => {
+      if (t == null) return '<span class="val muted">—</span>';
+      // Pi firmware throttles at 80–85°C — make the approach visible.
+      const cls = t >= 80 ? 'urgent' : t >= 70 ? 'warn' : '';
+      return `<span class="val ${cls}">${t}°C</span>`;
+    };
+    const fmtUp = (sec) => {
+      if (sec == null) return '—';
+      const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+      return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+    };
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="color:var(--text-3);text-align:left;font-size:10px;letter-spacing:0.08em;text-transform:uppercase">
+        <th style="padding:4px 8px">Machine</th><th style="padding:4px 8px">CPU</th>
+        <th style="padding:4px 8px">Memory</th><th style="padding:4px 8px">Temp</th>
+        <th style="padding:4px 8px">Disk free</th><th style="padding:4px 8px">Up</th><th style="padding:4px 8px">Age</th>
+      </tr></thead><tbody>${rows.map(r => {
+        const memPct = r.memTotalMB ? Math.round(100 * r.memUsedMB / r.memTotalMB) : null;
+        const age = Math.round((Date.now() - r.at) / 1000);
+        const ageCol = age > 45 ? 'var(--urgent)' : age > 25 ? 'var(--warn)' : 'var(--text-3)';
+        return `<tr style="border-top:1px solid var(--border)">
+          <td style="padding:6px 8px;font-weight:600">${esc(r.host)}
+            <span style="font-family:var(--font-tc);font-size:9px;letter-spacing:0.1em;color:var(--text-3);margin-left:6px">${r.role === 'server' ? 'SERVER' : 'DISPLAY'}</span></td>
+          <td style="padding:6px 8px">${bar(r.cpu, 70, 90)}</td>
+          <td style="padding:6px 8px">${bar(memPct, 75, 90)}
+            <span style="font-family:var(--font-tc);font-size:10px;color:var(--text-3)">${r.memUsedMB ?? '—'} / ${r.memTotalMB ?? '—'} MB</span></td>
+          <td style="padding:6px 8px">${tempCell(r.temp)}</td>
+          <td style="padding:6px 8px"><span class="val muted">${r.disk ? (r.disk.freeMB > 1024 ? (r.disk.freeMB / 1024).toFixed(1) + ' GB' : r.disk.freeMB + ' MB') : '—'}</span></td>
+          <td style="padding:6px 8px;color:var(--text-2)">${fmtUp(r.uptimeSec)}</td>
+          <td style="padding:6px 8px;font-family:var(--font-tc);font-size:11px;color:${ageCol}">${age}s</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  },
+  async poll() {
+    try { this.render(await fetch('/api/system').then(r => r.json())); } catch {}
+  }
+};
+setInterval(() => SysRes.poll(), 5000);
+setTimeout(() => SysRes.poll(), 1500);
+
 // ── Blackout ─────────────────────────────────────────────────────────────────
 let blackoutOn = false;
 function setBlackoutUI(on) {

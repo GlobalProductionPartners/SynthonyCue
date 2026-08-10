@@ -1,0 +1,18 @@
+# Synthony Cue — resource reporter (display Pis).
+# Installed by install-pi.sh; goes dormant on the server Pi automatically.
+
+[Unit]
+Description=Synthony Cue resource reporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+ExecStart=__DIR__/deploy/synthony-stats.sh
+Restart=always
+RestartSec=10
+SyslogIdentifier=synthony-stats
+
+[Install]
+WantedBy=multi-user.target

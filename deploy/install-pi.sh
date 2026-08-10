@@ -80,6 +80,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-cue
 sudo systemctl restart synthony-cue
 
+# ── Resource reporter ─────────────────────────────────────────────────────────
+say "Installing resource reporter"
+chmod +x "$DIR/deploy/synthony-stats.sh"
+sed -e "s|__USER__|$RUN_USER|g" -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/synthony-stats.service" | sudo tee /etc/systemd/system/synthony-stats.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable synthony-stats
+sudo systemctl restart synthony-stats
+
 # ── Fullscreen kiosk autostart ────────────────────────────────────────────────
 say "Installing fullscreen kiosk autostart"
 chmod +x "$DIR/deploy/synthony-kiosk.sh"
