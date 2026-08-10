@@ -77,6 +77,22 @@ function _hasCueField(cue, type) {
   return !!(cue[type + 'Cue']);
 }
 
+// ── Manual fire override ──────────────────────────────────────────────────────
+// Set when an operator fires a cue by hand. Operator views (stage/console)
+// show it as NOW for its duration; TC-derived views are unaffected.
+let ManualCue = null;
+function setManualCue(msg) {
+  ManualCue = msg && msg.cue ? { cue: msg.cue, atFrames: msg.atFrames || 0 } : null;
+}
+function manualCueFor(type) {
+  if (!ManualCue) return null;
+  if (type && !_hasCueField(ManualCue.cue, type)) return null;
+  const now = State.tcFrames || parseTC(State.tc);
+  const durF = ManualCue.cue.duration ? parseDuration(ManualCue.cue.duration) : 60 * FR;
+  if (now < ManualCue.atFrames || now > ManualCue.atFrames + durF) return null;
+  return { song: getCurrentSong(), cue: ManualCue.cue, absFrames: ManualCue.atFrames };
+}
+
 // Past cues across ALL songs, most-recent first. skip=0 → last fired, skip=1 → one before.
 function getPrevCueGlobal(type, skip = 0) {
   const now = State.tcFrames || parseTC(State.tc);
@@ -89,6 +105,12 @@ function getPrevCueGlobal(type, skip = 0) {
     }
   }
   candidates.sort((a, b) => a.absFrames - b.absFrames);
+  // A manual fire outranks the natural history unless something fired later.
+  const manual = manualCueFor(type);
+  if (manual && skip === 0) {
+    const natural = candidates[candidates.length - 1];
+    if (!natural || manual.absFrames >= natural.absFrames) return manual;
+  }
   return candidates[candidates.length - 1 - skip] || null;
 }
 

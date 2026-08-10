@@ -8,3 +8,4 @@ config.json
 # Working files that should never have been committed
 Screenshot*.png
 *.xlsx
+logs/

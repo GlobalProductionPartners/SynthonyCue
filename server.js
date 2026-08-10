@@ -212,7 +212,8 @@ const screens = new Map(); // screenId → { ws, name, view, slots, cameraType }
 
 function screensList() {
   return Array.from(screens.values()).map(s => ({
-    id: s.id, name: s.name, view: s.view, slots: s.slots, cameraType: s.cameraType
+    id: s.id, name: s.name, view: s.view, slots: s.slots, cameraType: s.cameraType,
+    lastSeen: s.lastSeen || null
   }));
 }
 function broadcastScreensList() {
@@ -223,7 +224,7 @@ wss.on('connection', (ws, req) => {
   clients.add(ws);
   // Auto-auth WebSocket connections that carry a valid session cookie
   if (isAuthedReq(req)) authedClients.set(ws, true);
-  safeSend(ws, { type: 'init', songs, config: sanitiseConfig(config), tc: TC.state() });
+  safeSend(ws, { type: 'init', songs, config: sanitiseConfig(config), tc: TC.state(), blackout });
   // Screens only announced themselves on connect, so an admin opened after
   // the displays were already running saw an empty list until one of them
   // joined or dropped. Send the current list to every new client.
@@ -234,7 +235,9 @@ wss.on('connection', (ws, req) => {
   });
   ws.on('close', () => {
     clients.delete(ws);
-    for (const [id, s] of screens) { if (s.ws === ws) { screens.delete(id); break; } }
+    for (const [id, s] of screens) {
+      if (s.ws === ws) { screens.delete(id); flightLog('SCREEN-LOST', `${s.name} (${id})`); break; }
+    }
     broadcastScreensList();
   });
   ws.on('error', () => clients.delete(ws));
@@ -378,6 +381,10 @@ const TC = (() => {
 })();
 
 // ── Cue fire engine ───────────────────────────────────────────────────────────
+// Blackout: one flag, every screen honours it. Included in init so screens
+// that reconnect mid-blackout come back dark, not lit.
+let blackout = false;
+
 const firedOutputs = new Set();
 let lastBroadcastFrames = 0;
 const FRAME_RATE_FIRE_WINDOW = 250; // 10s at 25fps — late allowance, not a drop window
@@ -545,6 +552,68 @@ function handleClientMessage(ws, msg) {
       break;
     }
 
+    case 'save_show': {
+      if (!verifyEdit(ws, msg)) return;
+      const slug = showSlug(msg.name);
+      if (!slug) { safeSend(ws, { type: 'error', message: 'Show name required' }); return; }
+      saveJSON(path.join(SHOWS_DIR, slug + '.json'), songs);
+      flightLog('SHOW-SAVED', slug);
+      safeSend(ws, { type: 'show_saved', name: slug });
+      break;
+    }
+
+    case 'load_show': {
+      if (!verifyEdit(ws, msg)) return;
+      const slug = showSlug(msg.name);
+      const file = path.join(SHOWS_DIR, slug + '.json');
+      if (!slug || !fs.existsSync(file)) { safeSend(ws, { type: 'error', message: 'Show not found' }); return; }
+      try {
+        songs = JSON.parse(fs.readFileSync(file, 'utf8'));
+        saveJSON(SONGS_PATH, songs);      // loading a show IS the new live state
+        firedOutputs.clear();
+        flightLog('SHOW-LOADED', slug);
+        broadcast({ type: 'songs_updated', songs });
+      } catch (e) { safeSend(ws, { type: 'error', message: 'Show file unreadable: ' + e.message }); }
+      break;
+    }
+
+    case 'delete_show': {
+      if (!verifyEdit(ws, msg)) return;
+      const slug = showSlug(msg.name);
+      const file = path.join(SHOWS_DIR, slug + '.json');
+      if (slug && fs.existsSync(file)) { fs.unlinkSync(file); flightLog('SHOW-DELETED', slug); }
+      safeSend(ws, { type: 'show_deleted', name: slug });
+      break;
+    }
+
+    case 'blackout': {
+      if (!verifyEdit(ws, msg)) return;
+      blackout = !!msg.on;
+      flightLog(blackout ? 'BLACKOUT-ON' : 'BLACKOUT-OFF');
+      broadcast({ type: 'blackout', on: blackout });
+      break;
+    }
+
+    case 'manual_fire': {
+      // Fire a cue's outputs immediately and tell operator views to show it
+      // as NOW for its duration. Display override is deliberately scoped to
+      // the stage/console views — TC-derived views stay TC-derived.
+      if (!verifyEdit(ws, msg)) return;
+      let fired = null;
+      for (const song of songs) {
+        for (const cue of (song.cues || [])) {
+          if (cue.id === msg.cueId) { fired = { song, cue }; break; }
+        }
+        if (fired) break;
+      }
+      if (!fired) { safeSend(ws, { type: 'error', message: 'Cue not found' }); return; }
+      if (fired.cue.osc?.enabled)    { firedOutputs.add(`osc-${fired.cue.id}`);    fireOSC(fired.cue); }
+      if (fired.cue.artnet?.enabled) { firedOutputs.add(`artnet-${fired.cue.id}`); fireArtNet(fired.cue); }
+      flightLog('MANUAL-FIRE', `cue ${fired.cue.id} (${fired.cue.stageCue || fired.cue.hostCue || fired.cue.description || ''})`);
+      broadcast({ type: 'manual_cue', cue: fired.cue, songId: fired.song.id, atFrames: TC.currentFrames() });
+      break;
+    }
+
     case 'save_songs': {
       if (!verifyEdit(ws, msg)) return;
       songs = msg.songs;
@@ -583,14 +652,15 @@ function handleClientMessage(ws, msg) {
     }
 
     case 'screen_hello': {
-      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType });
+      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, lastSeen: Date.now() });
+      flightLog('SCREEN-CONNECTED', `${msg.name} (${msg.id})`);
       broadcastScreensList();
       break;
     }
 
     case 'screen_update': {
       const s = screens.get(msg.id);
-      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType }); broadcastScreensList(); }
+      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, lastSeen: Date.now() }); broadcastScreensList(); }
       break;
     }
 
@@ -609,6 +679,25 @@ function handleClientMessage(ws, msg) {
 
 // ── REST API ──────────────────────────────────────────────────────────────────
 app.get('/api/songs', (_req, res) => res.json(songs));
+
+// Named shows — data/shows/<slug>.json snapshots of the whole song list.
+const SHOWS_DIR = path.join(DATA_DIR, 'shows');
+function showSlug(name) {
+  return String(name || '').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+app.get('/api/shows', (_req, res) => {
+  try {
+    fs.mkdirSync(SHOWS_DIR, { recursive: true });
+    const list = fs.readdirSync(SHOWS_DIR).filter(f => f.endsWith('.json')).map(f => {
+      const st = fs.statSync(path.join(SHOWS_DIR, f));
+      let meta = { songs: 0 };
+      try { meta.songs = JSON.parse(fs.readFileSync(path.join(SHOWS_DIR, f), 'utf8')).length; } catch {}
+      return { name: f.slice(0, -5), savedAt: st.mtime.toISOString(), songs: meta.songs };
+    }).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    res.json({ shows: list });
+  } catch (e) { res.json({ shows: [], error: e.message }); }
+});
 
 app.get('/api/network/interfaces', (_req, res) => {
   const os = require('os');

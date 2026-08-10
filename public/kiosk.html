@@ -872,6 +872,9 @@ function wsSend(obj) {
 function sendScreenHello() {
   wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType });
 }
+// Heartbeat: lets the admin distinguish "quiet" from "gone".
+setInterval(() => { try { sendScreenUpdate(); } catch {} }, 10000);
+
 function sendScreenUpdate() {
   wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType });
 }
@@ -886,6 +889,7 @@ function handleMsg(msg) {
       State.tcRunning = msg.tc?.running || false;
       State.tcFrames  = 0;
       if (currentView === 'video' || currentView === 'videofull') attachVideo();
+      document.body.classList.toggle('is-blackout', !!msg.blackout);
       renderCurrent();
       break;
     case 'config_updated': {
@@ -898,6 +902,13 @@ function handleMsg(msg) {
       }
       break;
     }
+    case 'blackout':
+      document.body.classList.toggle('is-blackout', !!msg.on);
+      break;
+    case 'manual_cue':
+      setManualCue(msg);
+      renderCurrent();
+      break;
     case 'tc':
       State.tc       = msg.tc;
       State.tcFrames = msg.frames;

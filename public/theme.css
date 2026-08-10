@@ -92,6 +92,7 @@
   --z-header:  10;
   --z-panel:   20;
   --z-overlay: 30;
+  --z-blackout: 90;   /* show blackout beats everything, including menus */
 }
 
 /* Timecode and any figure that must not jitter as digits change. */
@@ -172,6 +173,15 @@
   white-space: nowrap;
 }
 .kv > dd, .kv .v { margin: 0; text-align: right; }
+
+/* ── Blackout ─────────────────────────────────────────────────────────────────
+   One class on <body>, no DOM: every screen goes dark instantly and stays
+   dark through reconnects (state rides the init payload). */
+body.is-blackout::after {
+  content: ''; position: fixed; inset: 0;
+  background: #000; z-index: var(--z-blackout);
+}
+body.is-blackout { cursor: none; }
 
 /* ── Focus ────────────────────────────────────────────────────────────────
    One visible focus treatment everywhere. Never removed without a

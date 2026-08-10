@@ -390,6 +390,17 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 .editor-song-row .col-track { font-size: 13px; }
 /* Unsaved changes: the save button turns amber until saved. */
 #btn-save-cues.dirty { background: var(--warn); border-color: var(--warn); color: #0B0B0C; }
+/* Blackout live: unmistakable, no ambiguity about which state you're in. */
+#btn-blackout.on { background: var(--urgent); border-color: var(--urgent); color: #0B0B0C; font-weight: 700; }
+/* Screen-loss alert chip in the topbar */
+#screen-alert {
+  display: none; align-items: center; gap: 8px;
+  font-family: var(--font-tc); font-size: 11px; letter-spacing: 0.06em;
+  color: var(--urgent); border: 1px solid var(--urgent);
+  border-radius: var(--r-1); padding: 3px 8px;
+}
+#screen-alert.show { display: inline-flex; }
+#screen-alert button { background: none; border: none; color: var(--urgent); cursor: pointer; font-size: 13px; }
 .editor-song-row:first-child td { border-top: none; }
 .editor-cue-row td { background: var(--bg); padding: 3px 6px; }
 .editor-cue-row:hover td { background: var(--bg3); }
@@ -534,8 +545,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
       <button class="btn primary" id="btn-start">▶ START</button>
       <button class="btn" id="btn-stop">■ STOP</button>
       <button class="btn" id="btn-jam">JAM</button>
+      <button class="btn" id="btn-blackout">BLACKOUT</button>
     </div>
     <div class="topbar-spacer"></div>
+    <span id="screen-alert"><span id="screen-alert-text"></span><button onclick="dismissScreenAlert()" aria-label="Dismiss">✕</button></span>
     <span id="conn-status" class="connecting">CONNECTING</span>
     <div id="device-name-wrap">
       <label for="device-name-input">Device:</label>
@@ -613,6 +626,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <div class="stage-slot" id="slot-a">
           <div class="stage-slot-header">
             <span class="stage-slot-type slot-stage" id="slot-a-badge">STAGE</span>
+            <button class="row-btn btn-manual-fire" data-slot="a" title="Fire the NEXT cue of this type now">FIRE ▸</button>
             <select id="slot-a-type" onchange="Stage.setSlotType('a',this.value)">
               <option value="stage">Stage Cue</option>
               <option value="host">Host Cue</option>
@@ -646,6 +660,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <div class="stage-slot" id="slot-b">
           <div class="stage-slot-header">
             <span class="stage-slot-type slot-host" id="slot-b-badge">HOST</span>
+            <button class="row-btn btn-manual-fire" data-slot="b" title="Fire the NEXT cue of this type now">FIRE ▸</button>
             <select id="slot-b-type" onchange="Stage.setSlotType('b',this.value)">
               <option value="stage">Stage Cue</option>
               <option value="host" selected>Host Cue</option>
@@ -733,6 +748,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <input type="file" id="import-file-input" accept=".xlsx" style="display:none">
         <a class="btn" href="/api/export/xlsx" download>Export XLSX</a>
         <a class="btn" href="/api/export/json" download>Export JSON</a>
+        <span style="width:1px;background:var(--border);align-self:stretch;margin:0 4px"></span>
+        <select class="form-input" id="show-select" style="width:180px;font-size:12px" aria-label="Saved shows"></select>
+        <button class="btn" id="btn-show-save">Save Show As…</button>
+        <button class="btn" id="btn-show-load">Load</button>
+        <button class="btn" id="btn-show-delete">Delete</button>
+        <button class="btn" id="btn-revert">Revert to Saved</button>
         <div class="spacer"></div>
         <a class="btn" href="/logout" style="color:var(--dim)">Logout</a>
         <button class="btn primary" id="btn-save-cues">Save Songs</button>
@@ -1022,6 +1043,8 @@ let SCREEN_NAME = localStorage.getItem('screen-name') || 'Screen';
 function sendScreenHello() {
   wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, cameraType: Camera.type });
 }
+setInterval(() => { try { sendScreenUpdate(); } catch {} }, 10000);
+
 function sendScreenUpdate() {
   wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, cameraType: Camera.type });
 }
@@ -1084,6 +1107,8 @@ function handleServerMessage(msg) {
       State.tcSource  = msg.tc?.source  || 'internal';
       applyConfigToUI();
       updateTCDisplay(State.tc, State.tcRunning);
+      setBlackoutUI(msg.blackout);
+      Shows.refresh();
       Views.refresh();
       break;
 
@@ -1105,6 +1130,15 @@ function handleServerMessage(msg) {
       updateTCDisplay(msg.tc, State.tcRunning);
       break;
 
+    case 'blackout':
+      setBlackoutUI(msg.on);
+      break;
+    case 'manual_cue':
+      setManualCue(msg);
+      break;
+    case 'show_saved':
+      Shows.refresh();
+      break;
     case 'songs_updated':
       State.songs = msg.songs;
       State.localSongs = null;
@@ -1130,6 +1164,7 @@ function handleServerMessage(msg) {
 
     case 'screens_list':
       State.screens = msg.screens;
+      watchScreens(msg.screens || []);
       if (Views.current === 'settings') Settings.renderScreens();
       break;
 
@@ -1424,6 +1459,78 @@ const WF = {
 // ══════════════════════════════════════════════════════════════════════════════
 // STAGE MANAGER
 // ══════════════════════════════════════════════════════════════════════════════
+// ── Blackout ─────────────────────────────────────────────────────────────────
+let blackoutOn = false;
+function setBlackoutUI(on) {
+  blackoutOn = !!on;
+  const b = document.getElementById('btn-blackout');
+  if (b) { b.classList.toggle('on', blackoutOn); b.textContent = blackoutOn ? 'BLACKOUT ON' : 'BLACKOUT'; }
+}
+
+// ── Screen-loss alerting ─────────────────────────────────────────────────────
+let _knownScreens = new Map();   // id → name
+let _lostDismissed = new Set();
+function watchScreens(list) {
+  const nowIds = new Set(list.map(s => s.id));
+  const lost = [];
+  for (const [id, name] of _knownScreens) {
+    if (!nowIds.has(id) && id !== SCREEN_ID && !_lostDismissed.has(id)) lost.push({ id, name });
+  }
+  for (const sc of list) { _knownScreens.set(sc.id, sc.name); _lostDismissed.delete(sc.id); }
+  const el = document.getElementById('screen-alert');
+  const tx = document.getElementById('screen-alert-text');
+  if (!el || !tx) return;
+  if (lost.length) {
+    tx.textContent = 'SCREEN LOST: ' + lost.map(l => l.name).join(', ');
+    el.classList.add('show');
+    el.dataset.ids = lost.map(l => l.id).join(',');
+  } else {
+    el.classList.remove('show');
+  }
+}
+function dismissScreenAlert() {
+  const el = document.getElementById('screen-alert');
+  for (const id of (el.dataset.ids || '').split(',')) if (id) { _lostDismissed.add(id); _knownScreens.delete(id); }
+  el.classList.remove('show');
+}
+
+// ── Named shows ──────────────────────────────────────────────────────────────
+const Shows = {
+  async refresh() {
+    const sel = document.getElementById('show-select');
+    if (!sel) return;
+    try {
+      const { shows } = await fetch('/api/shows').then(r => r.json());
+      sel.innerHTML = '<option value="">— saved shows —</option>' +
+        (shows || []).map(sh =>
+          `<option value="${esc(sh.name)}">${esc(sh.name)} · ${sh.songs} songs · ${new Date(sh.savedAt).toLocaleDateString()}</option>`
+        ).join('');
+    } catch { sel.innerHTML = '<option value="">(could not load shows)</option>'; }
+  },
+  saveAs() {
+    const name = prompt('Save current show as:');
+    if (!name || !name.trim()) return;
+    wsSend({ type: 'save_show', name: name.trim() });
+    setTimeout(() => this.refresh(), 400);
+  },
+  load() {
+    const name = document.getElementById('show-select').value;
+    if (!name) { alert('Pick a show to load.'); return; }
+    if (State.localSongs && !confirm('You have unsaved edits — loading a show discards them. Continue?')) return;
+    if (!confirm(`Load "${name}"? This replaces the LIVE show for every screen.`)) return;
+    State.localSongs = null;
+    Editor.clearDirty();
+    wsSend({ type: 'load_show', name });
+  },
+  del() {
+    const name = document.getElementById('show-select').value;
+    if (!name) { alert('Pick a show to delete.'); return; }
+    if (!confirm(`Delete saved show "${name}"? The live show is not affected.`)) return;
+    wsSend({ type: 'delete_show', name });
+    setTimeout(() => this.refresh(), 400);
+  }
+};
+
 const Stage = {
   slots: { a: 'stage', b: 'host' },
 
@@ -1550,6 +1657,8 @@ const Editor = {
         <td><input type="number" value="${song.bpm||''}" data-si="${si}" data-field="bpm" placeholder="BPM" style="width:60px"></td>
         <td colspan="5"><input type="text" value="${esc(song.description)}" data-si="${si}" data-field="description" placeholder="Notes" style="width:100%"></td>
         <td><div class="row-actions">
+          <button class="row-btn btn-song-up" data-si="${si}" title="Move song earlier in the show" ${si === 0 ? 'disabled' : ''}>↑</button>
+          <button class="row-btn btn-song-down" data-si="${si}" title="Move song later in the show" ${si === songs.length - 1 ? 'disabled' : ''}>↓</button>
           <button class="row-btn btn-add-cue" data-si="${si}">+ Cue</button>
           <button class="row-btn del btn-del-song" data-si="${si}">✕ Song</button>
         </div></td>
@@ -1656,7 +1765,18 @@ const Editor = {
       const si = btn.dataset.si != null ? parseInt(btn.dataset.si) : null;
       const ci = btn.dataset.ci != null ? parseInt(btn.dataset.ci) : null;
 
-      if (btn.classList.contains('btn-del-song') && si != null) {
+      if ((btn.classList.contains('btn-song-up') || btn.classList.contains('btn-song-down')) && si != null) {
+        // Song array order IS show order (deliberately independent of TC),
+        // so reordering is a first-class edit, not a sort.
+        const dir = btn.classList.contains('btn-song-up') ? -1 : 1;
+        const to  = si + dir;
+        this.ensureLocal();
+        if (to < 0 || to >= State.localSongs.length) return;
+        const [moved] = State.localSongs.splice(si, 1);
+        State.localSongs.splice(to, 0, moved);
+        this.markDirty();
+        this.render();
+      } else if (btn.classList.contains('btn-del-song') && si != null) {
         // A song delete takes every cue under it with one click — confirm.
         const _name = (State.localSongs || State.songs)[si]?.trackName || 'this song';
         const _n    = ((State.localSongs || State.songs)[si]?.cues || []).length;
@@ -1867,7 +1987,12 @@ const Settings = {
       <tbody>${screens.map(s => {
         const isMe = s.id === SCREEN_ID;
         return `<tr style="border-top:1px solid var(--border)${isMe ? ';opacity:0.5' : ''}">
-          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}</td>
+          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}
+            ${(() => { const age = s.lastSeen ? (Date.now() - new Date(s.lastSeen).getTime ? Date.now() - s.lastSeen : 0) : null;
+              if (age == null) return '';
+              const sec = Math.round(age / 1000);
+              const col = sec < 25 ? 'var(--live)' : sec < 60 ? 'var(--warn)' : 'var(--urgent)';
+              return `<span style="font-family:var(--font-tc);font-size:10px;color:${col};margin-left:6px">${sec}s</span>`; })()}</td>
           <td style="padding:6px 8px"><select id="sc-view-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${viewOpts}</select></td>
           <td style="padding:6px 8px"><select id="sc-slota-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
           <td style="padding:6px 8px"><select id="sc-slotb-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
@@ -2327,6 +2452,31 @@ document.addEventListener('DOMContentLoaded', () => {
     wsSend({ type: 'tc_stop' });
   });
   document.getElementById('btn-jam').addEventListener('click', openJamModal);
+  document.getElementById('btn-blackout').addEventListener('click', () => {
+    // Turning it ON asks; turning it OFF never does — recovery must be instant.
+    if (!blackoutOn && !confirm('Blackout ALL screens?')) return;
+    wsSend({ type: 'blackout', on: !blackoutOn });
+  });
+  document.getElementById('btn-show-save').addEventListener('click', () => Shows.saveAs());
+  document.getElementById('btn-show-load').addEventListener('click', () => Shows.load());
+  document.getElementById('btn-show-delete').addEventListener('click', () => Shows.del());
+  document.getElementById('btn-revert').addEventListener('click', () => {
+    if (!State.localSongs) { alert('No unsaved edits.'); return; }
+    if (!confirm('Discard all unsaved edits and revert to the last save?')) return;
+    State.localSongs = null;
+    Editor.clearDirty();
+    Editor.render();
+  });
+  document.querySelectorAll('.btn-manual-fire').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = Stage.slots[btn.dataset.slot];
+      const next = getNextCueGlobal(type);
+      if (!next) { alert('No upcoming ' + type + ' cue to fire.'); return; }
+      const label = getField(next.cue, type) || next.cue.description || next.cue.id;
+      if (!confirm(`Fire now: "${label}"?`)) return;
+      wsSend({ type: 'manual_fire', cueId: next.cue.id });
+    });
+  });
 
   // Jam modal
   document.getElementById('jam-submit').addEventListener('click', () => {
