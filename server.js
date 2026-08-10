@@ -902,6 +902,13 @@ app.post('/api/system/restart', (req, res) => {
   // reboot: the server can reboot itself; others go via their stats agent.
   if (!host) { res.status(400).json({ error: 'host required' }); return; }
   if (host === os.hostname().replace(/\.local$/i, '')) {
+    // Rebooting the server drops every display until it returns — never do it
+    // on a bare host match. The admin must pass confirmSelf:true, which it only
+    // sends after a dedicated "reboot the SERVER?" dialog. This makes a stray
+    // or misrouted command incapable of taking the show down.
+    if (req.body?.confirmSelf !== true) {
+      res.status(409).json({ error: 'Server reboot needs confirmSelf:true', isServer: true }); return;
+    }
     flightLog('REBOOT-SELF');
     res.json({ ok: true, action, self: true });
     const { execFile } = require('child_process');

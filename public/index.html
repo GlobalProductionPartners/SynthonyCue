@@ -1388,12 +1388,15 @@ const SysRes = {
       body: JSON.stringify({ action: 'reload', host }) }).catch(() => {});
   },
   async reboot(host, isServer) {
-    const warn = isServer
-      ? `Reboot the SERVER (${host})? Every display drops until it comes back (~40s).`
-      : `Reboot ${host}? Its display goes dark until it reboots (~40s).`;
-    if (!confirm(warn)) return;
+    if (isServer) {
+      // Two-step: rebooting the server takes down every display at once.
+      if (!confirm(`Reboot the SERVER (${host})?\n\nEVERY display in the rig goes dark until it returns (~40s). Do not do this during a show unless you mean it.`)) return;
+      if (!confirm(`Are you sure? Type-of-last-chance: this reboots the machine running the show.`)) return;
+    } else {
+      if (!confirm(`Reboot ${host}? Its display goes dark until it reboots (~40s).`)) return;
+    }
     const r = await fetch('/api/system/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reboot', host }) }).then(r => r.json()).catch(() => null);
+      body: JSON.stringify({ action: 'reboot', host, confirmSelf: !!isServer }) }).then(r => r.json()).catch(() => null);
     if (r && r.queued) alert(`${host} will reboot within ~10s (agent poll).`);
   }
 };
