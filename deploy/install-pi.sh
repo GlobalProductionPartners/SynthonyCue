@@ -51,8 +51,12 @@ sudo apt-get update
 # varies by distro) is installed separately — it must never take the core
 # packages down with it.
 if [ "$MODE" = "server" ]; then
-  # ffmpeg: video relay + LTC. ltc-tools/alsa-utils: LTC decode + device list.
-  sudo apt-get install -y curl ca-certificates avahi-utils ffmpeg ltc-tools alsa-utils
+  # Core server needs: discovery + video relay. Hard requirement.
+  sudo apt-get install -y curl ca-certificates avahi-utils ffmpeg
+  # LTC decode is a fallback TC source — best-effort only. Debian trixie has
+  # dropped ltc-tools from the archive; Art-Net timecode is unaffected.
+  sudo apt-get install -y ltc-tools alsa-utils \
+    || warn "ltc-tools/alsa-utils unavailable on this OS — LTC timecode disabled (Art-Net unaffected)"
 else
   # A client is just a browser + discovery + the bash stats agent.
   sudo apt-get install -y curl ca-certificates avahi-utils
