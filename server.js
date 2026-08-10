@@ -260,7 +260,19 @@ app.get('/admin', (req, res) => {
 });
 
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'kiosk.html')));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    // HTML/CSS/JS must revalidate on every load — a kiosk Pi nobody
+    // hard-refreshes has to pick up changes on plain reload. ETags make the
+    // revalidation a cheap 304, not a re-download.
+    if (/\.(html|css|js)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    } else if (/[\\/]fonts[\\/]/.test(filePath)) {
+      // Fonts change filename when they change identity — cache hard.
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
