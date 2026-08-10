@@ -909,6 +909,11 @@ function handleMsg(msg) {
     case 'reload':
       location.reload();
       break;
+    case 'video_reload':
+      // Force a fresh stream if this screen is showing video (attachVideo is
+      // idempotent and always re-establishes). Ignored otherwise.
+      if (currentView === 'video' || currentView === 'videofull') attachVideo();
+      break;
     case 'blackout':
       document.body.classList.toggle('is-blackout', !!msg.on);
       break;

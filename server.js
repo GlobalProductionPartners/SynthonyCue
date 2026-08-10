@@ -657,6 +657,10 @@ function handleClientMessage(ws, msg) {
       Video.configure(config, broadcastVideoStatus);
       Video.restart();
       broadcast({ type: 'config_updated', config: sanitiseConfig(config) });
+      // The server's ffmpeg just restarted on the new params, so every
+      // client's existing MJPEG connection is now stale. Force video views to
+      // re-establish immediately rather than wait for the error-retry.
+      broadcast({ type: 'video_reload' });
       console.log(`[Video] source set → ${config.videoSource || '(none)'}`);
       break;
     }
