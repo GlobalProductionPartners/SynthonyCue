@@ -7,9 +7,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "electron": "electron .",
-    "dist": "electron-builder --mac --publish never",
-    "release": "electron-builder --mac --publish never",
-    "postinstall": "electron-builder install-app-deps",
+    "dist": "electron-builder install-app-deps && electron-builder --mac --publish never",
+    "release": "electron-builder install-app-deps && electron-builder --mac --publish never",
     "test": "node --test"
   },
   "dependencies": {
@@ -29,7 +28,7 @@
   "build": {
     "appId": "com.synthony.cue",
     "productName": "Synthony Cue",
-    "copyright": "Copyright © 2026 Synthony",
+    "copyright": "Copyright \u00a9 2026 Synthony",
     "files": [
       "electron/**/*",
       "public/**/*",

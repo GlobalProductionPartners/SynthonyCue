@@ -170,11 +170,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 /* ════════════════════════════════════════════════════════════════════════════ */
 /* WATERFALL VIEW                                                               */
 /* ════════════════════════════════════════════════════════════════════════════ */
-#view-waterfall { flex-direction: column; }
-.waterfall-controls {
-  padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0;
-}
 .pill {
   padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;
   border: 1px solid var(--border); background: var(--bg3); color: var(--dim);
@@ -188,68 +183,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 .pill.conductor { border-color: var(--cyan); background: var(--cyan);    color: var(--bg); }
 .pill.track  { border-color: var(--green);   background: var(--green);   color: var(--bg); }
 .lookahead-sel { font-size: 12px; padding: 4px 8px; }
-#waterfall-scroll { flex: 1; overflow-y: auto; padding: 8px 16px; }
-
-/* Bar-style waterfall */
-.wf-track-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 0 4px; margin-top: 4px;
-}
-.wf-track-name {
-  font-size: clamp(12px, 1.6vw, 15px); font-weight: 700; color: var(--green);
-}
-.wf-track-tc {
-  font-family: var(--font-tc); font-size: 11px; color: var(--dim);
-}
-.wf-track-bpm { font-size: 11px; color: var(--dim); }
-.wf-bar-row {
-  display: flex; align-items: center; margin-bottom: 5px;
-}
-.wf-bar-outer {
-  flex: 1; height: 36px; position: relative; background: var(--bg3);
-  border-radius: 6px; overflow: hidden;
-}
-.wf-bar-inner {
-  position: absolute; left: 0; top: 0; height: 100%;
-  border-radius: 6px; overflow: hidden;
-}
-.wf-bar-inner.past { opacity: 0.35; }
-.wf-bar-label {
-  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
-  display: flex; align-items: center; padding: 0 12px; gap: 8px;
-  pointer-events: none;
-}
-.wf-bar-num {
-  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); flex-shrink: 0;
-}
-.wf-bar-text {
-  flex: 1; font-size: clamp(12px, 1.8vw, 15px); font-weight: 600;
-  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.wf-bar-cd {
-  font-family: var(--font-tc); font-size: clamp(11px, 1.3vw, 13px);
-  color: rgba(255,255,255,0.35); flex-shrink: 0;
-}
-.wf-bar-cd.near   { color: var(--warn); }
-.wf-bar-cd.urgent { color: var(--red); }
-.wf-bar-cd.past   { color: var(--text-3); }
-.wf-next-up { opacity: 0.6; }
-.wf-next-label { font-size: 10px; font-weight: 600; color: var(--text-3); letter-spacing: 0.16em; text-transform: uppercase; flex-shrink: 0; }
-
 /* Cue type is genuinely categorical here, so it keeps distinct hues — but on
    an orange/blue axis plus two neutrals, which stays separable for red-green
    colour blindness and never collides with the amber/red timing states. */
-.wf-bar-stage     { background: #FF4A1C; }
-.wf-bar-host      { background: #4C9AFF; }
-.wf-bar-camera    { background: #F4F4F5; }
-.wf-bar-conductor { background: #8B8B93; }
 /* dark row backgrounds */
-.wf-row-stage     { background: #1E0D07; }
-.wf-row-host      { background: #0B1520; }
-.wf-row-camera    { background: #17171A; }
-.wf-row-conductor { background: #121214; }
-.wf-bar-desc      { background: #636366; }
-
 /* Stage view CSS → /stage-cue.css */
 
 /* ════════════════════════════════════════════════════════════════════════════ */
@@ -515,7 +452,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .wf-bar-text { font-size: 12px; }
 }
 
 /* ── Scrollbars ────────────────────────────────────────────────────────────── */
@@ -558,6 +494,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 
   <!-- TABS -->
   <div id="view-tabs">
+    <button class="tab" data-view="dashboard">Dashboard</button>
     <button class="tab" data-view="overview">Show Overview</button>
     <button class="tab" data-view="conductor">Simple View</button>
     <button class="tab" data-view="camera">Single Cue</button>
@@ -597,6 +534,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
           <div class="sec panel-sec" style="margin-top:20px"><span class="sep">//</span> OUTPUTS</div>
           <div class="status-row"><span><span class="status-dot" id="dot-osc"></span>OSC</span><span class="val" id="status-osc">—</span></div>
           <div class="status-row"><span><span class="status-dot" id="dot-artnet"></span>ArtNet</span><span class="val" id="status-artnet">—</span></div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1">
+          <div class="sec panel-sec"><span class="sep">//</span> SYSTEM <span class="sep">/</span> RESOURCES</div>
+          <div id="sys-resources"><div style="color:var(--text-3);font-size:12px">Waiting for first sample…</div></div>
         </div>
         <div class="panel" style="grid-column: 1 / -1;">
           <div class="sec panel-sec" style="display:flex;justify-content:space-between;align-items:center">
@@ -916,10 +857,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
             <tbody id="artnet-dest-tbody"></tbody>
           </table>
           <button class="btn" style="margin-top:8px;font-size:12px" id="btn-add-artnet-dest">+ Add Destination</button>
-        </div>
-        <div class="panel" style="grid-column: 1 / -1">
-          <div class="sec panel-sec"><span class="sep">//</span> SYSTEM <span class="sep">/</span> RESOURCES</div>
-          <div id="sys-resources"><div style="color:var(--text-3);font-size:12px">Waiting for first sample…</div></div>
         </div>
         <div class="panel" style="grid-column: 1 / -1">
           <div class="sec panel-sec"><span class="sep">//</span> CONNECTED SCREENS</div>
@@ -1357,108 +1294,6 @@ function dot(id, on) {
   const el = document.getElementById(id);
   if (el) { el.classList.toggle('ok', !!on); }
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// WATERFALL
-// ══════════════════════════════════════════════════════════════════════════════
-const WF_FILL_SECONDS = 5; // seconds before cue fires that the bar starts filling
-
-const WF = {
-  filters: new Set(['track','stage','host','camera','conductor']),
-
-  toggleFilter(type, btn) {
-    if (this.filters.has(type)) { this.filters.delete(type); btn.classList.remove('active','track','stage','host','camera','conductor'); }
-    else { this.filters.add(type); btn.classList.add('active', type); }
-    this.render();
-  },
-
-  render() {
-    const el           = document.getElementById('waterfall-rows');
-    const now          = State.tcFrames || parseTC(State.tc);
-    const pastWindow   = 30 * FR;
-    const futureWindow = 60 * FR; // 1 minute lookahead
-
-    const typeMap = [
-      { key: 'stage',      field: 'stageCue',     cls: 'wf-bar-stage',     rowCls: 'wf-row-stage' },
-      { key: 'host',       field: 'hostCue',      cls: 'wf-bar-host',      rowCls: 'wf-row-host' },
-      { key: 'camera',     field: 'cameraCue',    cls: 'wf-bar-camera',    rowCls: 'wf-row-camera' },
-      { key: 'conductor',  field: 'conductorCue', cls: 'wf-bar-conductor', rowCls: 'wf-row-conductor' },
-    ];
-
-    // Collect rows within window; track first cue beyond the window
-    const rows = [];
-    let cueIndex = 0;
-    let nextBeyond = null; // first upcoming cue outside the 1-min window
-    for (const song of State.songs) {
-      const songStart = parseTC(song.timecode);
-      rows.push({ type: 'song', song, diff: songStart - now });
-      for (const cue of (song.cues || [])) {
-        const abs  = songStart + parseTC(cue.offset);
-        const diff = abs - now;
-        if (diff < -pastWindow) continue;
-        if (diff > futureWindow) {
-          // Track the very first upcoming cue beyond the window
-          if (!nextBeyond && diff > 0) nextBeyond = { song, cue, diff, index: cueIndex + 1 };
-          continue;
-        }
-        cueIndex++;
-        rows.push({ type: 'cue', song, cue, diff, index: cueIndex });
-      }
-    }
-
-    const fillWindow = WF_FILL_SECONDS * FR;
-
-    const renderCueRow = (cue, diff, index, isNext = false) => {
-      const isPast = diff < 0;
-      const cdStr  = isPast ? '●' : framesToDisplay(Math.max(0, diff));
-      const cdCls  = isPast ? 'past' : diff < 10*FR ? 'urgent' : diff < 30*FR ? 'near' : '';
-      const active = isPast || diff <= fillWindow;
-      const pct    = isPast ? 100 : Math.max(0, Math.min(100, (1 - diff / fillWindow) * 100));
-      let out = '';
-      for (const t of typeMap) {
-        if (!this.filters.has(t.key)) continue;
-        const text = cue[t.field];
-        if (!text) continue;
-        out += `<div class="wf-bar-row${isNext ? ' wf-next-up' : ''}">
-          <div class="wf-bar-outer ${t.rowCls}">
-            <div class="wf-bar-inner ${active ? t.cls : ''}${isPast ? ' past' : ''}" style="width:${pct.toFixed(1)}%"></div>
-            <div class="wf-bar-label">
-              ${isNext ? '<span class="wf-next-label">NEXT</span>' : `<span class="wf-bar-num">${index}</span>`}
-              <span class="wf-bar-text">${esc(text)}</span>
-              <span class="wf-bar-cd ${cdCls}">${cdStr}</span>
-            </div>
-          </div>
-        </div>`;
-      }
-      return out;
-    };
-
-    let html = '';
-    for (const r of rows) {
-      if (r.type === 'song') {
-        if (!this.filters.has('track')) continue;
-        const { song, diff } = r;
-        const cdStr = diff < 0 ? '●' : framesToDisplay(diff);
-        html += `<div class="wf-track-header">
-          <span class="wf-track-name">${esc(song.trackName)}</span>
-          ${song.bpm ? `<span class="wf-track-bpm">♩${song.bpm}</span>` : ''}
-          <span class="wf-track-tc">${song.timecode}</span>
-          <span class="wf-bar-cd ${diff < 0 ? 'past' : diff < 10*FR ? 'urgent' : diff < 30*FR ? 'near' : ''}" style="width:auto">${cdStr}</span>
-        </div>`;
-      } else {
-        html += renderCueRow(r.cue, r.diff, r.index);
-      }
-    }
-
-    // Always pin the next cue beyond the window at the bottom
-    if (nextBeyond) {
-      html += `<div style="height:1px;background:var(--border);margin:8px 0"></div>`;
-      html += renderCueRow(nextBeyond.cue, nextBeyond.diff, nextBeyond.index, true);
-    }
-
-    el.innerHTML = html || '<div style="padding:24px;color:var(--dim);text-align:center">No cues in window</div>';
-  }
-};
 
 // ══════════════════════════════════════════════════════════════════════════════
 // STAGE MANAGER
@@ -2418,7 +2253,7 @@ function applyURLParams() {
   const params = new URLSearchParams(location.search);
   const view = params.get('view');
   const map = {
-    dashboard: 'dashboard', waterfall: 'waterfall',
+    dashboard: 'dashboard',
     stage: 'stage', 'stage-manager': 'stage',
     camera: 'camera', conductor: 'conductor',
     editor: 'editor', settings: 'settings'
