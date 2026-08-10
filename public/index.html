@@ -2012,6 +2012,10 @@ const Settings = {
 
     const wrap = document.getElementById('screens-list-wrap');
     if (!wrap) return;
+    // Heartbeats re-broadcast the screens list every few seconds; rebuilding
+    // while a dropdown is open would snatch it mid-selection. The next
+    // broadcast repaints once focus has left the table.
+    if (wrap.contains(document.activeElement)) return;
     const screens = State.screens || [];
     if (!screens.length) { wrap.innerHTML = '<div style="color:var(--dim);font-size:13px">No screens connected</div>'; return; }
 
@@ -2040,7 +2044,6 @@ const Settings = {
         <th style="padding:4px 8px">Slot A</th>
         <th style="padding:4px 8px">Slot B</th>
         <th style="padding:4px 8px">Cam Type</th>
-        <th style="padding:4px 8px"></th>
       </tr></thead>
       <tbody>${screens.map(s => {
         const isMe = s.id === SCREEN_ID;
@@ -2051,11 +2054,10 @@ const Settings = {
               const sec = Math.round(age / 1000);
               const col = sec < 25 ? 'var(--live)' : sec < 60 ? 'var(--warn)' : 'var(--urgent)';
               return `<span style="font-family:var(--font-tc);font-size:10px;color:${col};margin-left:6px">${sec}s</span>`; })()}</td>
-          <td style="padding:6px 8px"><select id="sc-view-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${viewOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-slota-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-slotb-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-cam-${s.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
-          <td style="padding:6px 8px">${isMe ? '' : `<button class="btn" style="font-size:11px;padding:2px 10px" onclick="Settings.sendScreenCommand('${s.id}')">Send</button>`}</td>
+          <td style="padding:6px 8px"><select id="sc-view-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${viewOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-slota-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-slotb-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-cam-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
