@@ -172,15 +172,7 @@ body.video-clean .video-stage { background: #000; }
   background: var(--bg); border-bottom: 1px solid var(--border);
   flex-shrink: 0; isolation: isolate; z-index: var(--z-header);
 }
-#kiosk-header .kh-logo {
-  font-family: var(--font-tc); font-weight: 400;
-  font-size: clamp(10px, 1vw, 13px);
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--text-3); white-space: nowrap;
-}
-#kiosk-header .kh-logo .sep { color: var(--border-str); }
-/* Timecode is the most-read element on this screen and now the largest
-   thing in the header. No box, no glow — size and weight carry it. */
+/* Timecode is the header — no wordmark competing with it. */
 #kiosk-header .kh-tc {
   font-family: var(--font-tc); font-variant-numeric: tabular-nums;
   font-size: clamp(22px, 3.6vw, 48px); font-weight: 700;
@@ -272,7 +264,6 @@ body.video-clean .video-stage { background: #000; }
 
   <!-- Header bar -->
   <div id="kiosk-header">
-    <span class="kh-logo"><span class="sep">//</span> SYNTHONY CUE</span>
     <span class="kh-tc stopped" id="kh-tc">00:00:00:00</span>
     <div class="kh-spacer"></div>
     <span class="kh-clock" id="kh-clock">--:--:--</span>
