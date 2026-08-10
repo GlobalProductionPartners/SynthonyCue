@@ -39,6 +39,13 @@ chmod +x "$STAGE/$NAME/deploy/install-pi.sh" \
          "$STAGE/$NAME/deploy/synthony-kiosk.sh" \
          "$STAGE/$NAME/start-linux.sh"
 
+# Version stamp: package version + git rev + build time. This is what OTA
+# compares — two bundles of the same npm version but different commits are
+# different builds.
+GITREV=$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo nogit)
+printf '%s+%s.%s\n' "$VERSION" "$GITREV" "$(date -u +%Y%m%d%H%M)" > "$STAGE/$NAME/VERSION"
+echo "stamped $(cat "$STAGE/$NAME/VERSION")"
+
 tar czf "$OUT" -C "$STAGE" "$NAME"
 
 echo "built  $OUT"

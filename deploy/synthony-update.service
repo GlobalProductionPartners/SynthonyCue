@@ -1,0 +1,8 @@
+[Unit]
+Description=Synthony Cue OTA updater
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=__USER__
+ExecStart=__DIR__/deploy/synthony-update.sh

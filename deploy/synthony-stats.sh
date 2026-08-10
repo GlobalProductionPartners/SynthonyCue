@@ -24,12 +24,15 @@ find_server() {
 }
 
 cpu_pct() {
-  # Delta over /proc/stat between calls — first call returns empty.
+  # Sets $CPU from the /proc/stat delta between calls (first call → empty).
+  # Must NOT be called in $(...) — a subshell would discard PREV_* and the
+  # delta could never be computed (the flat-0% bug).
   read -r _ user nice system idle iowait irq softirq steal _ < /proc/stat
   local total=$((user + nice + system + idle + iowait + irq + softirq + steal))
   local didle=$((idle + iowait - PREV_IDLE)) dtotal=$((total - PREV_TOTAL))
+  CPU=""
   if [ "$PREV_TOTAL" -gt 0 ] && [ "$dtotal" -gt 0 ]; then
-    echo $(( (100 * (dtotal - didle)) / dtotal ))
+    CPU=$(( (100 * (dtotal - didle)) / dtotal ))
   fi
   PREV_IDLE=$((idle + iowait)); PREV_TOTAL=$total
 }
@@ -38,7 +41,7 @@ while true; do
   URL=$(find_server) || { sleep 15; continue; }
   if [ "$URL" = "LOCAL" ]; then sleep 300; continue; fi   # server reports itself
 
-  CPU=$(cpu_pct)
+  cpu_pct
   LOAD=$(awk '{print $1}' /proc/loadavg 2>/dev/null)
   MEM_TOTAL=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
   MEM_AVAIL=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)

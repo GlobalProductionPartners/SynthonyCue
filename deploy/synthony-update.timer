@@ -1,0 +1,10 @@
+[Unit]
+Description=Synthony Cue OTA update check (boot + every 6h)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=6h
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

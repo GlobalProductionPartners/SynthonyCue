@@ -128,6 +128,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-stats
 sudo systemctl restart synthony-stats
 
+# ── OTA updater (both roles) ──────────────────────────────────────────────────
+say "Installing OTA updater"
+chmod +x "$DIR/deploy/synthony-update.sh"
+sed -e "s|__USER__|$RUN_USER|g" -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/synthony-update.service" | sudo tee /etc/systemd/system/synthony-update.service >/dev/null
+sudo cp "$DIR/deploy/synthony-update.timer" /etc/systemd/system/synthony-update.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now synthony-update.timer
+
 # ── Fullscreen kiosk autostart ────────────────────────────────────────────────
 say "Installing fullscreen kiosk autostart"
 chmod +x "$DIR/deploy/synthony-kiosk.sh"

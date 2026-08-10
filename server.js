@@ -76,6 +76,25 @@ try {
   };
 }
 
+// ── OTA updates ───────────────────────────────────────────────────────────────
+// The admin uploads a bundle; the server verifies it, extracts it over its
+// own install directory, refreshes deps, and exits — systemd's
+// Restart=always brings it back on the new code, so no sudo is ever needed.
+// Clients pull the same stored bundle on a timer (deploy/synthony-update.sh).
+const UPDATES_DIR = path.join(DATA_DIR, 'updates');
+const RUNNING_VERSION = (() => {
+  try { return fs.readFileSync(path.join(__dirname, 'VERSION'), 'utf8').trim(); }
+  catch { return 'dev'; }
+})();
+function latestUploaded() {
+  try {
+    const f = path.join(UPDATES_DIR, 'latest.tar.gz');
+    if (!fs.existsSync(f)) return null;
+    const v = fs.readFileSync(path.join(UPDATES_DIR, 'latest.version'), 'utf8').trim();
+    return { file: f, version: v, size: fs.statSync(f).size };
+  } catch { return null; }
+}
+
 // ── System resources ──────────────────────────────────────────────────────────
 // The server reports its own machine; display-only Pis run a small agent
 // (deploy/synthony-stats.sh) that POSTs the same shape here every 10s.
@@ -801,7 +820,8 @@ app.post('/api/system/report', (req, res) => {
   const host = String(b.host || '').slice(0, 60);
   if (!host) { res.status(400).json({ error: 'host required' }); return; }
   if (!remoteStats.has(host) && remoteStats.size >= 50) { res.status(429).json({ error: 'too many reporters' }); return; }
-  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  // Number(null) === 0 — a missing metric must render as —, never as 0.
+  const num = (v) => (v == null || v === '' ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
   remoteStats.set(host, {
     host, role: 'display',
     cpu: num(b.cpu), load: num(b.load),
@@ -812,6 +832,60 @@ app.post('/api/system/report', (req, res) => {
     at: Date.now()
   });
   res.json({ ok: true });
+});
+
+// ── OTA endpoints ─────────────────────────────────────────────────────────────
+const updateUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024, files: 1 }
+});
+app.get('/api/update/status', (_req, res) => {
+  res.json({ running: RUNNING_VERSION, uploaded: latestUploaded() });
+});
+// Clients poll this: the stored bundle, if any.
+app.get('/api/update/bundle', (_req, res) => {
+  const up = latestUploaded();
+  if (!up) { res.status(404).json({ error: 'No update uploaded' }); return; }
+  res.setHeader('X-Bundle-Version', up.version);
+  res.sendFile(up.file);
+});
+app.post('/api/update/upload', updateUpload.single('bundle'), (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (!req.file) { res.status(400).json({ error: 'No file' }); return; }
+  try {
+    // Validate before accepting: must be a bundle with server.js + VERSION.
+    fs.mkdirSync(UPDATES_DIR, { recursive: true });
+    const tmp = path.join(UPDATES_DIR, 'incoming.tar.gz');
+    fs.writeFileSync(tmp, req.file.buffer);
+    const { execFileSync } = require('child_process');
+    const list = execFileSync('tar', ['tzf', tmp], { timeout: 30000 }).toString();
+    if (!/\/server\.js$/m.test(list) || !/\/VERSION$/m.test(list)) {
+      fs.unlinkSync(tmp);
+      res.status(400).json({ error: 'Not a Synthony bundle (missing server.js/VERSION)' }); return;
+    }
+    const vline = execFileSync('bash', ['-c', `tar xzOf ${JSON.stringify(tmp)} --wildcards '*/VERSION' | head -1`], { timeout: 30000 }).toString().trim();
+    fs.renameSync(tmp, path.join(UPDATES_DIR, 'latest.tar.gz'));
+    fs.writeFileSync(path.join(UPDATES_DIR, 'latest.version'), vline);
+    flightLog('UPDATE-UPLOADED', vline);
+    res.json({ ok: true, version: vline, running: RUNNING_VERSION });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/update/apply', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const up = latestUploaded();
+  if (!up) { res.status(400).json({ error: 'No update uploaded' }); return; }
+  try {
+    const { execFileSync } = require('child_process');
+    // Extract over the install dir. node_modules is not in bundles, and
+    // extracting does not delete it — deps survive; npm fills any gaps.
+    execFileSync('tar', ['xzf', up.file, '-C', __dirname, '--strip-components=1'], { timeout: 120000 });
+    try { execFileSync('npm', ['install', '--omit=dev'], { cwd: __dirname, timeout: 300000 }); }
+    catch (e) { console.warn('[Update] npm install:', e.message); }
+    flightLog('UPDATE-APPLIED', `${RUNNING_VERSION} -> ${up.version}`);
+    res.json({ ok: true, from: RUNNING_VERSION, to: up.version, restarting: true });
+    // Exit AFTER the response flushes; systemd restarts us on the new code.
+    setTimeout(() => { console.log('[Update] restarting on new code'); process.exit(0); }, 800);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/video/stream',   (req, res) => Video.handleStream(req, res));

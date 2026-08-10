@@ -819,6 +819,25 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
           </div>
         </div>
         <div class="panel">
+          <div class="sec panel-sec"><span class="sep">//</span> UPDATES</div>
+          <div class="status-row"><span>Running build</span><span class="val" id="upd-running">—</span></div>
+          <div class="status-row"><span>Uploaded bundle</span><span class="val" id="upd-uploaded">none</span></div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label" for="upd-file">New bundle (.tar.gz)</label>
+            <input class="form-input" id="upd-file" type="file" accept=".gz,.tgz">
+            <div class="form-hint">
+              Upload the bundle built by make-bundle.sh, then Apply. The server
+              installs it over itself and restarts (~10s). Client Pis pull the
+              same bundle automatically (on boot and every 6h).
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="btn-upd-upload">Upload</button>
+            <button class="btn primary" id="btn-upd-apply">Apply to Server</button>
+          </div>
+          <div class="probe-result" id="upd-result"></div>
+        </div>
+        <div class="panel">
           <div class="sec panel-sec"><span class="sep">//</span> SERVER</div>
           <div class="form-group">
             <label class="form-label">Port</label>
@@ -1753,6 +1772,7 @@ const Settings = {
     document.getElementById('cfg-port').value      = State.config.port || 3000;
     this.onSourceChange(src);
     this.renderVideo();
+    this.refreshUpdate();
     this.renderOSCDests();
     this.renderArtNetDests();
     this.renderScreens();
@@ -1791,6 +1811,53 @@ const Settings = {
   // before the encoder is on site.
   applyTestPattern() {
     this.applyVideo('lavfi:testsrc2=size=1280x720:rate=25');
+  },
+
+  // ── OTA ──────────────────────────────────────────────────────────────────
+  async refreshUpdate() {
+    try {
+      const st = await fetch('/api/update/status').then(r => r.json());
+      const r = document.getElementById('upd-running');
+      const u = document.getElementById('upd-uploaded');
+      if (r) r.textContent = st.running || '—';
+      if (u) u.textContent = st.uploaded ? `${st.uploaded.version} (${(st.uploaded.size/1048576).toFixed(1)} MB)` : 'none';
+    } catch {}
+  },
+  async uploadUpdate() {
+    const inp = document.getElementById('upd-file');
+    const out = document.getElementById('upd-result');
+    if (!inp?.files?.length) { out.className='probe-result bad'; out.textContent='Choose a bundle file first'; return; }
+    out.className = 'probe-result busy'; out.textContent = 'Uploading…';
+    const fd = new FormData(); fd.append('bundle', inp.files[0]);
+    try {
+      const res = await fetch('/api/update/upload', { method: 'POST', body: fd }).then(r => r.json());
+      if (res.ok) { out.className='probe-result ok'; out.textContent = `Uploaded ${res.version} — press Apply to install`; }
+      else { out.className='probe-result bad'; out.textContent = 'FAILED — ' + (res.error || 'unknown'); }
+    } catch (e) { out.className='probe-result bad'; out.textContent = 'FAILED — ' + e.message; }
+    this.refreshUpdate();
+  },
+  async applyUpdate() {
+    const out = document.getElementById('upd-result');
+    const st = await fetch('/api/update/status').then(r => r.json()).catch(() => null);
+    if (!st?.uploaded) { out.className='probe-result bad'; out.textContent='Nothing uploaded to apply'; return; }
+    if (!confirm(`Install ${st.uploaded.version} over ${st.running} and restart the server?\n\nDisplays reconnect automatically; the show timeline is not affected.`)) return;
+    out.className = 'probe-result busy'; out.textContent = 'Applying — server will restart…';
+    try {
+      const res = await fetch('/api/update/apply', { method: 'POST' }).then(r => r.json());
+      if (res.ok) {
+        out.textContent = `Installing ${res.to}… waiting for the server to come back`;
+        const t0 = Date.now();
+        const poll = setInterval(async () => {
+          try {
+            const st2 = await fetch('/api/update/status').then(r => r.json());
+            clearInterval(poll);
+            out.className = 'probe-result ok';
+            out.textContent = `Back on ${st2.running} after ${Math.round((Date.now()-t0)/1000)}s ✓`;
+            this.refreshUpdate();
+          } catch {}
+        }, 2000);
+      } else { out.className='probe-result bad'; out.textContent = 'FAILED — ' + (res.error || 'unknown'); }
+    } catch (e) { out.className='probe-result bad'; out.textContent = 'Apply sent — reconnecting…'; }
   },
 
   probeVideo() {
@@ -2415,6 +2482,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-test-video').addEventListener('click', () => Settings.applyTestPattern());
   document.getElementById('btn-preview-video').addEventListener('click', () => Settings.refreshVideoPreview());
   document.getElementById('btn-probe-video').addEventListener('click', () => Settings.probeVideo());
+  document.getElementById('btn-upd-upload').addEventListener('click', () => Settings.uploadUpdate());
+  document.getElementById('btn-upd-apply').addEventListener('click', () => Settings.applyUpdate());
   document.getElementById('btn-add-osc-dest').addEventListener('click', () => Settings.addOSCDest());
   document.getElementById('btn-add-artnet-dest').addEventListener('click', () => Settings.addArtNetDest());
 
