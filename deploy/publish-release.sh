@@ -13,7 +13,12 @@ REPO="${1:-$(git -C "$DIR" remote get-url origin 2>/dev/null | sed -E 's#.*githu
 
 "$DIR/deploy/make-bundle.sh" >/dev/null
 BUNDLE=$(ls -t "$DIR"/dist/synthony-cue-pi-*.tar.gz | head -1)
-VER=$(tar xzOf "$BUNDLE" --wildcards '*/VERSION' 2>/dev/null | head -1)
+# bsdtar (macOS) has no --wildcards; extract VERSION to a temp dir instead.
+_tmp=$(mktemp -d)
+tar xzf "$BUNDLE" -C "$_tmp" 2>/dev/null
+VER=$(cat "$_tmp"/*/VERSION 2>/dev/null | head -1)
+rm -rf "$_tmp"
+[ -n "$VER" ] || { echo "could not read VERSION from bundle"; exit 1; }
 TAG="build-${VER//+/-}"
 
 echo "publishing $BUNDLE as $TAG to $REPO"
