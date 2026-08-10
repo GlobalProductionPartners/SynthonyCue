@@ -282,6 +282,7 @@ const screens = new Map(); // screenId → { ws, name, view, slots, cameraType }
 function screensList() {
   return Array.from(screens.values()).map(s => ({
     id: s.id, name: s.name, view: s.view, slots: s.slots, cameraType: s.cameraType,
+    ovCueType: s.ovCueType || 'any',
     lastSeen: s.lastSeen || null
   }));
 }
@@ -721,7 +722,7 @@ function handleClientMessage(ws, msg) {
     }
 
     case 'screen_hello': {
-      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, lastSeen: Date.now() });
+      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, lastSeen: Date.now() });
       flightLog('SCREEN-CONNECTED', `${msg.name} (${msg.id})`);
       broadcastScreensList();
       break;
@@ -729,7 +730,7 @@ function handleClientMessage(ws, msg) {
 
     case 'screen_update': {
       const s = screens.get(msg.id);
-      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, lastSeen: Date.now() }); broadcastScreensList(); }
+      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, lastSeen: Date.now() }); broadcastScreensList(); }
       break;
     }
 
@@ -738,7 +739,7 @@ function handleClientMessage(ws, msg) {
       const target = screens.get(msg.targetId);
       console.log(`[Screen] Command → ${msg.targetId} (${target ? 'found, state=' + target.ws.readyState : 'NOT FOUND'}) view=${msg.view}`);
       console.log(`[Screen] Known screens: ${[...screens.keys()].join(', ') || 'none'}`);
-      if (target?.ws?.readyState === 1) safeSend(target.ws, { type: 'screen_command', view: msg.view, slots: msg.slots, cameraType: msg.cameraType });
+      if (target?.ws?.readyState === 1) safeSend(target.ws, { type: 'screen_command', view: msg.view, slots: msg.slots, cameraType: msg.cameraType, ovCueType: msg.ovCueType });
       break;
     }
 

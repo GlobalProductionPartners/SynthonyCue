@@ -1116,6 +1116,7 @@ function handleServerMessage(msg) {
         if (msg.slots.b) Stage.setSlotType('b', msg.slots.b);
       }
       if (msg.cameraType) Camera.setType(msg.cameraType);
+      if (msg.ovCueType) Overview.setCueType(msg.ovCueType);
       break;
   }
 }
@@ -1868,6 +1869,11 @@ const Settings = {
       ['videofull','Video — Full Screen']
     ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
 
+    // Overview cue-type: Auto resolves per-cue (first non-empty field)
+    const ovOpts = [
+      ['any','Auto'],['stage','Stage'],['host','Host'],['conductor','Conductor'],['camera','Camera'],['description','Description']
+    ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+
     const typeOpts = [
       ['camera','Camera'],['stage','Stage Cue'],['host','Host Cue'],['conductor','Conductor'],['description','Description']
     ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
@@ -1879,6 +1885,7 @@ const Settings = {
         <th style="padding:4px 8px">Slot A</th>
         <th style="padding:4px 8px">Slot B</th>
         <th style="padding:4px 8px">Cam Type</th>
+        <th style="padding:4px 8px">Overview</th>
       </tr></thead>
       <tbody>${screens.map(s => {
         const isMe = s.id === SCREEN_ID;
@@ -1893,6 +1900,7 @@ const Settings = {
           <td style="padding:6px 8px"><select id="sc-slota-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
           <td style="padding:6px 8px"><select id="sc-slotb-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
           <td style="padding:6px 8px"><select id="sc-cam-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
+          <td style="padding:6px 8px"><select id="sc-ov-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${ovOpts}</select></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
@@ -1907,6 +1915,8 @@ const Settings = {
       if (aEl) aEl.value = s.slots?.a || 'stage';
       if (bEl) bEl.value = s.slots?.b || 'host';
       if (cEl) cEl.value = s.cameraType || 'camera';
+      const oEl = document.getElementById(`sc-ov-${s.id}`);
+      if (oEl) oEl.value = s.ovCueType || 'any';
     }
   },
 
@@ -1915,8 +1925,8 @@ const Settings = {
     const slotA    = document.getElementById(`sc-slota-${targetId}`)?.value;
     const slotB    = document.getElementById(`sc-slotb-${targetId}`)?.value;
     const camType  = document.getElementById(`sc-cam-${targetId}`)?.value;
-    console.log('[Screen] Sending command', { targetId, view, slotA, slotB, camType, wsState: ws?.readyState });
-    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, cameraType: camType });
+    const ovType   = document.getElementById(`sc-ov-${targetId}`)?.value;
+    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, cameraType: camType, ovCueType: ovType });
   },
 
   onSourceChange(src, sendToServer) {
