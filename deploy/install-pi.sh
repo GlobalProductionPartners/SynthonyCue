@@ -33,7 +33,7 @@ sudo apt-get update
 # ltc-tools provides ltcdump; alsa-utils provides arecord for LTC device listing.
 # Both only matter if you use LTC — harmless to install regardless.
 sudo apt-get install -y \
-  curl ca-certificates \
+  curl ca-certificates avahi-utils \
   ffmpeg ltc-tools alsa-utils \
   chromium-browser || sudo apt-get install -y chromium
 

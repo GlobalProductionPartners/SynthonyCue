@@ -961,6 +961,26 @@ if (config.videoSource) console.log(`[Video] source configured → ${config.vide
 
 const PORT = process.env.PORT || config.port || 3001;
 
+// ── mDNS advertising ──────────────────────────────────────────────────────────
+// Client Pis find the cue server by browsing _synthony._tcp instead of being
+// configured with an IP — venue DHCP can hand out whatever it likes. Published
+// from Node (not a static avahi file) so the advert exists only while the
+// server is actually running. Best-effort: discovery failing must never stop
+// the show server.
+let _bonjour = null;
+try {
+  const { Bonjour } = require('bonjour-service');
+  _bonjour = new Bonjour();
+  const svcName = `Synthony Cue (${require('os').hostname().replace(/\.local$/i, '')})`;
+  _bonjour.publish({ name: svcName, type: 'synthony', port: Number(PORT) });
+  console.log(`[mDNS] advertising "${svcName}" as _synthony._tcp on :${PORT}`);
+  const stopAds = () => { try { _bonjour.unpublishAll(() => process.exit(0)); } catch { process.exit(0); } };
+  process.on('SIGTERM', stopAds);
+  process.on('SIGINT', stopAds);
+} catch (e) {
+  console.log(`[mDNS] advertising unavailable: ${e.message}`);
+}
+
 // Port-80 convenience listener: browsers assume :80 when no port is typed, so
 // operators can reach the app as plain http://<host>/ . Same express app, and
 // WebSocket upgrades are forwarded to the same wss. If the OS refuses the

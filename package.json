@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "artnet": "^1.1.0",
+    "bonjour-service": "^1.4.4",
     "electron-updater": "^6.3.0",
     "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
@@ -28,7 +29,7 @@
   "build": {
     "appId": "com.synthony.cue",
     "productName": "Synthony Cue",
-    "copyright": "Copyright \u00a9 2026 Synthony",
+    "copyright": "Copyright © 2026 Synthony",
     "files": [
       "electron/**/*",
       "public/**/*",

@@ -75,6 +75,22 @@ sudo raspi-config  →  Display Options  →  Screen Blanking  →  No
 | Admin / editing | `http://<pi-ip>/admin` — from any machine on the network |
 | Find the Pi's IP | `hostname -I` |
 
+**Client Pis find the server by themselves.** The server advertises itself on
+the network (mDNS), and the kiosk launcher browses for it — so display-only
+Pis need **no IP configured anywhere** and survive DHCP handing out new
+addresses. Priority: `SYNTHONY_URL` override → local server → discovery,
+retrying every 5s until found.
+
+**Screens name themselves.** Each display registers as `<hostname>-1`,
+`<hostname>-2`, … so the admin's Connected Screens list reads as real
+hardware ("stage-left-1"). Name the Pi accordingly (`raspi-config` →
+Hostname).
+
+**Dual displays:** one fullscreen kiosk opens per connected monitor. Window
+placement needs X11 — on Pi OS Bookworm switch via `raspi-config` →
+Advanced → Wayland → X11. Under Wayland only the first display gets a window
+(logged in `~/.synthony-kiosk.log`).
+
 **No port needed.** The server also listens on port 80, so `http://<pi-ip>/`
 and `http://<hostname>.local/` work as-is. Give the Pi a memorable hostname
 (`sudo raspi-config` → System → Hostname, e.g. `synthony`) and the admin is

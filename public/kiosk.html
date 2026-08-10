@@ -615,7 +615,11 @@ const SCREEN_ID = sessionStorage.getItem('screen-id') || (() => {
   sessionStorage.setItem('screen-id', id);
   return id;
 })();
-let SCREEN_NAME = localStorage.getItem('screen-name') || 'Display';
+// ?name=pi5-1 wins over the stored name, so the launcher can stamp each
+// display with "<hostname>-<display#>" and the admin sees exactly which
+// physical screen is which.
+const NAME_PARAM = new URLSearchParams(location.search).get('name');
+let SCREEN_NAME = NAME_PARAM || localStorage.getItem('screen-name') || 'Display';
 
 // Current view + slot config
 // ?view=stage wins over the stored value, so a kiosk can be pointed at a
