@@ -1,12 +1,29 @@
 #!/bin/bash
-# Synthony Cue — one-shot installer for Raspberry Pi OS (64-bit, Pi 5).
+# Synthony Cue — one-shot installer for Raspberry Pi OS (64-bit).
 #
-#   cd ~/synthony-cue && ./deploy/install-pi.sh
+# ONE bundle, TWO roles — exactly ONE Pi in the rig runs the server:
 #
-# Installs system packages, node deps, a systemd unit for the server, and a
-# desktop autostart entry that opens the display fullscreen. Safe to re-run.
+#   ./deploy/install-pi.sh server    the one cue server (+ can drive displays)
+#   ./deploy/install-pi.sh client    display-only: kiosk + stats, NO server,
+#                                    no Node — finds the server over mDNS
+#
+# Run with no argument and it asks. Safe to re-run; converting a Pi from
+# server to client disables its server service.
 
 set -euo pipefail
+
+MODE="${1:-}"
+if [ "$MODE" != "server" ] && [ "$MODE" != "client" ]; then
+  echo "Install role:"
+  echo "  1) server — THE cue server for the rig (only one of these)"
+  echo "  2) client — display only (kiosk + stats agent, no server)"
+  read -rp "Choose [1/2]: " pick
+  case "$pick" in
+    1) MODE=server ;;
+    2) MODE=client ;;
+    *) echo "Pick 1 or 2."; exit 1 ;;
+  esac
+fi
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_USER="${SUDO_USER:-$USER}"
@@ -21,7 +38,7 @@ die()  { printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2; exit 1; }
 [ "$(uname -s)" = "Linux" ] || die "This installer is for Raspberry Pi OS. Use start-mac.command on macOS."
 [ "$(id -u)" -ne 0 ] || die "Run as your normal user (it will call sudo where needed), not as root."
 
-say "Installing for user '$RUN_USER' from $DIR"
+say "Installing role: $MODE — for user '$RUN_USER' from $DIR"
 echo "architecture: $(uname -m)"
 if [ "$(uname -m)" != "aarch64" ]; then
   warn "Expected aarch64 (64-bit Pi OS). Continuing, but Node/native builds may differ."
@@ -30,14 +47,22 @@ fi
 # ── System packages ───────────────────────────────────────────────────────────
 say "Installing system packages"
 sudo apt-get update
-# ltc-tools provides ltcdump; alsa-utils provides arecord for LTC device listing.
-# Both only matter if you use LTC — harmless to install regardless.
-sudo apt-get install -y \
-  curl ca-certificates avahi-utils \
-  ffmpeg ltc-tools alsa-utils \
-  chromium-browser || sudo apt-get install -y chromium
+if [ "$MODE" = "server" ]; then
+  # ffmpeg: video relay + LTC. ltc-tools/alsa-utils: LTC decode + device list.
+  sudo apt-get install -y \
+    curl ca-certificates avahi-utils \
+    ffmpeg ltc-tools alsa-utils \
+    chromium-browser || sudo apt-get install -y chromium
+else
+  # A client is just a browser + discovery + the bash stats agent.
+  sudo apt-get install -y \
+    curl ca-certificates avahi-utils \
+    chromium-browser || sudo apt-get install -y chromium
+fi
 
-# ── Node.js ───────────────────────────────────────────────────────────────────
+# ── Server-only: Node.js, app deps, data dir, server service ─────────────────
+if [ "$MODE" = "server" ]; then
+
 NEED_NODE=18
 if command -v node >/dev/null 2>&1; then
   NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
@@ -80,7 +105,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-cue
 sudo systemctl restart synthony-cue
 
-# ── Resource reporter ─────────────────────────────────────────────────────────
+else
+  # Client role: this Pi must NOT run a server — the kiosk checks localhost
+  # first, so a stray local server would hijack the display away from the
+  # real one. Disable it if a previous install left it here.
+  if systemctl list-unit-files synthony-cue.service >/dev/null 2>&1 && \
+     systemctl is-enabled synthony-cue >/dev/null 2>&1; then
+    say "Client role: disabling local server service"
+    sudo systemctl disable --now synthony-cue || true
+  fi
+fi
+
+# ── Resource reporter (both roles; dormant on the server Pi) ────────────────
 say "Installing resource reporter"
 chmod +x "$DIR/deploy/synthony-stats.sh"
 sed -e "s|__USER__|$RUN_USER|g" -e "s|__DIR__|$DIR|g" \
@@ -98,32 +134,56 @@ sed -e "s|__DIR__|$DIR|g" \
 chown -R "$RUN_USER":"$RUN_USER" "$RUN_HOME/.config/autostart" 2>/dev/null || true
 
 # ── Verify ────────────────────────────────────────────────────────────────────
-say "Waiting for the server"
-OK=0
-for i in $(seq 1 30); do
-  if curl -sf -o /dev/null --max-time 2 http://localhost:3001/; then OK=1; break; fi
-  sleep 1
-done
-
-if [ "$OK" = "1" ]; then
-  printf '\n\033[1;32m✓ Synthony Cue is running\033[0m\n'
-else
-  warn "Server did not answer on port 3001 yet. Check: journalctl -u synthony-cue -n 50"
-fi
-
-cat <<EOF
+if [ "$MODE" = "server" ]; then
+  say "Waiting for the server"
+  OK=0
+  for i in $(seq 1 30); do
+    if curl -sf -o /dev/null --max-time 2 http://localhost:3001/; then OK=1; break; fi
+    sleep 1
+  done
+  if [ "$OK" = "1" ]; then
+    printf '\n\033[1;32m✓ Synthony Cue SERVER is running\033[0m\n'
+  else
+    warn "Server did not answer on port 3001 yet. Check: journalctl -u synthony-cue -n 50"
+  fi
+  cat <<EOF
 
   Display (fullscreen)  http://localhost:3001/
-  Admin                 http://$(hostname -I 2>/dev/null | awk '{print $1}'):3001/admin
+  Admin                 http://$(hostname -I 2>/dev/null | awk '{print $1}')/admin
+  Data                  $DATA_DIR
+  Service               sudo systemctl status synthony-cue
+  Logs                  journalctl -u synthony-cue -f
+  Kiosk log             ~/.synthony-kiosk.log
 
-  Service     sudo systemctl status synthony-cue
-  Logs        journalctl -u synthony-cue -f
-  Kiosk log   ~/.synthony-kiosk.log
-  Data        $DATA_DIR
+  Clients on this network will find this server automatically (mDNS).
+  Remember: only ONE server Pi per rig.
 
-  The kiosk opens fullscreen at the next desktop login. To start it now:
+  The kiosk opens fullscreen at next login. Start now:
     $DIR/deploy/synthony-kiosk.sh &
 
-  Turn off screen blanking:  sudo raspi-config  ->  Display  ->  Screen Blanking  ->  No
+  Screen blanking off:  sudo raspi-config -> Display -> Screen Blanking -> No
 
 EOF
+else
+  say "Checking for a cue server on the network"
+  FOUND=$(avahi-browse -rtp _synthony._tcp 2>/dev/null | awk -F';' '$1=="=" && $3=="IPv4" {print $8":"$9; exit}')
+  if [ -n "$FOUND" ]; then
+    printf '\n\033[1;32m✓ CLIENT installed — found cue server at %s\033[0m\n' "$FOUND"
+  else
+    warn "No cue server visible yet — the kiosk will keep looking every 5s."
+  fi
+  cat <<EOF
+
+  This Pi is DISPLAY-ONLY: no server, no Node.
+  It finds the cue server by itself and registers as $(hostname -s)-1 (,-2 per display).
+
+  Kiosk log   ~/.synthony-kiosk.log
+  Stats       sudo systemctl status synthony-stats
+
+  The kiosk opens fullscreen at next login. Start now:
+    $DIR/deploy/synthony-kiosk.sh &
+
+  Screen blanking off:  sudo raspi-config -> Display -> Screen Blanking -> No
+
+EOF
+fi

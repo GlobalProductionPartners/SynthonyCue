@@ -22,13 +22,22 @@ Nothing else — no dongles, no audio interface. Art-Net timecode arrives over t
 
 ## 2. Install
 
-Copy the tarball to the Pi, then:
+**One tarball, two roles.** Exactly **one** Pi in the rig is the server;
+every other Pi is a display-only client (no server, no Node — just the
+kiosk browser and a stats reporter that find the server over the network).
+
+Copy the same tarball to every Pi, then:
 
 ```bash
 tar xzf synthony-cue-pi-*.tar.gz
 cd synthony-cue-pi-*
-./deploy/install-pi.sh
+
+./deploy/install-pi.sh server   # on THE one server Pi
+./deploy/install-pi.sh client   # on every display Pi
 ```
+
+Run with no argument and it asks. Re-running with `client` on a Pi that
+used to be a server disables its server service.
 
 Takes about 5–10 minutes, mostly package downloads. It will ask for your `sudo`
 password. **Safe to run again** at any time — it never overwrites show data.

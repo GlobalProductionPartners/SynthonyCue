@@ -11,7 +11,7 @@ monitor, the Zowietek encoder, and a console sending Art-Net timecode.
 
 ## 1. Install (server Pi)
 
-- [ ] `tar xzf synthony-cue-pi-*.tar.gz && cd synthony-cue-pi-* && ./deploy/install-pi.sh`
+- [ ] `tar xzf synthony-cue-pi-*.tar.gz && cd synthony-cue-pi-* && ./deploy/install-pi.sh server`
 - [ ] Finishes with green `✓ Synthony Cue is running`
 - [ ] `sudo systemctl status synthony-cue` → active (running)
 - [ ] `sudo systemctl status synthony-stats` → active (running)
@@ -49,8 +49,9 @@ monitor, the Zowietek encoder, and a console sending Art-Net timecode.
 
 ## 6. Display-only client Pi
 
-- [ ] Install the same bundle, then: `sudo systemctl disable --now synthony-cue`
-      (a client must not find itself on localhost)
+- [ ] Install the same bundle with `./deploy/install-pi.sh client`
+- [ ] Verify NO server: `systemctl status synthony-cue` → disabled/not-found,
+      and nothing listens on :3001 locally
 - [ ] Reboot → kiosk log shows discovery: `server: http://<server-ip>:3001/`
 - [ ] Unplug/replug ethernet → reconnects by itself
 - [ ] Reboot the **server** while client is up → client recovers without touch
