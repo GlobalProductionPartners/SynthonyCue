@@ -89,15 +89,26 @@ function cpuPercent() {
   return Math.round((1 - (idle - prev.idle) / (total - prev.total)) * 100);
 }
 function memInfo() {
-  // Linux MemAvailable is the honest number; os.freemem() (MemFree) badly
-  // overstates usage because cache counts as "used".
+  const totalMB = Math.round(os.totalmem() / 1048576);
+  // Linux: MemAvailable is the honest number — MemFree counts cache as used.
   try {
     const mi = fs.readFileSync('/proc/meminfo', 'utf8');
     const g = (k) => parseInt((mi.match(new RegExp(k + ':\\s+(\\d+)')) || [])[1]) || 0;
     const totalKB = g('MemTotal'), availKB = g('MemAvailable');
     if (totalKB) return { usedMB: Math.round((totalKB - availKB) / 1024), totalMB: Math.round(totalKB / 1024) };
   } catch {}
-  return { usedMB: Math.round((os.totalmem() - os.freemem()) / 1048576), totalMB: Math.round(os.totalmem() / 1048576) };
+  // macOS: freemem() is ~0 by design (cache fills RAM), which reads as 100%
+  // used. Count what Activity Monitor counts: active + wired + compressed.
+  if (process.platform === 'darwin') {
+    try {
+      const out = require('child_process').execSync('vm_stat', { timeout: 3000 }).toString();
+      const page = parseInt((out.match(/page size of (\d+)/) || [])[1]) || 16384;
+      const g = (k) => parseInt((out.match(new RegExp(k + ':\\s+(\\d+)')) || [])[1]) || 0;
+      const usedPages = g('Pages active') + g('Pages wired down') + g('Pages occupied by compressor');
+      if (usedPages) return { usedMB: Math.round(usedPages * page / 1048576), totalMB };
+    } catch {}
+  }
+  return { usedMB: Math.round((os.totalmem() - os.freemem()) / 1048576), totalMB };
 }
 function localStats() {
   let temp = null;
