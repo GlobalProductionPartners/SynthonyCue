@@ -63,8 +63,11 @@ function buildArgs(url, o) {
 
   args.push(
     '-an',                                   // cue displays never want audio
+    // The fps filter alone gives clean, evenly-timed constant-rate output.
+    // Do NOT also set -fps_mode drop: the two fight, stripping the even
+    // timing and producing judder that reads as pulsing. Per-client latency
+    // dropping happens in writeFrame(), not here — ffmpeg stays smooth.
     '-vf', `scale=${o.width}:-2,fps=${o.fps}`,
-    '-fps_mode', 'drop',                     // drop late frames, never queue them
     '-f', 'mjpeg',
     '-q:v', String(o.quality),               // 2 best … 31 worst
     '-'
