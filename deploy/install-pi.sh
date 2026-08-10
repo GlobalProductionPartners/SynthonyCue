@@ -47,18 +47,17 @@ fi
 # ── System packages ───────────────────────────────────────────────────────────
 say "Installing system packages"
 sudo apt-get update
+# apt transactions are all-or-nothing, so chromium (whose package name
+# varies by distro) is installed separately — it must never take the core
+# packages down with it.
 if [ "$MODE" = "server" ]; then
   # ffmpeg: video relay + LTC. ltc-tools/alsa-utils: LTC decode + device list.
-  sudo apt-get install -y \
-    curl ca-certificates avahi-utils \
-    ffmpeg ltc-tools alsa-utils \
-    chromium-browser || sudo apt-get install -y chromium
+  sudo apt-get install -y curl ca-certificates avahi-utils ffmpeg ltc-tools alsa-utils
 else
   # A client is just a browser + discovery + the bash stats agent.
-  sudo apt-get install -y \
-    curl ca-certificates avahi-utils \
-    chromium-browser || sudo apt-get install -y chromium
+  sudo apt-get install -y curl ca-certificates avahi-utils
 fi
+sudo apt-get install -y chromium-browser 2>/dev/null || sudo apt-get install -y chromium
 
 # ── Server-only: Node.js, app deps, data dir, server service ─────────────────
 if [ "$MODE" = "server" ]; then
