@@ -9,3 +9,4 @@ config.json
 Screenshot*.png
 *.xlsx
 logs/
+config.json.*
