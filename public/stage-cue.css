@@ -85,7 +85,7 @@
   padding: 2px var(--s-2); border-radius: var(--r-1);
 }
 .stage-cue-next {
-  font-family: var(--font-ui); font-size: clamp(18px, 2.8vw, 40px); font-weight: 700;
+  font-family: var(--font-ui); font-size: clamp(18px, 2.8vw, 40px); font-weight: 500;
   color: var(--text); line-height: 1.15; text-transform: uppercase;
   letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden;
 }
