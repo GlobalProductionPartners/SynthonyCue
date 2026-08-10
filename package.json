@@ -9,7 +9,8 @@
     "electron": "electron .",
     "dist": "electron-builder --mac --publish never",
     "release": "electron-builder --mac --publish never",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test": "node --test"
   },
   "dependencies": {
     "artnet": "^1.1.0",

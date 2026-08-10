@@ -41,7 +41,22 @@ function loadJSON(filePath, defaults) {
 }
 function saveJSON(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  // Atomic: write to a temp file and rename over the target. A power cut
+  // mid-write (a real event on show Pis) must never corrupt the live file —
+  // rename on the same filesystem is all-or-nothing.
+  const tmp = filePath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  // Keep the last few generations so a bad save can be walked back.
+  try {
+    if (fs.existsSync(filePath)) {
+      for (let i = 4; i >= 1; i--) {
+        const from = `${filePath}.${i}`, to = `${filePath}.${i + 1}`;
+        if (fs.existsSync(from)) fs.renameSync(from, to);
+      }
+      fs.copyFileSync(filePath, `${filePath}.1`);
+    }
+  } catch (e) { console.warn('[Save] backup rotation failed:', e.message); }
+  fs.renameSync(tmp, filePath);
 }
 
 // ── Video source relay ────────────────────────────────────────────────────────
@@ -58,6 +73,23 @@ try {
     handleStream:   (_q, r) => r.status(503).json({ error: 'Video module not available' }),
     handleSnapshot: (_q, r) => r.status(503).json({ error: 'Video module not available' })
   };
+}
+
+// ── Flight recorder ───────────────────────────────────────────────────────────
+// Append-only show-day log: every fired output, TC event, save, and screen
+// drop, stamped with wall clock and show TC. When "did that cue fire?" comes
+// up at 23:00, this file answers it.
+const LOG_DIR = path.join(DATA_DIR, 'logs');
+function flightLog(event, detail = '') {
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+    const now = new Date();
+    const day  = now.toISOString().slice(0, 10);
+    const wall = now.toTimeString().slice(0, 8);
+    const tc   = (typeof TC !== 'undefined' && TC.state) ? TC.state().tc : '--:--:--:--';
+    fs.appendFile(path.join(LOG_DIR, `show-${day}.log`),
+      `${wall} [TC ${tc}] ${event}${detail ? ' ' + detail : ''}\n`, () => {});
+  } catch {}
 }
 
 // ── Express + HTTP ────────────────────────────────────────────────────────────
@@ -261,6 +293,7 @@ const TC = (() => {
           signalLost = true;
           broadcast({ type: 'tc_transport', running: false, tc: format(externalTC + Math.floor(SIGNAL_TIMEOUT_MS / 1000 * FRAME_RATE)) });
           console.log('[TC] External signal lost');
+          flightLog('SIGNAL-LOST');
         }
         return;
       }
@@ -268,6 +301,7 @@ const TC = (() => {
         signalLost = false;
         broadcast({ type: 'tc_transport', running: true, tc: format(externalFrames()) });
         console.log('[TC] External signal resumed');
+        flightLog('SIGNAL-RESUMED');
       }
       const frames = externalFrames();
       const tc = format(frames);
@@ -307,6 +341,7 @@ const TC = (() => {
     if (wasRunning) start();
     broadcast({ type: 'tc_jam', tc });
     console.log(`[TC] Jammed to ${tc}`);
+    flightLog('JAM', tc);
   }
   function receiveExternal(tc, src) {
     // Validate TC format and range
@@ -345,6 +380,7 @@ const TC = (() => {
 // ── Cue fire engine ───────────────────────────────────────────────────────────
 const firedOutputs = new Set();
 let lastBroadcastFrames = 0;
+const FRAME_RATE_FIRE_WINDOW = 250; // 10s at 25fps — late allowance, not a drop window
 
 function checkCueFires(nowFrames) {
   // Reset on TC jump backwards
@@ -362,16 +398,21 @@ function checkCueFires(nowFrames) {
       if (cue.osc?.enabled) {
         const key    = `osc-${cue.id}`;
         const fireAt = cueFrames - (cue.osc.preRollFrames || 0);
-        if (nowFrames >= fireAt && nowFrames < fireAt + 5 && !firedOutputs.has(key)) {
+        // Fire on threshold-crossing with a 10s late allowance: a GC pause or
+        // busy Pi must delay a cue, never silently drop it. The ceiling stops
+        // a large TC seek from replaying ancient cues.
+        if (nowFrames >= fireAt && nowFrames < fireAt + FRAME_RATE_FIRE_WINDOW && !firedOutputs.has(key)) {
           firedOutputs.add(key);
+          if (nowFrames > fireAt + 5) flightLog('LATE-FIRE', `osc cue ${cue.id} ${(nowFrames - fireAt)} frames late`);
           fireOSC(cue);
         }
       }
       if (cue.artnet?.enabled) {
         const key    = `artnet-${cue.id}`;
         const fireAt = cueFrames - (cue.artnet.preRollFrames || 0);
-        if (nowFrames >= fireAt && nowFrames < fireAt + 5 && !firedOutputs.has(key)) {
+        if (nowFrames >= fireAt && nowFrames < fireAt + FRAME_RATE_FIRE_WINDOW && !firedOutputs.has(key)) {
           firedOutputs.add(key);
+          if (nowFrames > fireAt + 5) flightLog('LATE-FIRE', `artnet cue ${cue.id} ${(nowFrames - fireAt)} frames late`);
           fireArtNet(cue);
         }
       }
@@ -410,6 +451,7 @@ function fireArtNet(cue) {
 }
 
 function logOutput(type, cueId, success, message) {
+  flightLog(arguments[2] ? 'FIRE' : 'FIRE-FAILED', `${arguments[0]} cue=${arguments[1]}${arguments[3] ? ' ' + arguments[3] : ''}`);
   const entry = { type, cueId, success, message, time: new Date().toISOString() };
   broadcast({ type: 'output_log', entry });
   console.log(`[${type.toUpperCase()}] cue=${cueId} ok=${success} ${message || ''}`);
@@ -514,6 +556,7 @@ function handleClientMessage(ws, msg) {
       }
       saveJSON(SONGS_PATH, songs);
       firedOutputs.clear();
+      flightLog('SONGS-SAVED', `${songs.length} songs`);
       broadcast({ type: 'songs_updated', songs });
       break;
     }
