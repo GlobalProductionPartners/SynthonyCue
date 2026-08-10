@@ -20,11 +20,6 @@
     "ws": "^8.18.0",
     "xlsx": "^0.18.5"
   },
-  "optionalDependencies": {
-    "midi": "^2.0.0",
-    "node-ltc": "npm:null@^0.1.0",
-    "node-rtpmidi": "^0.4.1"
-  },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
@@ -32,12 +27,14 @@
   "build": {
     "appId": "com.synthony.cue",
     "productName": "Synthony Cue",
-    "copyright": "Copyright © 2026 Synthony",
+    "copyright": "Copyright \u00a9 2026 Synthony",
     "files": [
       "electron/**/*",
       "public/**/*",
       "server.js",
       "tc/**/*",
+      "output/**/*",
+      "video/**/*",
       "node_modules/**/*",
       "!node_modules/**/{CHANGELOG.md,README.md,readme.md,.editorconfig}",
       "!**/*.map",
@@ -47,26 +44,37 @@
       "!Screenshot*"
     ],
     "asarUnpack": [
-      "public/**/*",
-      "node_modules/midi/**/*",
-      "node_modules/node-rtpmidi/**/*"
+      "public/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
       "target": [
-        { "target": "dmg",  "arch": ["universal"] },
-        { "target": "zip",  "arch": ["universal"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
       ]
     },
     "dmg": {
       "title": "Synthony Cue ${version}",
-      "window": { "width": 540, "height": 380 }
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "publish": {
       "provider": "github",
       "owner": "IWANTWOO",
-      "repo":  "synthony-cue"
+      "repo": "synthony-cue"
     }
   }
 }

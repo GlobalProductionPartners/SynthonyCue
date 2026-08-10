@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Synthony Cue Kiosk
+Comment=Fullscreen Synthony Cue display
+# install-pi.sh substitutes __DIR__ with the checkout path
+Exec=__DIR__/deploy/synthony-kiosk.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true

@@ -1,4 +1,10 @@
-/* ── Show Overview ──────────────────────────────────────────────────────────── */
+/* ── Show Overview ──────────────────────────────────────────────────────────
+   Three columns: cue display, set list, cue list.
+
+   Dimming is done with explicit neutral tokens rather than `opacity`.
+   Stacked opacity over black is unpredictable on cheap venue panels and was
+   pushing some text under 3:1 — past items should recede, not disappear.
+   ────────────────────────────────────────────────────────────────────────── */
 
 #view-overview.active {
   display: grid !important;
@@ -16,36 +22,34 @@
   overflow: hidden;
 }
 
-/* PREV — compressed, heavily faded */
+/* PREV — compressed and recessive, but still legible */
 .ov-prev {
   flex-shrink: 0;
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 7px 22px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-5);
+  border-bottom: 1px solid var(--border);
   overflow: hidden;
 }
 .ov-prev-lbl {
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-family: var(--font-tc);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--dim);
-  opacity: 0.5;
+  color: var(--text-3);
   flex-shrink: 0;
 }
 .ov-prev-text {
   font-size: clamp(11px, 1.2vw, 16px);
   font-weight: 500;
-  color: var(--dim);
+  color: var(--text-3);
   text-transform: uppercase;
-  opacity: 0.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  font-style: italic;
 }
 
 /* NOW — the hero area */
@@ -54,86 +58,82 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 32px 28px;
+  padding: var(--s-6) var(--s-5);
   overflow: hidden;
   min-height: 0;
 }
 .ov-current-lbl {
-  font-size: 9px;
-  font-weight: 700;
+  font-family: var(--font-tc);
+  font-size: 10px;
+  font-weight: 400;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--dim);
-  margin-bottom: 16px;
-  opacity: 0.6;
+  color: var(--text-3);
+  margin-bottom: var(--s-4);
 }
-.ov-current-lbl.live {
-  color: var(--green);
-  opacity: 1;
-}
+.ov-current-lbl.live { color: var(--live); }
 .ov-current-text {
-  font-weight: 800;
-  color: rgba(255,255,255,0.25);
-  line-height: 1.05;
+  font-weight: 700;
+  color: var(--text-3);      /* was rgba(255,255,255,0.25) — ~2.4:1, under AA */
+  line-height: 1.02;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
-  font-size: 72px;
-  letter-spacing: -0.01em;
+  font-size: clamp(40px, 5.5vw, 84px);
+  letter-spacing: -0.02em;
 }
-.ov-current-text.live {
-  color: var(--green);
-}
+.ov-current-text.live { color: var(--text); }
 
-/* NEXT — amber footer */
+/* NEXT — flagged by a rule and colour, not a background wash */
 .ov-next {
   flex-shrink: 0;
   border-top: 1px solid var(--border);
-  padding: 14px 22px 14px;
-  background: rgba(255,214,10,0.04);
+  padding: var(--s-4) var(--s-5);
+  box-shadow: inset 0 3px 0 var(--warn);
 }
 .ov-next-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 6px;
+  margin-bottom: var(--s-2);
 }
 .ov-next-lbl {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--warn);
 }
 .ov-next-cd {
   font-family: var(--font-tc);
-  font-size: clamp(11px, 1.1vw, 14px);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(11px, 1.1vw, 15px);
   font-weight: 700;
-  color: var(--amber);
-  opacity: 0.8;
+  color: var(--warn);
 }
 .ov-next-text {
   font-size: clamp(18px, 2.4vw, 34px);
   font-weight: 700;
-  color: var(--amber);
+  color: var(--text);
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 10px;
+  margin-bottom: var(--s-3);
   line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 .ov-next-bar-wrap {
   height: 3px;
-  background: rgba(255,214,10,0.12);
-  border-radius: 2px;
+  background: var(--surface);
+  border-radius: var(--r-1);
   overflow: hidden;
 }
 .ov-next-bar {
   height: 100%;
   width: 0%;
-  background: var(--amber);
-  border-radius: 2px;
+  background: var(--warn);
+  transition: none;
 }
 
 /* ── Column headers (shared) ─────────────────────────────────────────────────── */
@@ -141,37 +141,40 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
   border-bottom: 1px solid var(--border);
-  background: var(--bg2);
+  background: var(--bg-raised);
 }
 .ov-col-title {
-  font-size: 8px;
-  font-weight: 700;
+  font-family: var(--font-tc);
+  font-size: 9px;
+  font-weight: 400;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--text-3);
 }
 .ov-col-spacer { flex: 1; }
 .ov-col-count {
   font-family: var(--font-tc);
+  font-variant-numeric: tabular-nums;
   font-size: 10px;
-  color: var(--dim);
-  opacity: 0.6;
+  color: var(--text-3);
 }
 .ov-cue-type-sel {
-  background: var(--bg3);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--dim);
-  font-size: 9px;
+  border-radius: var(--r-2);
+  color: var(--text-2);
+  font-size: 10px;
   font-family: var(--font-ui);
-  padding: 2px 6px;
+  padding: 2px var(--s-2);
   cursor: pointer;
   appearance: auto;
+  transition: border-color 150ms ease, color 150ms ease;
 }
-.ov-cue-type-sel:focus { outline: none; border-color: var(--dim); }
+.ov-cue-type-sel:hover { border-color: var(--border-str); color: var(--text); }
+/* Focus ring comes from theme.css — never removed without a replacement. */
 
 /* ── Column 2: Set list ──────────────────────────────────────────────────────── */
 .ov-setlist-col {
@@ -180,52 +183,50 @@
   border-right: 1px solid var(--border);
   overflow: hidden;
 }
-.ov-setlist-body {
-  flex: 1;
-  overflow-y: auto;
-}
+.ov-setlist-body { flex: 1; overflow-y: auto; }
 
 .ov-song-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  transition: opacity 0.15s;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  transition: background-color 150ms ease;
 }
-.ov-song-item.past { opacity: 0.28; }
+.ov-song-item.past .ov-song-name { color: var(--text-3); }
+.ov-song-item.past .ov-song-num  { color: var(--text-3); }
 .ov-song-item.active {
-  background: rgba(48,209,88,0.07);
-  border-left: 3px solid var(--green);
-  padding-left: 9px;
-  opacity: 1;
+  background: var(--surface);
+  border-left-color: var(--live);
 }
 .ov-song-num {
   font-family: var(--font-tc);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   font-weight: 700;
-  color: var(--dim);
-  min-width: 18px;
+  color: var(--text-3);
+  min-width: 20px;
   flex-shrink: 0;
   text-align: right;
 }
-.ov-song-item.active .ov-song-num { color: var(--amber); }
+.ov-song-item.active .ov-song-num { color: var(--live); }
 .ov-song-info { flex: 1; overflow: hidden; min-width: 0; }
 .ov-song-name {
   font-size: clamp(11px, 1.1vw, 14px);
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 600;
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ov-song-item.active .ov-song-name { color: var(--green); }
+.ov-song-item.active .ov-song-name { color: var(--text); font-weight: 700; }
 .ov-song-meta {
   font-family: var(--font-tc);
+  font-variant-numeric: tabular-nums;
   font-size: 9px;
-  color: var(--dim);
+  color: var(--text-3);
   margin-top: 2px;
-  opacity: 0.7;
 }
 
 /* ── Column 3: Cue list ──────────────────────────────────────────────────────── */
@@ -234,61 +235,53 @@
   flex-direction: column;
   overflow: hidden;
 }
-.ov-cuelist-body {
-  flex: 1;
-  overflow-y: auto;
-}
+.ov-cuelist-body { flex: 1; overflow-y: auto; }
 
 .ov-cue-song-hdr {
-  padding: 5px 12px 4px;
-  background: var(--bg2);
+  padding: var(--s-1) var(--s-3);
+  background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--text-3);
   position: sticky;
   top: 0;
+  isolation: isolate;
   z-index: 1;
-  transition: opacity 0.15s;
 }
-.ov-cue-song-hdr.past { opacity: 0.3; }
-.ov-cue-song-hdr.active {
-  color: var(--green);
-  background: rgba(48,209,88,0.06);
-  opacity: 1;
-}
+.ov-cue-song-hdr.active { color: var(--live); background: var(--surface); }
 
 .ov-cue-row {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 9px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  transition: opacity 0.15s;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  transition: background-color 150ms ease;
 }
-.ov-cue-row.past { opacity: 0.25; }
+.ov-cue-row.past .ov-cue-text { color: var(--text-3); font-weight: 600; }
 .ov-cue-row.active {
-  background: rgba(48,209,88,0.08);
-  border-left: 3px solid var(--green);
-  padding-left: 9px;
-  opacity: 1;
+  background: var(--surface);
+  border-left-color: var(--live);
 }
 .ov-cue-tc {
   font-family: var(--font-tc);
+  font-variant-numeric: tabular-nums;
   font-size: 10px;
-  color: var(--dim);
+  color: var(--text-3);
 }
-.ov-cue-row.active .ov-cue-tc { color: rgba(48,209,88,0.6); }
+.ov-cue-row.active .ov-cue-tc { color: var(--live); }
 .ov-cue-text {
   font-size: clamp(11px, 1.1vw, 14px);
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 600;
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-transform: uppercase;
   line-height: 1.2;
 }
-.ov-cue-row.active .ov-cue-text { color: var(--green); }
+.ov-cue-row.active .ov-cue-text { color: var(--text); font-weight: 700; }

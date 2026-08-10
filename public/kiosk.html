@@ -4,25 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Synthony Cue</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/stage-cue.css">
 <link rel="stylesheet" href="/cue-console.css">
 <link rel="stylesheet" href="/show-overview.css">
 <style>
+/* Legacy aliases — old names kept pointing at the token system so the
+   view stylesheets and inline scripts keep working during the redesign. */
 :root {
-  --bg:     #000000;
-  --bg2:    #0a0a0a;
-  --bg3:    #111111;
-  --border: #222222;
-  --text:   #c9d1d9;
-  --dim:    #6e7681;
-  --cyan:   #00e5ff;
-  --amber:  #ffd60a;
-  --green:  #30d158;
-  --red:    #ff453a;
-  --font-tc: 'JetBrains Mono', 'Courier New', monospace;
-  --font-ui: system-ui, sans-serif;
+  --bg2:   var(--bg-raised);
+  --bg3:   var(--surface);
+  --dim:   var(--text-2);
+  --cyan:  var(--accent);
+  --amber: var(--warn);
+  --green: var(--live);
+  --red:   var(--urgent);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-ui); overflow: hidden; }
@@ -35,101 +31,238 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .view.active { display: flex; }
 
 /* ── Conductor (Stage Display) ── */
+/* Fills the panel: the stage display is the screen viewed from furthest
+   away, so the type is allowed to grow to the full height available
+   rather than stopping at a small clamp ceiling. */
 .conductor-main {
   flex: 1; display: flex; flex-direction: column;
-  padding: clamp(24px, 4vw, 64px); gap: 0;
+  padding: clamp(24px, 3vw, 56px);
+  gap: var(--s-5); min-height: 0;
 }
-.conductor-section { display: flex; flex-direction: column; gap: 12px; }
-.conductor-now-section { flex: 1.4; justify-content: center; }
-.conductor-next-section { flex: 1; justify-content: center; }
-.conductor-divider { height: 1px; background: var(--border); margin: 24px 0; flex-shrink: 0; }
-.conductor-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--dim); }
-.conductor-track { font-family: var(--font-ui); font-size: clamp(32px, 6vw, 80px); font-weight: 700; color: #fff; line-height: 1.1; }
-.conductor-bpm { font-family: var(--font-tc); font-size: clamp(14px, 2vw, 22px); color: var(--dim); }
-.conductor-progress-wrap { height: 32px; background: var(--bg3); border-radius: 6px; overflow: hidden; margin: 8px 0; }
-.conductor-progress-bar { height: 100%; width: 0%; border-radius: 5px; background: linear-gradient(90deg, var(--green), var(--cyan)); transition: none; }
-.conductor-times { display: flex; justify-content: space-between; font-family: var(--font-tc); font-size: clamp(24px, 3.5vw, 52px); font-weight: 700; color: var(--dim); }
-.conductor-next-track { font-family: var(--font-ui); font-size: clamp(22px, 4vw, 52px); font-weight: 700; color: var(--text); opacity: 0.6; line-height: 1.15; }
-.conductor-next-in { font-family: var(--font-tc); font-size: clamp(16px, 2.5vw, 28px); color: var(--amber); }
+.conductor-section { display: flex; flex-direction: column; min-height: 0; }
+.conductor-now-section  { flex: 3; gap: var(--s-3); }
+.conductor-next-section { flex: 1; gap: var(--s-2); }
+.conductor-divider { height: 1px; background: var(--border); flex-shrink: 0; }
+
+.conductor-label {
+  font-family: var(--font-tc);
+  font-size: clamp(10px, 0.9vw, 14px); font-weight: 400;
+  text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-3);
+}
+.conductor-label .sep { color: var(--border-str); }
+.conductor-track {
+  font-family: var(--font-ui); font-weight: 700;
+  color: var(--text); line-height: 1.02; letter-spacing: -0.02em;
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; align-items: center;
+}
+.conductor-bpm { font-family: var(--font-tc); font-size: clamp(14px, 1.4vw, 24px); color: var(--text-3); }
+
+/* Flat, neutral track. Fill is white so it reads as a measurement;
+   it turns amber then red only as a cue approaches. */
+.conductor-progress-wrap {
+  height: clamp(10px, 1.2vw, 18px); background: var(--surface);
+  border-radius: var(--r-1); overflow: hidden; margin-top: var(--s-2);
+}
+.conductor-progress-bar { height: 100%; width: 0%; background: var(--text); transition: none; }
+.conductor-progress-bar.warn   { background: var(--warn); }
+.conductor-progress-bar.urgent { background: var(--urgent); }
+
+.conductor-times {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: clamp(24px, 3.4vw, 76px); font-weight: 500; color: var(--text-2);
+}
+.conductor-times .remaining { color: var(--text); font-weight: 700; }
+
+/* Secondary by colour, not by opacity — faded white on black loses
+   contrast unpredictably on cheap panels. */
+.conductor-next-track {
+  font-family: var(--font-ui); font-weight: 700;
+  color: var(--text-2); line-height: 1.1; letter-spacing: -0.01em;
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; align-items: center;
+}
+.conductor-next-in {
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: clamp(16px, 1.8vw, 32px); font-weight: 500; color: var(--warn);
+}
+/* End-of-show / no-show-loaded reads as status, not as a missing value.
+   (Size is capped by the fitText call, not here.) */
+.conductor-next-track.is-empty { color: var(--text-3); font-weight: 500; letter-spacing: 0; }
 
 /* ── Camera ── */
 #view-camera { align-items: stretch; justify-content: stretch; }
 .camera-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 20px; text-align: center; }
-.camera-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--purple, #bf5af2); padding: 4px 16px; border: 1px solid var(--purple, #bf5af2); border-radius: 12px; }
-.camera-cue-text { font-family: var(--font-ui); font-size: clamp(28px, 8vw, 96px); font-weight: 800; color: var(--text); line-height: 1.1; }
-.camera-next { font-size: clamp(14px, 2.5vw, 24px); color: var(--dim); }
-.camera-next span { color: var(--purple, #bf5af2); }
-.camera-countdown { font-family: var(--font-tc); font-size: clamp(20px, 4vw, 52px); font-weight: 700; color: var(--purple, #bf5af2); }
-.camera-tc { font-family: var(--font-tc); font-size: clamp(14px, 2vw, 20px); color: var(--dim); }
+.camera-label {
+  font-size: clamp(11px, 1vw, 14px); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.18em; color: var(--text-3);
+  padding: var(--s-1) var(--s-3); border: 1px solid var(--border); border-radius: var(--r-2);
+}
+.camera-cue-text.is-upcoming { color: var(--text-2); }
+.camera-cue-text {
+  font-family: var(--font-ui); font-weight: 800; color: var(--text);
+  line-height: 1.02; letter-spacing: -0.02em;
+  flex: 1; min-height: 0; overflow: hidden; width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.camera-next { font-size: clamp(14px, 2vw, 28px); color: var(--text-3); }
+.camera-next span { color: var(--text-2); }
+.camera-countdown { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(24px, 4.5vw, 72px); font-weight: 700; color: var(--warn); }
+.camera-tc { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(13px, 1.4vw, 20px); color: var(--text-3); }
+
+/* ── Video ── */
+#view-video { position: relative; }
+.video-stage {
+  flex: 1; position: relative; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); isolation: isolate;
+}
+/* contain, not cover — a cue display must never crop the picture the
+   operator is judging. */
+.video-img {
+  max-width: 100%; max-height: 100%;
+  width: 100%; height: 100%;
+  object-fit: contain; display: none;
+}
+.video-img.live { display: block; }
+.video-placeholder {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-3);
+  text-align: center; padding: var(--s-5);
+}
+.video-placeholder.hidden { display: none; }
+.video-placeholder-msg {
+  font-size: clamp(16px, 2vw, 28px); font-weight: 500; color: var(--text-2);
+}
+.video-overlay {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-5);
+  padding: var(--s-3) var(--s-5);
+  background: var(--bg); border-top: 1px solid var(--border);
+}
+.video-overlay.hidden { display: none; }
+.vo-right { text-align: right; }
+.vo-cue {
+  font-size: clamp(18px, 2.6vw, 40px); font-weight: 700; color: var(--text);
+  text-transform: uppercase; line-height: 1.1; letter-spacing: -0.01em;
+}
+.vo-next {
+  font-size: clamp(14px, 1.6vw, 24px); font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; line-height: 1.1;
+}
+.vo-cd { font-size: clamp(13px, 1.4vw, 20px); color: var(--warn); }
+
+/* Full-screen video: picture edge to edge, no header, no cue strip.
+   The chrome comes back on mouse move or Escape, otherwise an operator has
+   no way out of a kiosk with no keyboard shortcuts. */
+body.video-clean #kiosk-header,
+body.video-clean .video-overlay { display: none; }
+body.video-clean { cursor: none; }
+body.video-clean.reveal #kiosk-header { display: flex; }
+body.video-clean.reveal { cursor: default; }
+body.video-clean .video-stage { background: #000; }
 
 /* ── Multi Cue (Stage) ── */
 /* Stage view CSS → /stage-cue.css */
 
 /* ── Kiosk header ── */
 #kiosk-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 16px;
-  background: var(--bg2); border-bottom: 1px solid var(--border);
-  flex-shrink: 0; z-index: 10;
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: var(--s-2) var(--s-4);
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; isolation: isolate; z-index: var(--z-header);
 }
 #kiosk-header .kh-logo {
-  font-family: var(--font-ui); font-weight: 800;
-  font-size: clamp(12px, 2vw, 18px);
-  letter-spacing: 0.05em; color: var(--cyan); white-space: nowrap;
+  font-family: var(--font-tc); font-weight: 400;
+  font-size: clamp(10px, 1vw, 13px);
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-3); white-space: nowrap;
 }
+#kiosk-header .kh-logo .sep { color: var(--border-str); }
+/* Timecode is the most-read element on this screen and now the largest
+   thing in the header. No box, no glow — size and weight carry it. */
 #kiosk-header .kh-tc {
-  font-family: var(--font-tc); font-size: clamp(18px, 3.5vw, 36px);
-  color: var(--cyan); letter-spacing: 0.08em; white-space: nowrap;
-  padding: 4px 12px; background: var(--bg3); border-radius: 6px;
-  border: 1px solid var(--border);
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: clamp(22px, 3.6vw, 48px); font-weight: 700;
+  color: var(--text-3); letter-spacing: 0.02em; white-space: nowrap;
+  transition: color 120ms ease;
 }
-#kiosk-header .kh-tc.running { border-color: var(--cyan); text-shadow: 0 0 12px var(--cyan); }
-#kiosk-header .kh-tc.stopped { color: var(--dim); }
+#kiosk-header .kh-tc.running { color: var(--accent); }
+#kiosk-header .kh-tc.stopped { color: var(--text-3); }
 .kh-spacer { flex: 1; }
 #kiosk-header .kh-clock {
-  font-family: var(--font-tc); font-size: clamp(14px, 2.5vw, 24px);
-  color: var(--dim); letter-spacing: 0.08em; white-space: nowrap;
-  padding: 4px 12px; background: var(--bg3); border-radius: 6px;
-  border: 1px solid var(--border);
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: clamp(13px, 1.4vw, 20px); font-weight: 400;
+  color: var(--text-3); letter-spacing: 0.02em; white-space: nowrap;
 }
 
 /* ── Hamburger (inline in header) ── */
 #hamburger {
-  flex-shrink: 0; width: 36px; height: 36px; border-radius: 6px;
-  background: var(--bg3); border: 1px solid var(--border);
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: var(--r-2);
+  background: transparent; border: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
-  cursor: pointer; opacity: 0.6; transition: opacity 0.2s;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
-#hamburger:hover { opacity: 1; }
-#hamburger span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 2px; }
+#hamburger:hover { border-color: var(--border-str); background: var(--surface); }
+#hamburger span {
+  display: block; width: 16px; height: 1px; background: var(--text-2);
+  transition: background-color 150ms ease;
+}
+#hamburger:hover span { background: var(--text); }
 
 /* ── Menu panel ── */
 #menu-panel {
-  position: fixed; top: 0; right: 0; bottom: 0; width: 280px; z-index: 999;
-  background: var(--bg2); border-left: 1px solid var(--border);
+  position: fixed; top: 0; right: 0; bottom: 0; width: 300px;
+  isolation: isolate; z-index: var(--z-panel);
+  background: var(--bg-raised); border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
   display: flex; flex-direction: column; gap: 0;
-  transform: translateX(100%); transition: transform 0.22s ease;
+  transform: translateX(100%); transition: transform 200ms ease-out;
 }
 #menu-panel.open { transform: translateX(0); }
-.menu-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.menu-header strong { font-size: 13px; color: var(--text); }
-#menu-close { background: none; border: none; color: var(--dim); font-size: 20px; cursor: pointer; line-height: 1; }
-.menu-section { padding: 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-.menu-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim); }
-.menu-btn { padding: 8px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); cursor: pointer; text-align: left; }
-.menu-btn.active { border-color: var(--cyan); color: var(--cyan); }
-.menu-select { width: 100%; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); }
-.menu-input { width: 100%; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--font-ui); }
-.menu-row { display: flex; flex-direction: column; gap: 4px; }
+.menu-header { padding: var(--s-4); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.menu-header strong { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); }
+#menu-close {
+  background: none; border: none; color: var(--text-2); font-size: 20px;
+  cursor: pointer; line-height: 1; padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-2); transition: color 150ms ease;
+}
+#menu-close:hover { color: var(--text); }
+.menu-section { padding: var(--s-4); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--s-2); }
+.menu-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-3); margin-bottom: var(--s-1); }
+.menu-btn {
+  padding: var(--s-2) var(--s-3); background: transparent;
+  border: 1px solid var(--border); border-radius: var(--r-2);
+  color: var(--text-2); font-size: 13px; font-family: var(--font-ui);
+  cursor: pointer; text-align: left;
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+.menu-btn:hover { color: var(--text); border-color: var(--border-str); background: var(--surface); }
+/* Active state uses a left rule + full-strength text, so it survives
+   greyscale and colour-blind viewing rather than relying on hue alone. */
+.menu-btn.active {
+  color: var(--text); border-color: var(--border-str);
+  background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent);
+}
+.menu-select, .menu-input {
+  width: 100%; padding: var(--s-2) var(--s-3);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-2); color: var(--text);
+  font-size: 13px; font-family: var(--font-ui);
+  transition: border-color 150ms ease;
+}
+.menu-select:hover, .menu-input:hover { border-color: var(--border-str); }
+.menu-row { display: flex; flex-direction: column; gap: var(--s-1); }
 
 /* ── TC corner (hidden — superseded by header) ── */
 #tc-corner { display: none; }
 
 /* ── Scrollbars ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg2); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+::-webkit-scrollbar-track { background: var(--bg-raised); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--r-1); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-str); }
 
 /* Test view → /cue-console.css */
 </style>
@@ -139,7 +272,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
   <!-- Header bar -->
   <div id="kiosk-header">
-    <span class="kh-logo">SYNTHONY CUE</span>
+    <span class="kh-logo"><span class="sep">//</span> SYNTHONY CUE</span>
     <span class="kh-tc stopped" id="kh-tc">00:00:00:00</span>
     <div class="kh-spacer"></div>
     <span class="kh-clock" id="kh-clock">--:--:--</span>
@@ -152,22 +285,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <div class="view active" id="view-conductor">
     <div class="conductor-main">
       <div class="conductor-section conductor-now-section">
-        <div class="conductor-label">NOW PLAYING</div>
+        <div class="conductor-label"><span class="sep">//</span> NOW <span class="sep">/</span> PLAYING</div>
         <div class="conductor-track" id="conductor-track">—</div>
-        <div class="conductor-bpm" id="conductor-bpm"></div>
+        <div class="conductor-bpm"><span class="val" id="conductor-bpm"></span></div>
         <div class="conductor-progress-wrap">
           <div class="conductor-progress-bar" id="conductor-progress-bar"></div>
         </div>
         <div class="conductor-times">
           <span id="conductor-elapsed">—</span>
-          <span id="conductor-remaining">—</span>
+          <span class="remaining" id="conductor-remaining">—</span>
         </div>
       </div>
       <div class="conductor-divider"></div>
       <div class="conductor-section conductor-next-section">
-        <div class="conductor-label">UP NEXT</div>
+        <div class="conductor-label"><span class="sep">//</span> UP NEXT</div>
         <div class="conductor-next-track" id="conductor-next-track">—</div>
-        <div class="conductor-next-in" id="conductor-next-in">—</div>
+        <div class="conductor-next-in"><span class="val" id="conductor-next-in">—</span></div>
       </div>
     </div>
   </div>
@@ -180,6 +313,30 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="camera-countdown" id="camera-countdown">—</div>
       <div class="camera-next" id="camera-next">Next: <span>—</span></div>
       <div class="camera-tc" id="camera-tc">--:--:--:--</div>
+    </div>
+  </div>
+
+  <!-- VIDEO (HDMI via encoder → MJPEG) -->
+  <div class="view" id="view-video">
+    <div class="video-stage">
+      <img id="video-img" class="video-img" alt="">
+      <div class="video-placeholder" id="video-placeholder">
+        <div class="sec"><span class="sep">//</span> VIDEO <span class="sep">/</span> NO SIGNAL</div>
+        <div class="video-placeholder-msg" id="video-msg">No source configured</div>
+      </div>
+      <!-- Cue strip stays legible over picture: solid bar, not a translucent
+           wash, because encoder output brightness is unpredictable. -->
+      <div class="video-overlay" id="video-overlay">
+        <div class="vo-left">
+          <div class="sec"><span class="sep">//</span> NOW</div>
+          <div class="vo-cue" id="video-cue">—</div>
+        </div>
+        <div class="vo-right">
+          <div class="sec"><span class="sep">//</span> NEXT</div>
+          <div class="vo-next" id="video-next">—</div>
+          <div class="vo-cd val" id="video-cd"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -379,8 +536,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <button id="menu-close" onclick="Menu.close()">✕</button>
   </div>
   <div class="menu-section">
-    <div class="menu-label">Screen Name</div>
-    <input class="menu-input" id="menu-screen-name" placeholder="Screen name" onchange="setScreenName(this.value)">
+    <label class="menu-label" for="menu-screen-name">Screen Name</label>
+    <input class="menu-input" id="menu-screen-name" placeholder="e.g. Stage Left" onchange="setScreenName(this.value)">
   </div>
   <div class="menu-section">
     <div class="menu-label">View</div>
@@ -389,6 +546,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Single Cue</button>
     <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Multi Cue</button>
     <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
+    <button class="menu-btn" id="view-btn-video" onclick="switchView('video')">Video</button>
+    <button class="menu-btn" id="view-btn-videofull" onclick="switchView('videofull')">Video — Full Screen</button>
   </div>
   <div class="menu-section" id="menu-test-section" style="display:none">
     <div class="menu-label">Panel A Type</div>
@@ -459,7 +618,10 @@ const SCREEN_ID = sessionStorage.getItem('screen-id') || (() => {
 let SCREEN_NAME = localStorage.getItem('screen-name') || 'Display';
 
 // Current view + slot config
-let currentView  = localStorage.getItem('kiosk-view') || 'conductor';
+// ?view=stage wins over the stored value, so a kiosk can be pointed at a
+// specific display from its launch URL instead of being set by hand on site.
+const VIEW_PARAM = new URLSearchParams(location.search).get('view');
+let currentView  = VIEW_PARAM || localStorage.getItem('kiosk-view') || 'conductor';
 const slots      = { a: localStorage.getItem('kiosk-slot-a') || 'stage', b: localStorage.getItem('kiosk-slot-b') || 'host' };
 let cameraType   = localStorage.getItem('kiosk-cam-type') || 'camera';
 
@@ -470,7 +632,9 @@ function renderConductor() {
   const song  = getCurrentSong();
   const nowF  = State.tcFrames || parseTC(State.tc);
   const nextSong = getNextSong();
-  document.getElementById('conductor-track').textContent = song?.trackName || '—';
+  const _trk = document.getElementById('conductor-track');
+  _trk.textContent = song?.trackName || '—';
+  fitText(_trk, _trk, 40, Math.round(window.innerHeight * 0.19));
   document.getElementById('conductor-bpm').textContent   = song?.bpm ? `♩ = ${song.bpm} BPM` : '';
   if (song) {
     const started = parseTC(song.timecode);
@@ -483,8 +647,10 @@ function renderConductor() {
       document.getElementById('conductor-remaining').textContent = remaining > 0 ? '-' + formatHMSF(remaining) : '0:00';
       const bar = document.getElementById('conductor-progress-bar');
       bar.style.width = pct + '%';
+      // State via class, not inline colour — keeps the palette in the
+      // stylesheet and lets the bar stay neutral until time actually matters.
       const remSec = Math.floor(Math.max(0, remaining) / FR);
-      bar.style.background = remSec <= 10 ? 'var(--red)' : remSec <= 30 ? 'linear-gradient(90deg,var(--green),var(--amber))' : 'linear-gradient(90deg,var(--green),var(--cyan))';
+      bar.className = 'conductor-progress-bar' + (remSec <= 10 ? ' urgent' : remSec <= 30 ? ' warn' : '');
     } else {
       document.getElementById('conductor-remaining').textContent = '';
       document.getElementById('conductor-progress-bar').style.width = '0%';
@@ -494,7 +660,13 @@ function renderConductor() {
     document.getElementById('conductor-remaining').textContent = '';
     document.getElementById('conductor-progress-bar').style.width = '0%';
   }
-  document.getElementById('conductor-next-track').textContent = nextSong?.trackName || '—';
+  // A dash tells the conductor nothing — say whether the show has ended or
+  // simply has no timecode yet, so an empty panel is never ambiguous.
+  const nextEl = document.getElementById('conductor-next-track');
+  nextEl.textContent = nextSong?.trackName || (State.songs?.length ? 'End of show' : 'No show loaded');
+  nextEl.classList.toggle('is-empty', !nextSong);
+  // Fitted, not clamped: the empty-state cap stops status text becoming a headline.
+  fitText(nextEl, nextEl, 22, nextSong ? Math.round(window.innerHeight * 0.11) : 40);
   if (nextSong) {
     const diff = durationCountdown({ song: nextSong, cue: { offset: '00:00:00:00' }, absFrames: parseTC(nextSong.timecode) });
     document.getElementById('conductor-next-in').textContent = diff > 0 ? 'in ' + framesToDisplay(diff) : 'NOW';
@@ -508,13 +680,84 @@ function renderCamera() {
   const curCue = getCurrentCue(song);
   const nextG  = getNextCueGlobal(cameraType);
   document.getElementById('camera-label').textContent  = song?.trackName || '—';
-  document.getElementById('camera-cue').textContent    = getField(curCue, cameraType) || '—';
+  // With no live cue, the upcoming one is the only information on this screen
+  // — promote it into the hero rather than leaving a dash in a void.
+  const camCue   = document.getElementById('camera-cue');
+  const curText  = getField(curCue, cameraType);
+  const nextText = getField(nextG?.cue, cameraType);
+  camCue.textContent = curText || nextText || '—';
+  camCue.classList.toggle('is-upcoming', !curText && !!nextText);
+  fitText(camCue, camCue, 32, Math.round(window.innerHeight * 0.17));
+  document.getElementById('camera-next').style.visibility = (!curText && nextText) ? 'hidden' : '';
   document.getElementById('camera-countdown').textContent = nextG ? framesToDisplay(durationCountdown(nextG)) : '—';
   document.getElementById('camera-next').querySelector('span').textContent = getField(nextG?.cue, cameraType) || '—';
   document.getElementById('camera-tc').textContent = State.tc;
 }
 
 /* renderStage → /stage-cue.js */
+
+// ── Video view ────────────────────────────────────────────────────────────────
+// The MJPEG connection is only opened while the video view is on screen. An
+// idle display holding the stream open would keep an ffmpeg transcode running
+// on every Pi for nothing.
+let videoAttached = false;
+
+function attachVideo() {
+  if (videoAttached) return;
+  const img = document.getElementById('video-img');
+  const ph  = document.getElementById('video-placeholder');
+  const msg = document.getElementById('video-msg');
+  if (!img) return;
+
+  if (!State.config || !State.config.videoSource) {
+    img.classList.remove('live');
+    ph.classList.remove('hidden');
+    msg.textContent = 'No source configured';
+    return;
+  }
+
+  msg.textContent = 'Connecting to source…';
+  ph.classList.remove('hidden');
+  img.onload  = () => { img.classList.add('live'); ph.classList.add('hidden'); };
+  img.onerror = () => {
+    img.classList.remove('live');
+    ph.classList.remove('hidden');
+    msg.textContent = 'Source unavailable — retrying';
+    // Reconnect on a slow loop; the encoder may simply be powered down.
+    if (videoAttached) setTimeout(() => { if (videoAttached) { detachVideo(true); attachVideo(); } }, 5000);
+  };
+  // Cache-bust so a reconnect is never served a stale multipart response.
+  img.src = '/api/video/stream?t=' + Date.now();
+  videoAttached = true;
+}
+
+function detachVideo(keepFlag) {
+  const img = document.getElementById('video-img');
+  if (img) {
+    img.onload = img.onerror = null;
+    img.removeAttribute('src');   // aborts the multipart request
+    img.classList.remove('live');
+  }
+  if (!keepFlag) videoAttached = false;
+}
+
+function renderVideo() {
+  const song   = getCurrentSong();
+  const curCue = getCurrentCue(song);
+  const nextG  = getNextCueGlobal(cameraType);
+
+  const cueEl  = document.getElementById('video-cue');
+  const nextEl = document.getElementById('video-next');
+  const cdEl   = document.getElementById('video-cd');
+  const overlay = document.getElementById('video-overlay');
+  if (!cueEl) return;
+
+  cueEl.textContent  = getField(curCue, cameraType) || song?.trackName || '—';
+  nextEl.textContent = getField(nextG?.cue, cameraType) || '—';
+  cdEl.textContent   = nextG ? framesToDisplay(durationCountdown(nextG)) : '';
+  // With no show loaded the strip is just noise over the picture.
+  overlay.classList.toggle('hidden', !State.songs || !State.songs.length);
+}
 
 function renderTestView() { renderConsoleView(testSlots); }
 
@@ -530,19 +773,28 @@ function renderCurrent() {
   else if (currentView === 'stage')  renderStage(slots);
   else if (currentView === 'test')   renderTestView();
   else if (currentView === 'overview') Overview.render();
+  else if (currentView === 'video' || currentView === 'videofull') renderVideo();
 }
 
 // ── View switching ────────────────────────────────────────────────────────────
 function switchView(view) {
   currentView = view;
   localStorage.setItem('kiosk-view', view);
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+  // 'videofull' is the same view as 'video' with the chrome stripped — they
+  // must share one <img>, or the screen would open two MJPEG connections and
+  // run two transcodes.
+  const isVideo   = view === 'video' || view === 'videofull';
+  const domView   = isVideo ? 'video' : view;
+  document.body.classList.toggle('video-clean', view === 'videofull');
+  if (view !== 'videofull') document.body.classList.remove('reveal');
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + domView));
   document.querySelectorAll('[id^="view-btn-"]').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('view-btn-' + view);
   if (btn) btn.classList.add('active');
   document.getElementById('menu-slot-section').style.display = view === 'stage'  ? '' : 'none';
   document.getElementById('menu-cam-section').style.display  = view === 'camera' ? '' : 'none';
   document.getElementById('menu-test-section').style.display = view === 'test'   ? '' : 'none';
+  if (isVideo) attachVideo(); else detachVideo();
   renderCurrent();
   sendScreenUpdate();
 }
@@ -584,6 +836,22 @@ const Menu = {
   toggle() { document.getElementById('menu-panel').classList.toggle('open'); }
 };
 
+// ── Escape hatch for full-screen video ────────────────────────────────────────
+// With the header hidden there is no visible control, so the chrome returns on
+// any mouse movement and Escape opens the menu. Without this a screen set to
+// full-screen video could only be recovered by editing localStorage.
+let revealTimer = null;
+function revealChrome(ms = 3000) {
+  if (!document.body.classList.contains('video-clean')) return;
+  document.body.classList.add('reveal');
+  clearTimeout(revealTimer);
+  revealTimer = setTimeout(() => document.body.classList.remove('reveal'), ms);
+}
+document.addEventListener('mousemove', () => revealChrome());
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { revealChrome(8000); Menu.toggle(); }
+});
+
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 let ws, wsTimer;
 function wsConnect() {
@@ -617,11 +885,19 @@ function handleMsg(msg) {
       State.tc        = msg.tc?.tc      || '00:00:00:00';
       State.tcRunning = msg.tc?.running || false;
       State.tcFrames  = 0;
+      if (currentView === 'video' || currentView === 'videofull') attachVideo();
       renderCurrent();
       break;
-    case 'config_updated':
+    case 'config_updated': {
+      const prevSource = State.config?.videoSource;
       State.config = msg.config || {};
+      // Reconnect only when the source actually changed — a config save for
+      // anything else must not interrupt a live picture.
+      if ((currentView === 'video' || currentView === 'videofull') && State.config.videoSource !== prevSource) {
+        detachVideo(); attachVideo();
+      }
       break;
+    }
     case 'tc':
       State.tc       = msg.tc;
       State.tcFrames = msg.frames;

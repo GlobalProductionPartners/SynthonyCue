@@ -162,6 +162,41 @@ function durationCountdown(nextGlobal) {
   return Math.max(0, total);
 }
 
+// ── Fit-to-box type ───────────────────────────────────────────────────────────
+// Sizes an element's font so its text fills the available box. This is what
+// "readable from a distance" actually requires: clamp() ceilings cap the type
+// while the container flexes, which measured out at 49-74% empty screen on a
+// 1080p panel. Binary search costs ~9 layout passes, and the result is cached
+// against text + box size so the 25fps render loop pays nothing on idle.
+function fitText(el, box, min = 16, max, widthOnly = false) {
+  if (!el) return;
+  box = box || el;
+  // Ceiling is a fraction of screen height, not the box: filling space must
+  // not tip into shouting. ~16vh reads strongly from distance without
+  // dominating the room; callers can pass a tighter or looser cap.
+  if (max == null) max = Math.round(window.innerHeight * 0.16);
+  // A placeholder dash is not information — never blow it up into a headline
+  // (at 480px an em-dash renders as a giant white bar).
+  if (el.textContent.trim() === '—' || el.textContent.trim() === '') max = Math.min(max, 64);
+  const key = el.textContent + '|' + box.clientWidth + 'x' + box.clientHeight;
+  if (el._fitKey === key) return;
+  if (!box.clientWidth) return;           // hidden view — leave untouched
+  let lo = min, hi = max;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    el.style.fontSize = mid + 'px';
+    // widthOnly: a single-line element fitted against itself has no real
+    // height box — descenders push scrollHeight past clientHeight at any
+    // size and the search collapses to `min`. Width is the only honest axis.
+    const fits = el.scrollWidth <= box.clientWidth + 1 &&
+                 (widthOnly || el.scrollHeight <= box.clientHeight + 1);
+    if (fits) lo = mid; else hi = mid - 1;
+  }
+  el.style.fontSize = lo + 'px';
+  // Cache with the box as it is *after* fitting — auto-height boxes settle here.
+  el._fitKey = el.textContent + '|' + box.clientWidth + 'x' + box.clientHeight;
+}
+
 // ── Console view renderer ─────────────────────────────────────────────────────
 // Shared between admin (renderTestStage) and kiosk (renderTestView).
 // `slots` is an object: { a: 'stage'|'host'|..., b: '...' }
@@ -178,11 +213,7 @@ function renderConsoleView(slots) {
   if (trackEl) {
     const name = song?.trackName || '—';
     trackEl.textContent = name;
-    trackEl.style.fontSize = '120px';
-    if (trackEl.scrollWidth > trackEl.clientWidth) {
-      const scaled = Math.floor(120 * (trackEl.clientWidth / trackEl.scrollWidth));
-      trackEl.style.fontSize = Math.max(24, scaled) + 'px';
-    }
+    fitText(trackEl, trackEl, 24, Math.round(window.innerHeight * 0.13), true);
   }
   const bpmEl = document.getElementById('con-bpm-key');
   if (bpmEl) bpmEl.textContent = song?.bpm ? `BPM  ${song.bpm}` : '';
@@ -195,16 +226,18 @@ function renderConsoleView(slots) {
     const durF    = storedF > 0 ? storedF : (nxtSong ? parseTC(nxtSong.timecode) - started : 0);
     if (durF > 0) {
       const remaining = durF - elapsed;
-      const col = Math.floor(Math.max(0, remaining) / FR) <= 30 ? 'var(--red)' : 'var(--amber)';
+      // Neutral until the last 30s, so red still carries meaning when it lands.
+      const remSecSong = Math.floor(Math.max(0, remaining) / FR);
+      const barState   = remSecSong <= 10 ? ' urgent' : remSecSong <= 30 ? ' warn' : '';
       const bar = document.getElementById('con-prog-bar');
-      if (bar) { bar.style.width = Math.min(100, Math.max(0, (elapsed / durF) * 100)) + '%'; bar.style.background = col; }
+      if (bar) { bar.style.width = Math.min(100, Math.max(0, (elapsed / durF) * 100)) + '%'; bar.className = 'con-prog-bar' + barState; }
       const elEl  = document.getElementById('con-elapsed');
       const remEl = document.getElementById('con-remaining');
-      if (elEl)  { elEl.textContent  = formatHMSF(Math.max(0, elapsed));         elEl.style.color = col; }
-      if (remEl) { remEl.textContent = '-' + formatHMSF(Math.max(0, remaining)); remEl.style.color = col; }
+      if (elEl)  { elEl.textContent  = formatHMSF(Math.max(0, elapsed));         elEl.className = 'con-time-val' + barState; }
+      if (remEl) { remEl.textContent = '-' + formatHMSF(Math.max(0, remaining)); remEl.className = 'con-time-val right' + barState; }
     } else {
       const bar = document.getElementById('con-prog-bar');
-      if (bar) bar.style.width = '0%';
+      if (bar) { bar.style.width = '0%'; bar.className = 'con-prog-bar'; }
       const elEl  = document.getElementById('con-elapsed');
       const remEl = document.getElementById('con-remaining');
       if (elEl)  elEl.textContent = formatHMSF(Math.max(0, elapsed));
@@ -269,13 +302,15 @@ function renderConsoleView(slots) {
 
     const cueEl = document.getElementById(`con-cue-${slot}`);
     if (cueEl) {
+      var _cueBox = cueEl.parentElement; // .con-panel-body — flex:1, overflow hidden
       if (isLive) {
         cueEl.textContent = getField(lastFired.cue, type) || '—';
-        cueEl.style.color = 'var(--green)';
+        cueEl.classList.add('is-live');
       } else {
         cueEl.textContent = '—';
-        cueEl.style.color = '';
+        cueEl.classList.remove('is-live');
       }
+      fitText(cueEl, _cueBox, 18, Math.round(window.innerHeight * 0.06));
     }
 
     const footCdEl  = document.getElementById(`con-foot-cd-${slot}`);

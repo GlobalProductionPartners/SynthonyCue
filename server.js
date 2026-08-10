@@ -6,6 +6,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 const fs   = require('fs');
 const path = require('path');
 const multer = require('multer');
+const crypto = require('crypto');
 const XLSX = require('xlsx');
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -20,7 +21,16 @@ let config = loadJSON(CONFIG_PATH, {
   artnetDestinations: {},
   tcSource: 'internal',
   artnetInterface: 'all',
-  cueHoldMode: 'timed'
+  cueHoldMode: 'timed',
+  // Video source — anything ffmpeg can open. The Zowietek encoder's
+  // secondary (720p) stream is the intended input; the 4K main stream costs
+  // far more to decode for no gain on a cue display.
+  //   rtsp://<encoder-ip>/stream1
+  //   lavfi:testsrc2=size=1280x720:rate=25   (built-in test pattern)
+  videoSource: '',
+  videoWidth: 1280,
+  videoFps: 15,
+  videoQuality: 6
 });
 
 let songs = loadJSON(SONGS_PATH, []);
@@ -34,26 +44,70 @@ function saveJSON(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+// ── Video source relay ────────────────────────────────────────────────────────
+// Optional in the same way the TC modules are: if it cannot load, everything
+// else still runs and the video view simply reports no source.
+let Video;
+try {
+  Video = require('./video/stream');
+} catch (e) {
+  console.log(`[Video] module not available: ${e.message}`);
+  Video = {
+    configure() {}, stop() {}, restart() {},
+    state: () => ({ url: null, running: false, viewers: 0, hasFrame: false, unavailable: true }),
+    handleStream:   (_q, r) => r.status(503).json({ error: 'Video module not available' }),
+    handleSnapshot: (_q, r) => r.status(503).json({ error: 'Video module not available' })
+  };
+}
+
 // ── Express + HTTP ────────────────────────────────────────────────────────────
 const app    = express();
 const server = http.createServer(app);
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  // Buffered in memory on a 4GB Pi — a cue sheet is tens of KB, so 10MB is
+  // generous while still bounding what an unauthenticated POST can allocate.
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 }
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // ── Session auth helpers ──────────────────────────────────────────────────────
+// The cookie carries a token derived from the password, never the password
+// itself: this runs over plain HTTP on a venue network, so the admin password
+// must not be sitting in every request, in browser cookie jars, or in any
+// proxy log. Deriving it (rather than keeping a session table) means sessions
+// survive a server restart, and changing the password invalidates them all.
+function sessionSecret() {
+  if (!config.sessionSecret) {
+    config.sessionSecret = crypto.randomBytes(32).toString('hex');
+    saveJSON(CONFIG_PATH, config);
+  }
+  return config.sessionSecret;
+}
+function expectedToken() {
+  return crypto.createHmac('sha256', sessionSecret())
+               .update(String(config.editPassword))
+               .digest('hex');
+}
+function safeEqual(a, b) {
+  const ab = Buffer.from(String(a)), bb = Buffer.from(String(b));
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
 function getSessionToken(req) {
   const cookie = req.headers.cookie || '';
   const m = cookie.match(/\bsyn_sess=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : null;
 }
 function isAuthedReq(req) {
-  return getSessionToken(req) === config.editPassword;
+  const tok = getSessionToken(req);
+  return !!tok && safeEqual(tok, expectedToken());
 }
-function sessionCookie(password, expire = true) {
+function sessionCookie(_password, expire = true) {
   const exp = expire ? `; Expires=${new Date(Date.now() + 86400000 * 30).toUTCString()}` : '';
-  return `syn_sess=${encodeURIComponent(password)}; Path=/; HttpOnly; SameSite=Strict${exp}`;
+  return `syn_sess=${expectedToken()}; Path=/; HttpOnly; SameSite=Strict${exp}`;
 }
 
 // ── Login / logout ────────────────────────────────────────────────────────────
@@ -66,16 +120,20 @@ app.get('/login', (req, res) => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Synthony Cue — Login</title>
+<link rel="stylesheet" href="/theme.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#000;color:#c9d1d9;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.card{background:#0a0a0a;border:1px solid #222;border-radius:12px;padding:40px 36px;width:320px;display:flex;flex-direction:column;gap:20px}
-h1{font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6e7681}
-input{width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:6px;color:#c9d1d9;font-size:15px;outline:none}
-input:focus{border-color:#30d158}
-button{padding:10px;background:#30d158;color:#000;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer}
-button:hover{background:#3de66a}
-.err{font-size:12px;color:#ff453a}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:var(--s-5)}
+/* Hairline panel rather than a floating rounded card — same elevation
+   language as the rest of the app. */
+.card{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--r-2);padding:var(--s-7) var(--s-6);width:340px;display:flex;flex-direction:column;gap:var(--s-5)}
+h1{font-size:12px;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3)}
+label{display:block;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:var(--s-2)}
+input{width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-2);color:var(--text);font-size:15px;font-family:var(--font-ui);transition:border-color 150ms ease}
+input:hover{border-color:var(--border-str)}
+button{width:100%;margin-top:var(--s-4);padding:11px;background:var(--accent);color:#0B0B0C;border:none;border-radius:var(--r-2);font-size:14px;font-weight:700;font-family:var(--font-ui);cursor:pointer;transition:background-color 150ms ease}
+button:hover{background:#4DEEFF}
+.err{font-size:12px;color:var(--urgent);border-left:2px solid var(--urgent);padding-left:var(--s-2)}
 </style>
 </head>
 <body>
@@ -83,8 +141,8 @@ button:hover{background:#3de66a}
   <h1>Synthony Cue</h1>
   ${err}
   <form method="POST" action="/login">
-    <input type="password" name="password" placeholder="Admin password" autofocus>
-    <br><br>
+    <label for="password">Admin password</label>
+    <input id="password" type="password" name="password" autocomplete="current-password" autofocus>
     <button type="submit">Enter</button>
   </form>
 </div>
@@ -120,11 +178,13 @@ const wss = new WebSocketServer({ server });
 const clients = new Set();
 const screens = new Map(); // screenId → { ws, name, view, slots, cameraType }
 
-function broadcastScreensList() {
-  const list = Array.from(screens.values()).map(s => ({
+function screensList() {
+  return Array.from(screens.values()).map(s => ({
     id: s.id, name: s.name, view: s.view, slots: s.slots, cameraType: s.cameraType
   }));
-  broadcast({ type: 'screens_list', screens: list });
+}
+function broadcastScreensList() {
+  broadcast({ type: 'screens_list', screens: screensList() });
 }
 
 wss.on('connection', (ws, req) => {
@@ -132,6 +192,10 @@ wss.on('connection', (ws, req) => {
   // Auto-auth WebSocket connections that carry a valid session cookie
   if (isAuthedReq(req)) authedClients.set(ws, true);
   safeSend(ws, { type: 'init', songs, config: sanitiseConfig(config), tc: TC.state() });
+  // Screens only announced themselves on connect, so an admin opened after
+  // the displays were already running saw an empty list until one of them
+  // joined or dropped. Send the current list to every new client.
+  safeSend(ws, { type: 'screens_list', screens: screensList() });
 
   ws.on('message', (raw) => {
     try { handleClientMessage(ws, JSON.parse(raw)); } catch {}
@@ -153,8 +217,12 @@ function broadcast(msg) {
 function safeSend(ws, msg) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
+function broadcastVideoStatus(st) {
+  broadcast({ type: 'video_status', ...st });
+}
+
 function sanitiseConfig(cfg) {
-  const { editPassword, ...safe } = cfg;
+  const { editPassword, sessionSecret, ...safe } = cfg;
   return safe;
 }
 
@@ -359,12 +427,32 @@ function verifyEdit(ws, msg) {
 
 function handleClientMessage(ws, msg) {
   switch (msg.type) {
-    case 'tc_start':  if (TC.state().source === 'internal') TC.start(msg.tc); break;
-    case 'tc_stop':   if (TC.state().source === 'internal') TC.stop();  break;
-    case 'tc_jam':    if (TC.state().source === 'internal') TC.jam(msg.tc); break;
-    case 'tc_source': TC.setSource(msg.source); break;
+    case 'tc_start':  if (!verifyEdit(ws, msg)) return; if (TC.state().source === 'internal') TC.start(msg.tc); break;
+    case 'tc_stop':   if (!verifyEdit(ws, msg)) return; if (TC.state().source === 'internal') TC.stop();  break;
+    case 'tc_jam':    if (!verifyEdit(ws, msg)) return; if (TC.state().source === 'internal') TC.jam(msg.tc); break;
+    case 'tc_source': {
+      if (!verifyEdit(ws, msg)) return;
+      const prev = TC.state().source;
+      TC.setSource(msg.source);
+      config.tcSource = msg.source;
+      // LTC's ffmpeg capture only runs while it is the selected source
+      if (msg.source !== prev) {
+        const ltc = require('./tc/ltc');
+        if (msg.source === 'ltc') {
+          ltc.start((tc) => TC.receiveExternal(tc, 'ltc'), config.ltcDevice, config.ltcChannel);
+          ltc.startMonitor(config.ltcDevice, config.ltcChannel, (db) => broadcast({ type: 'ltc_level', db }));
+          console.log('[LTC] Started (source selected)');
+        } else if (prev === 'ltc') {
+          ltc.stop();
+          ltc.stopMonitor();
+          console.log('[LTC] Stopped (source changed)');
+        }
+      }
+      break;
+    }
 
     case 'apply_artnet': {
+      if (!verifyEdit(ws, msg)) return;
       const artnet = require('./tc/artnet');
       config.artnetInterface = msg.interface || 'all';
       config.tcSource = 'artnet';
@@ -376,7 +464,25 @@ function handleClientMessage(ws, msg) {
       break;
     }
 
+    case 'apply_video': {
+      // Gated: this persists config and starts a process against a
+      // caller-supplied URL. (spawn uses an argv array, so there is no shell
+      // to inject into, but it should still not be open to any client.)
+      if (!verifyEdit(ws, msg)) return;
+      config.videoSource  = (msg.source || '').trim();
+      if (msg.width   != null) config.videoWidth   = parseInt(msg.width)   || 1280;
+      if (msg.fps     != null) config.videoFps     = parseInt(msg.fps)     || 15;
+      if (msg.quality != null) config.videoQuality = parseInt(msg.quality) || 6;
+      saveJSON(CONFIG_PATH, config);
+      Video.configure(config, broadcastVideoStatus);
+      Video.restart();
+      broadcast({ type: 'config_updated', config: sanitiseConfig(config) });
+      console.log(`[Video] source set → ${config.videoSource || '(none)'}`);
+      break;
+    }
+
     case 'apply_ltc': {
+      if (!verifyEdit(ws, msg)) return;
       const ltc = require('./tc/ltc');
       config.ltcDevice  = msg.device;
       config.ltcChannel = parseInt(msg.channel) || 1;
@@ -400,6 +506,12 @@ function handleClientMessage(ws, msg) {
     case 'save_songs': {
       if (!verifyEdit(ws, msg)) return;
       songs = msg.songs;
+      // Normalise cue order within each song regardless of which client saved:
+      // cue playback walks the array and stops at the first future offset, so
+      // an out-of-order list silently skips cues mid-show.
+      for (const song of songs || []) {
+        (song.cues || []).sort((a, b) => TC.parse(a.offset) - TC.parse(b.offset));
+      }
       saveJSON(SONGS_PATH, songs);
       firedOutputs.clear();
       broadcast({ type: 'songs_updated', songs });
@@ -408,20 +520,11 @@ function handleClientMessage(ws, msg) {
 
     case 'save_config': {
       if (!verifyEdit(ws, msg)) return;
-      const prevMtcPort   = config.mtcPort;
       const prevLtcDevice = String(config.ltcDevice ?? '');
       const prevLtcChannel = String(config.ltcChannel ?? '');
       config = { ...config, ...msg.config };
       saveJSON(CONFIG_PATH, config);
       broadcast({ type: 'config_updated', config: sanitiseConfig(config) });
-      // Restart MTC listener if port changed
-      if (config.mtcPort !== prevMtcPort) {
-        try {
-          const mtc = require('./tc/mtc');
-          mtc.start((tc) => TC.receiveExternal(tc, 'mtc'), config.mtcPort);
-          console.log(`[MTC] Switched to port: ${config.mtcPort}`);
-        } catch (e) { console.log(`[MTC] Port switch failed: ${e.message}`); }
-      }
       // Restart LTC listener if device or channel changed
       if (String(config.ltcDevice ?? '') !== prevLtcDevice || String(config.ltcChannel ?? '') !== prevLtcChannel) {
         try {
@@ -449,6 +552,7 @@ function handleClientMessage(ws, msg) {
     }
 
     case 'screen_command': {
+      if (!verifyEdit(ws, msg)) return;
       const target = screens.get(msg.targetId);
       console.log(`[Screen] Command → ${msg.targetId} (${target ? 'found, state=' + target.ws.readyState : 'NOT FOUND'}) view=${msg.view}`);
       console.log(`[Screen] Known screens: ${[...screens.keys()].join(', ') || 'none'}`);
@@ -478,14 +582,20 @@ app.get('/api/network/interfaces', (_req, res) => {
   res.json({ interfaces: result, current: config.artnetInterface || 'all' });
 });
 
-app.get('/api/midi/ports', (_req, res) => {
-  try {
-    const mtc = require('./tc/mtc');
-    res.json({ ports: mtc.getPorts() });
-  } catch (e) {
-    res.json({ ports: [], error: e.message });
-  }
+// ── Video source ──────────────────────────────────────────────────────────────
+// MJPEG is the only live video a browser plays with no extra library, which
+// matters because a show Pi has no internet to fetch one. See video/stream.js.
+app.get('/api/video/stream',   (req, res) => Video.handleStream(req, res));
+app.get('/api/video/snapshot', (req, res) => Video.handleSnapshot(req, res));
+app.get('/api/video/state',    (_req, res) => res.json(Video.state()));
+
+// Admin-only: spawns ffprobe against a caller-supplied URL.
+app.get('/api/video/probe', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ ok: false, error: 'Unauthorized' }); return; }
+  if (!Video.probe) { res.json({ ok: false, error: 'Probe not available' }); return; }
+  Video.probe(String(req.query.url || '').trim(), (result) => res.json(result));
 });
+
 
 app.get('/api/audio/devices', async (_req, res) => {
   try {
@@ -686,17 +796,19 @@ function parseSynthonySheet(rows) {
 // ── External TC module loader ─────────────────────────────────────────────────
 function loadTCModules() {
   const modules = [
-    { key: 'mtc', path: './tc/mtc', priority: 2 },
-    { key: 'rtpmidi', path: './tc/rtp-midi', priority: 3 },
     { key: 'artnet', path: './tc/artnet', priority: 4 },
     { key: 'ltc', path: './tc/ltc', priority: 5 }
   ];
   for (const mod of modules) {
     try {
+      // LTC spawns ffmpeg continuously, so only run it when it's the chosen
+      // source. The others are passive listeners and can stay loaded.
+      if (mod.key === 'ltc' && config.tcSource !== 'ltc') {
+        console.log('[TC] ltc module idle (source is ' + config.tcSource + ')');
+        continue;
+      }
       const m = require(mod.path);
-      if (mod.key === 'mtc') {
-        m.start((tc) => TC.receiveExternal(tc, 'mtc'), config.mtcPort);
-      } else if (mod.key === 'ltc') {
+      if (mod.key === 'ltc') {
         m.start((tc) => TC.receiveExternal(tc, 'ltc'), config.ltcDevice, config.ltcChannel);
         m.startMonitor(config.ltcDevice, config.ltcChannel, (db) => broadcast({ type: 'ltc_level', db }));
       } else if (mod.key === 'artnet') {
@@ -712,7 +824,27 @@ function loadTCModules() {
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
+Video.configure(config, broadcastVideoStatus);
+if (config.videoSource) console.log(`[Video] source configured → ${config.videoSource}`);
+
 const PORT = process.env.PORT || config.port || 3001;
+
+// Port-80 convenience listener: browsers assume :80 when no port is typed, so
+// operators can reach the app as plain http://<host>/ . Same express app, and
+// WebSocket upgrades are forwarded to the same wss. If the OS refuses the
+// privileged port (Linux non-root without CAP_NET_BIND_SERVICE) or something
+// else owns :80, log one line and carry on — :PORT keeps working regardless.
+if (Number(PORT) !== 80) {
+  const front = http.createServer(app);
+  front.on('upgrade', (req, socket, head) => {
+    wss.handleUpgrade(req, socket, head, (ws2) => wss.emit('connection', ws2, req));
+  });
+  front.on('error', (e) => {
+    console.log(`[HTTP] port 80 unavailable (${e.code}) — reach the app on :${PORT}`);
+  });
+  front.listen(80, () => console.log('[HTTP] also listening on :80 — no port needed in the URL'));
+}
+
 server.listen(PORT, () => {
   console.log(`\n╔══════════════════════════════════════╗`);
   console.log(`║   Synthony Cue System                ║`);

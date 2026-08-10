@@ -1,0 +1,197 @@
+/* ============================================================================
+   Synthony Cue — design tokens
+   Shared by the kiosk display and the admin UI.
+
+   Principles:
+   - Structure is monochrome. Colour is reserved for state, so that when
+     something turns amber or red on a stage monitor, it *means* something.
+   - Fonts are self-hosted. A show Pi sits on an isolated Art-Net network with
+     no internet; a CDN font would fall back to Courier mid-show and change
+     the timecode's glyph metrics.
+   ========================================================================= */
+
+/* Variable fonts — one file covers every weight (latin subset). */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block; /* block, not swap — no reflow of timecode mid-show */
+  src: url('/fonts/inter-var-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: block;
+  src: url('/fonts/jetbrainsmono-var-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* ── Neutrals ──────────────────────────────────────────────────────────
+     Greys are perfectly neutral (R=G=B) rather than blue-tinted. A hue cast
+     reads as "software chrome"; a true grey ramp reads as printed technical
+     documentation, which is the register this system is aiming at.
+
+     True black on the kiosk is deliberate: on a stage monitor it minimises
+     light spill into the room. Text stops short of #fff — at display sizes
+     pure white blooms on large panels and softens the edges.              */
+  --bg:          #000000;
+  --bg-raised:   #0A0A0A;
+  --surface:     #161616;
+  --surface-2:   #1C1C1C;
+  --border:      #242424;
+  --border-str:  #333333;
+
+  --text:        #F2F2F2;
+  --text-2:      #9E9E9E;
+  --text-3:      #6B6B6B;
+
+  /* ── Brand ────────────────────────────────────────────────────────────
+     Cyan — flat, never glowed. Identity and "live" transport only,
+     never decoration.                                                    */
+  --accent:      #00E5FF;
+  --accent-dim:  #00879E;
+
+  /* ── State ────────────────────────────────────────────────────────────
+     The only other colour in the system. Amber and red always mean time.  */
+  --live:        #3FB950;
+  --warn:        #E3B341;
+  --urgent:      #F85149;
+
+  /* ── Type ─────────────────────────────────────────────────────────────
+     Self-hosted so the Mac admin and the Pi display render identically.   */
+  --font-ui:     'Inter', system-ui, -apple-system, sans-serif;
+  --font-tc:     'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+
+  /* ── Space — 4px scale ───────────────────────────────────────────────── */
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* ── Radius — restrained; production tools are not soft ─────────────── */
+  --r-1: 2px;
+  --r-2: 4px;
+
+  /* ── Elevation: hairline borders for structure, shadow only for
+        things that genuinely float (menu panel, dialogs). ─────────────── */
+  --shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* ── z-index scale. Components that layer internally use
+        `isolation: isolate` and stay at 1–2 locally. ──────────────────── */
+  --z-header:  10;
+  --z-panel:   20;
+  --z-overlay: 30;
+}
+
+/* Timecode and any figure that must not jitter as digits change. */
+.tabular,
+.tc {
+  font-family: var(--font-tc);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: 0.02em;
+}
+
+/* ── Technical-document language ──────────────────────────────────────────
+   Three small conventions carry most of the character:
+     .sec   a slashed micro-breadcrumb   // TIMECODE / SOURCE
+     .val   a bracketed machine value    [ 00:12:04:11 ]
+     .idx   a large, light section index
+   Brackets are pseudo-elements so the text itself stays clean for copying,
+   screen readers and CSV export.
+   ────────────────────────────────────────────────────────────────────── */
+
+/* Micro-breadcrumb. Use `//` between groups and `/` inside a group. */
+.sec {
+  font-family: var(--font-tc);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+.sec .sep { color: var(--border-str); }
+
+/* Machine value. Bracketed, monospaced, never wraps mid-token. */
+.val {
+  font-family: var(--font-tc);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.val::before { content: '[ '; color: var(--text-3); }
+.val::after  { content: ' ]'; color: var(--text-3); }
+/* An empty value must not leave a pair of naked brackets on screen. */
+.val:empty { display: none; }
+.val.muted { color: var(--text-2); }
+.val.warn   { color: var(--warn); }
+.val.urgent { color: var(--urgent); }
+.val.live   { color: var(--live); }
+
+/* Large section index — set light and oversized, the way a spec sheet
+   numbers its plates. Deliberately low contrast; it is a landmark, not data. */
+.idx {
+  font-family: var(--font-ui);
+  font-weight: 300;
+  font-size: clamp(28px, 4vw, 64px);
+  letter-spacing: -0.02em;
+  color: var(--surface-2);
+  line-height: 1;
+}
+
+/* Key/value row — hairline separated, label left, machine value right. */
+.kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.kv:last-child { border-bottom: none; }
+.kv > dt, .kv .k {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.kv > dd, .kv .v { margin: 0; text-align: right; }
+
+/* ── Focus ────────────────────────────────────────────────────────────────
+   One visible focus treatment everywhere. Never removed without a
+   replacement — an operator may be driving this from a keyboard in the dark. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────
+   Timecode-driven bars deliberately carry `transition: none` at their call
+   sites — smoothing a position readout would misreport where the show is. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

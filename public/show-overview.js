@@ -83,12 +83,7 @@ const Overview = {
         curTextEl.className   = 'ov-current-text';
         curLblEl.className    = 'ov-current-lbl';
       }
-      // Auto-scale font to container width
-      curTextEl.style.fontSize = '72px';
-      if (curTextEl.scrollWidth > curTextEl.clientWidth) {
-        const scaled = Math.floor(72 * (curTextEl.clientWidth / curTextEl.scrollWidth));
-        curTextEl.style.fontSize = Math.max(18, scaled) + 'px';
-      }
+      fitText(curTextEl, curTextEl, 24, Math.round(window.innerHeight * 0.10), true);
     }
 
     const nextGlobal = getNextCueGlobal(effectiveType);

@@ -15,7 +15,10 @@ function renderStage(slots, prefix = '') {
   const nowF = State.tcFrames || parseTC(State.tc);
 
   const nameEl = $('stage-song-name');
-  if (nameEl) nameEl.textContent = song?.trackName || '—';
+  if (nameEl) {
+    nameEl.textContent = song?.trackName || '—';
+    fitText(nameEl, nameEl, 32, Math.round(window.innerHeight * 0.13));
+  }
 
   if (song) {
     const started  = parseTC(song.timecode);
@@ -27,17 +30,23 @@ function renderStage(slots, prefix = '') {
     if (durF > 0) {
       const remaining = durF - elapsed;
       const pct    = Math.min(100, Math.max(0, (elapsed / durF) * 100));
+      // State as a class, not an inline colour. Neutral until the last 30s so
+      // that red still means something when it finally appears.
       const remSec = Math.floor(Math.max(0, remaining) / FR);
-      const col    = remSec <= 30 ? 'var(--red)' : 'var(--amber)';
+      const state  = remSec <= 10 ? ' urgent' : remSec <= 30 ? ' warn' : '';
       const bar    = $('stage-progress-bar');
-      if (bar) { bar.style.width = pct + '%'; bar.style.background = col; }
+      if (bar) { bar.style.width = pct + '%'; bar.className = 'stage-progress-bar' + state; }
+      const timesEl = document.querySelector('.stage-progress-time');
+      if (timesEl) timesEl.className = 'stage-progress-time' + state;
       const elEl  = $('stage-elapsed');
       const remEl = $('stage-remaining');
-      if (elEl)  { elEl.textContent  = formatHMSF(Math.max(0, elapsed));         elEl.style.color  = col; }
-      if (remEl) { remEl.textContent = '-' + formatHMSF(Math.max(0, remaining)); remEl.style.color = col; }
+      if (elEl)  elEl.textContent  = formatHMSF(Math.max(0, elapsed));
+      if (remEl) remEl.textContent = '-' + formatHMSF(Math.max(0, remaining));
     } else {
       const bar = $('stage-progress-bar');
-      if (bar) bar.style.width = '0%';
+      if (bar) { bar.style.width = '0%'; bar.className = 'stage-progress-bar'; }
+      const timesEl = document.querySelector('.stage-progress-time');
+      if (timesEl) timesEl.className = 'stage-progress-time';
       const elEl  = $('stage-elapsed');
       const remEl = $('stage-remaining');
       if (elEl)  elEl.textContent = '—';
@@ -45,7 +54,9 @@ function renderStage(slots, prefix = '') {
     }
   } else {
     const bar = $('stage-progress-bar');
-    if (bar) bar.style.width = '0%';
+    if (bar) { bar.style.width = '0%'; bar.className = 'stage-progress-bar'; }
+    const timesEl = document.querySelector('.stage-progress-time');
+    if (timesEl) timesEl.className = 'stage-progress-time';
     const elEl  = $('stage-elapsed');
     const remEl = $('stage-remaining');
     if (elEl)  elEl.textContent = '—';
@@ -69,7 +80,10 @@ function renderStage(slots, prefix = '') {
     const nextEl = $(`slot-${slot}-next`);
     const curEl  = $(`slot-${slot}-current`);
     const prevEl = $(`slot-${slot}-prev`);
-    if (nextEl) nextEl.textContent = nextGlobal ? (getField(nextGlobal.cue, type) || '—') : '—';
+    if (nextEl) {
+      nextEl.textContent = nextGlobal ? (getField(nextGlobal.cue, type) || '—') : '—';
+      fitText(nextEl, nextEl, 20, Math.round(window.innerHeight * 0.06));
+    }
     if (curEl)  curEl.textContent  = nowGlobal  ? (getField(nowGlobal.cue,  type) || '—') : '—';
     if (prevEl) prevEl.textContent = prevGlobal ? (getField(prevGlobal.cue, type) || '—') : '—';
 
@@ -78,8 +92,7 @@ function renderStage(slots, prefix = '') {
       if (nextGlobal && remFrames !== Infinity) {
         const remSec = Math.floor(remFrames / FR);
         cntEl.textContent      = framesToDisplay(remFrames);
-        cntEl.style.background = remSec <= 10 ? 'rgba(255,69,58,0.15)' : 'rgba(255,214,10,0.1)';
-        cntEl.style.color      = remSec <= 10 ? 'var(--red)' : 'var(--amber)';
+        cntEl.className = 'stage-countdown' + (remSec <= 10 ? ' urgent' : '');
       } else { cntEl.textContent = '—'; }
     }
 

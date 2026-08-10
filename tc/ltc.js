@@ -1,6 +1,8 @@
 'use strict';
 // SMPTE LTC decoder: ffmpeg captures 1s WAV chunks → ltcdump decodes each chunk → callback
-// Requires: ffmpeg and ltcdump installed (brew install ffmpeg ltc-tools)
+// Requires ffmpeg and ltcdump:
+//   macOS  — brew install ffmpeg ltc-tools   (captures via avfoundation)
+//   Linux  — apt install ffmpeg ltc-tools alsa-utils  (captures via ALSA)
 
 const { spawn, execSync, spawnSync } = require('child_process');
 const fs   = require('fs');
@@ -9,13 +11,30 @@ const os   = require('os');
 
 const CHUNK_WAV = path.join(os.tmpdir(), 'synthony_ltc_chunk.wav');
 
+// macOS addresses inputs as numeric avfoundation indices (":0"); Linux uses
+// ALSA device strings ("hw:1,0"). Everything downstream goes through inputArg.
+const IS_MAC         = process.platform === 'darwin';
+const AUDIO_FMT      = IS_MAC ? 'avfoundation' : 'alsa';
+const DEFAULT_DEVICE = IS_MAC ? '0' : 'default';
+
+function inputArg(device) {
+  const d = (device != null && device !== '') ? String(device) : DEFAULT_DEVICE;
+  return IS_MAC ? `:${d}` : d;
+}
+
 let monitorProc = null;
 let running     = false;
 let loopTimer   = null;
 let captureProc = null;
 
-// Returns array of { index, name } for available audio input devices
+// Returns array of { index, name } for available audio input devices.
+// `index` is an avfoundation ordinal on macOS and an ALSA device string on Linux;
+// either way it round-trips through the UI straight back into inputArg().
 exports.getDevices = function() {
+  return IS_MAC ? listAvfoundationDevices() : listAlsaDevices();
+};
+
+function listAvfoundationDevices() {
   return new Promise((resolve) => {
     const ff = spawn('ffmpeg', ['-f', 'avfoundation', '-list_devices', 'true', '-i', '""'], { stdio: ['ignore', 'ignore', 'pipe'] });
     let out = '';
@@ -35,12 +54,36 @@ exports.getDevices = function() {
     });
     ff.on('error', () => resolve([]));
   });
-};
+}
+
+// ALSA has no ffmpeg -list_devices equivalent, so read `arecord -l`.
+function listAlsaDevices() {
+  return new Promise((resolve) => {
+    const devices = [{ index: 'default', name: 'System default input' }];
+    let ar;
+    try {
+      ar = spawn('arecord', ['-l'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return resolve(devices);
+    }
+    let out = '';
+    ar.stdout.on('data', d => out += d.toString());
+    ar.on('close', () => {
+      for (const line of out.split('\n')) {
+        // card 1: Device [USB Audio Device], device 0: USB Audio [USB Audio]
+        const m = line.match(/^card (\d+):[^[]*\[([^\]]+)\], device (\d+):/);
+        if (m) devices.push({ index: `hw:${m[1]},${m[3]}`, name: m[2].trim() });
+      }
+      resolve(devices);
+    });
+    ar.on('error', () => resolve(devices)); // alsa-utils not installed
+  });
+}
 
 // Probe a device to get its channel count
 exports.probeDevice = function(deviceIndex) {
   return new Promise((resolve) => {
-    const ff = spawn('ffmpeg', ['-f', 'avfoundation', '-i', `:${deviceIndex}`, '-t', '0.5', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const ff = spawn('ffmpeg', ['-f', AUDIO_FMT, '-i', inputArg(deviceIndex), '-t', '0.5', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
     let out = '';
     ff.stderr.on('data', d => out += d.toString());
     const done = () => {
@@ -65,31 +108,51 @@ exports.start = function start(cb, deviceIndex, channel) {
   if (captureProc) { try { captureProc.kill('SIGKILL'); } catch {} captureProc = null; }
   if (loopTimer)   { clearTimeout(loopTimer); loopTimer = null; }
 
-  const idx     = (deviceIndex != null && deviceIndex !== '') ? String(deviceIndex) : '1';
+  const input   = inputArg(deviceIndex);
   const chanIdx = Math.max(0, (parseInt(channel) || 1) - 1);
 
   running = true;
-  console.log(`[LTC] Decoding device :${idx} channel ${chanIdx + 1}`);
+  console.log(`[LTC] Decoding ${AUDIO_FMT} ${input} channel ${chanIdx + 1}`);
+
+  // Consecutive capture failures, so a missing ffmpeg backs off instead of
+  // respawning in a tight loop and starving the event loop.
+  let failures = 0;
 
   function captureChunk() {
     if (!running) return;
+
+    let scheduled = false;
+    const next = (delay) => {
+      if (scheduled || !running) return;
+      scheduled = true;
+      loopTimer = setTimeout(captureChunk, delay);
+    };
+    const fail = (msg) => {
+      if (scheduled || !running) return;
+      failures++;
+      // Only log the first few — a missing binary would otherwise flood the log.
+      if (failures <= 3) console.warn('[LTC] capture error:', msg);
+      else if (failures === 4) console.warn('[LTC] capture still failing — suppressing further errors until it recovers');
+      next(Math.min(30000, 1000 * Math.pow(2, failures - 1)));
+    };
+
     try {
       captureProc = spawn('ffmpeg', [
-        '-y', '-f', 'avfoundation', '-i', `:${idx}`,
+        '-y', '-f', AUDIO_FMT, '-i', input,
         '-af', `pan=mono|c0=c${chanIdx}`,
         '-ac', '1', '-ar', '48000',
         '-t', '1',
         CHUNK_WAV
       ], { stdio: ['ignore', 'ignore', 'pipe'] });
     } catch (e) {
-      console.warn('[LTC] spawn failed:', e.message);
-      if (running) loopTimer = setTimeout(captureChunk, 5000);
+      fail(`spawn failed: ${e.message}`);
       return;
     }
     captureProc.stderr.on('data', () => {});
     captureProc.on('close', (code) => {
       if (!running) return;
       if (code === 0 || fs.existsSync(CHUNK_WAV)) {
+        if (failures) { console.log('[LTC] capture recovered'); failures = 0; }
         // Decode the chunk synchronously
         try {
           const result = spawnSync('ltcdump', ['-F', CHUNK_WAV], { timeout: 2000 });
@@ -101,13 +164,12 @@ exports.start = function start(cb, deviceIndex, channel) {
           }
           if (lastTC && cb) cb(lastTC);
         } catch {}
+        next(0);
+        return;
       }
-      loopTimer = setTimeout(captureChunk, 0);
+      fail(`ffmpeg exited ${code}`);
     });
-    captureProc.on('error', (e) => {
-      log('[LTC] capture error:', e.message);
-      if (running) loopTimer = setTimeout(captureChunk, 5000);
-    });
+    captureProc.on('error', (e) => fail(e.message));
   }
 
   captureChunk();
@@ -123,12 +185,12 @@ exports.stop = function() {
 exports.startMonitor = function(deviceIndex, channel, onLevel) {
   if (monitorProc) { try { monitorProc.kill('SIGKILL'); } catch {} monitorProc = null; }
 
-  const idx     = (deviceIndex != null && deviceIndex !== '') ? String(deviceIndex) : '1';
+  const input   = inputArg(deviceIndex);
   const chanIdx = Math.max(0, (parseInt(channel) || 1) - 1);
 
   try {
     monitorProc = spawn('ffmpeg', [
-      '-f', 'avfoundation', '-i', `:${idx}`,
+      '-f', AUDIO_FMT, '-i', input,
       '-af', `pan=mono|c0=c${chanIdx},ebur128`,
       '-f', 'null', '-'
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -145,7 +207,7 @@ exports.startMonitor = function(deviceIndex, channel, onLevel) {
     }
   });
   monitorProc.on('error', () => {});
-  console.log(`[LTC] Monitor on device :${idx} channel ${chanIdx + 1}`);
+  console.log(`[LTC] Monitor on ${AUDIO_FMT} ${input} channel ${chanIdx + 1}`);
 };
 
 exports.stopMonitor = function() {

@@ -4,3 +4,7 @@ data/
 config.json
 *.log
 .DS_Store
+
+# Working files that should never have been committed
+Screenshot*.png
+*.xlsx

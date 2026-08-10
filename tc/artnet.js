@@ -3,8 +3,10 @@
 // Art-TimeCode OpCode = 0x9700 (little-endian 0x00 0x97)
 
 const dgram = require('dgram');
+const os    = require('os');
 
 let activeSockets = [];
+let lastLogged    = '';
 
 function parsePacket(buf, cb) {
   if (buf.length < 19) return;
@@ -18,13 +20,67 @@ function parsePacket(buf, cb) {
   const minutes = buf[16];
   const hours   = buf[17];
   const tc = [hours, minutes, seconds, frames].map(n => String(n).padStart(2, '0')).join(':');
-  console.log(`[ArtNet TC] ${tc}`);
+  // Log on the second, not every frame — timecode arrives 25-30x/sec.
+  const stamp = tc.slice(0, 8);
+  if (stamp !== lastLogged) { lastLogged = stamp; console.log(`[ArtNet TC] ${tc}`); }
   cb(tc);
 }
 
-function makeSocket(bindAddr, cb) {
+function ipToInt(ip) {
+  const parts = String(ip).split('.');
+  if (parts.length !== 4) return null;
+  let n = 0;
+  for (const part of parts) {
+    const b = Number(part);
+    if (!Number.isInteger(b) || b < 0 || b > 255) return null;
+    n = (n * 256) + b;
+  }
+  return n;
+}
+
+// Art-Net is broadcast, and a socket bound to a specific unicast address never
+// receives broadcast datagrams. So we always bind the wildcard and apply the
+// chosen interface as a filter on the sender instead of as a bind address.
+// Returns null to accept everything, or a predicate on the source IP.
+function makeFilter(addresses) {
+  const wanted = (Array.isArray(addresses) ? addresses : [addresses])
+    .filter(a => a != null && a !== '');
+  if (!wanted.length || wanted.includes('all')) return null;
+
+  const ifaces = os.networkInterfaces();
+  const nets   = [];
+  for (const want of wanted) {
+    if (want === '127.0.0.1') continue; // loopback is always allowed below
+    let matched = false;
+    for (const addrs of Object.values(ifaces)) {
+      for (const a of (addrs || [])) {
+        if (a.family !== 'IPv4' || a.address !== want) continue;
+        const ip   = ipToInt(a.address);
+        const mask = ipToInt(a.netmask);
+        if (ip !== null && mask !== null) { nets.push({ ip, mask }); matched = true; }
+      }
+    }
+    // Address not on any live adapter (unplugged?) — fall back to an exact match
+    if (!matched) {
+      const ip = ipToInt(want);
+      if (ip !== null) nets.push({ ip, mask: 0xFFFFFFFF });
+    }
+  }
+
+  return function accept(srcIp) {
+    if (srcIp === '127.0.0.1') return true; // local TC apps always allowed
+    const src = ipToInt(srcIp);
+    if (src === null) return false;
+    return nets.some(({ ip, mask }) => ((src & mask) >>> 0) === ((ip & mask) >>> 0));
+  };
+}
+
+function makeSocket(bindAddr, cb, accept) {
   const s = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-  s.on('message', (buf) => parsePacket(buf, cb));
+  s.on('message', (buf, rinfo) => {
+    if (accept && !accept(rinfo.address)) return;
+    parsePacket(buf, cb);
+  });
   s.on('error', (e) => console.error(`[ArtNet TC ${bindAddr}]`, e.message));
   s.bind(6454, bindAddr, () => {
     try { s.setBroadcast(true); } catch (_) {}
@@ -38,24 +94,24 @@ exports.stop = function stop() {
     try { s.close(); } catch (_) {}
   }
   activeSockets = [];
+  lastLogged = '';
 };
 
-// addresses: array of IP strings to bind on.
-// 'all' or omitted → 0.0.0.0 (network) + 127.0.0.1 (loopback).
-// Specific IP → that IP + 127.0.0.1 (loopback always included for local sources).
+// addresses: 'all' (or omitted) accepts timecode from any sender.
+// A specific interface IP accepts only senders on that adapter's subnet.
+// Loopback senders are always accepted so local TC apps keep working.
 exports.start = function start(cb, addresses) {
   exports.stop();
 
-  let addrs;
-  if (!addresses || addresses === 'all' || (Array.isArray(addresses) && addresses.includes('all'))) {
-    addrs = ['0.0.0.0', '127.0.0.1'];
-  } else {
-    addrs = Array.isArray(addresses) ? addresses : [addresses];
-    // Always include loopback so local TC apps (Timecode Monitor etc.) still work
-    if (!addrs.includes('127.0.0.1')) addrs.push('127.0.0.1');
-  }
+  const accept = makeFilter(addresses);
+  // 0.0.0.0 is what actually receives broadcast Art-Net. The extra loopback
+  // bind only wins the demux for unicast sent to 127.0.0.1, which another
+  // wildcard listener on 6454 would otherwise take from us.
+  activeSockets.push(makeSocket('0.0.0.0', cb, accept));
+  activeSockets.push(makeSocket('127.0.0.1', cb, accept));
 
-  for (const addr of addrs) {
-    activeSockets.push(makeSocket(addr, cb));
-  }
+  const label = accept
+    ? `senders on ${Array.isArray(addresses) ? addresses.join(', ') : addresses} (+ loopback)`
+    : 'any sender';
+  console.log(`[ArtNet TC] Accepting ${label}`);
 };
