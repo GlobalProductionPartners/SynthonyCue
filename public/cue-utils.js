@@ -200,6 +200,14 @@ function fitText(el, box, min = 16, max, widthOnly = false) {
   // A placeholder dash is not information — never blow it up into a headline
   // (at 480px an em-dash renders as a giant white bar).
   if (el.textContent.trim() === '—' || el.textContent.trim() === '') max = Math.min(max, 64);
+  // Length-aware ceiling (box fits only): filling the box is right for a
+  // three-word cue and oppressive for a long instruction. Scale the cap down
+  // with sqrt of length so an 80-char cue lands near paragraph size while
+  // short calls keep the full headline treatment.
+  if (!widthOnly) {
+    const len = el.textContent.trim().length;
+    if (len > 18) max = Math.max(min, Math.round(max * Math.max(0.45, Math.sqrt(18 / len))));
+  }
   const key = el.textContent + '|' + box.clientWidth + 'x' + box.clientHeight;
   if (el._fitKey === key) return;
   if (!box.clientWidth) return;           // hidden view — leave untouched

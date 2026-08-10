@@ -107,8 +107,10 @@
   letter-spacing: 0.16em; color: var(--live); margin-bottom: var(--s-1);
 }
 .stage-cue-current {
-  font-family: var(--font-ui); font-size: clamp(16px, 2.4vw, 46px); font-weight: 700;
+  font-family: var(--font-ui); font-size: clamp(16px, 2vw, 38px); font-weight: 700;
   color: var(--text); line-height: 1.2; text-transform: uppercase;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .stage-cue-now-bar-wrap { margin-top: var(--s-2); }
 .stage-cue-now-bar { background: var(--live); transition: none; }
@@ -123,6 +125,7 @@
 .stage-cue-prev {
   font-family: var(--font-ui); font-size: clamp(12px, 1.5vw, 24px);
   color: var(--text-3); text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 @media (max-width: 600px) {
