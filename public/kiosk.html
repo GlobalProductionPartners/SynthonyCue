@@ -894,14 +894,16 @@ function wsSend(obj) {
 }
 function sendScreenHello() {
   wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType,
-           ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any' });
+           ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any',
+           wfCueType: (typeof Waterfall !== 'undefined' && Waterfall._cueType) || 'any' });
 }
 // Heartbeat: lets the admin distinguish "quiet" from "gone".
 setInterval(() => { try { sendScreenUpdate(); } catch {} }, 10000);
 
 function sendScreenUpdate() {
   wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType,
-           ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any' });
+           ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any',
+           wfCueType: (typeof Waterfall !== 'undefined' && Waterfall._cueType) || 'any' });
 }
 
 function handleMsg(msg) {
@@ -959,6 +961,7 @@ function handleMsg(msg) {
     case 'screen_command':
       if (msg.view) switchView(msg.view);
       if (msg.ovCueType && typeof Overview !== 'undefined') Overview.setCueType(msg.ovCueType);
+      if (msg.wfCueType && typeof Waterfall !== 'undefined') Waterfall.setCueType(msg.wfCueType);
       if (msg.slots?.a) setSlotType('a', msg.slots.a);
       if (msg.slots?.b) setSlotType('b', msg.slots.b);
       if (msg.cameraType) setCameraType(msg.cameraType);
