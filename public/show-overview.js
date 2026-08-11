@@ -6,14 +6,12 @@
 
 function _ovField(cue, type) {
   if (!cue) return '';
-  switch (type) {
-    case 'stage':       return cue.stageCue || '';
-    case 'host':        return cue.hostCue || '';
-    case 'conductor':   return cue.conductorCue || '';
-    case 'camera':      return cue.cameraCue || '';
-    case 'description': return cue.description || '';
-    default:            return cue.stageCue || cue.hostCue || cue.conductorCue || cue.cameraCue || cue.description || '';
+  if (type === 'any' || type == null) {
+    for (const t of CUE_BASE_TYPES) { const v = cueFieldRaw(cue, t); if (v) return v; }
+    for (const k in (cue.extra || {})) if (cue.extra[k]) return cue.extra[k];
+    return '';
   }
+  return cueFieldRaw(cue, type);
 }
 
 function _ovEsc(s) {
@@ -21,6 +19,20 @@ function _ovEsc(s) {
 }
 
 const OV_TYPES  = ['stage', 'host', 'conductor', 'camera', 'description'];
+let _ovTypeSig = '';
+function _ovSyncTypeOptions() {
+  const sel = document.getElementById('ov-cue-type-sel');
+  if (!sel) return;
+  const custom = customCueTypes();
+  const sig = custom.join('|');
+  if (sig === _ovTypeSig) return;
+  _ovTypeSig = sig;
+  const cur = sel.value;
+  const base = '<option value="any">Auto</option><option value="all">All cues</option>'
+    + ['stage','host','conductor','camera','description'].map(t => `<option value="${t}">${t[0].toUpperCase()+t.slice(1)}</option>`).join('');
+  sel.innerHTML = base + custom.map(t => `<option value="${_ovEsc(t)}">${_ovEsc(t)}</option>`).join('');
+  sel.value = cur;
+}
 const OV_COLOUR = { stage:'#F59E0B', host:'#3B82F6', conductor:'#8B5CF6', camera:'#06B6D4', description:'#8A8F98' };
 
 // Rows to show for one cue under the current filter.
@@ -28,7 +40,11 @@ const OV_COLOUR = { stage:'#F59E0B', host:'#3B82F6', conductor:'#8B5CF6', camera
 //   'any'  → a single row using the first populated field (Auto)
 //   type   → a single row for that field only
 function _ovCueRows(cue, cueType) {
-  if (cueType === 'all') return OV_TYPES.map(t => ({ type: t, text: _ovField(cue, t) })).filter(r => r.text);
+  if (cueType === 'all') {
+    const rows = CUE_BASE_TYPES.map(t => ({ type: t, text: cueFieldRaw(cue, t) })).filter(r => r.text);
+    for (const k in (cue.extra || {})) if (cue.extra[k]) rows.push({ type: k, text: cue.extra[k] });
+    return rows;
+  }
   const text = _ovField(cue, cueType);
   return text ? [{ type: cueType === 'any' ? null : cueType, text }] : [];
 }
@@ -220,6 +236,8 @@ const Overview = {
     // Show just the running song's cues (or the next song's before the show
     // starts) so operators see only what's relevant, not the whole show.
     // Scope: 'song' shows the running (or next) song only; 'all' shows every song.
+    // Add any imported custom cue types to the filter dropdown once.
+    _ovSyncTypeOptions();
     const scopeSel = document.getElementById('ov-scope-sel');
     if (scopeSel && scopeSel.value !== this._cueScope) scopeSel.value = this._cueScope;
     const listSong  = song || getNextSong();
@@ -253,7 +271,7 @@ const Overview = {
               const rid = _ovEsc(c.id) + (r.type ? '-' + r.type : '');
               // In 'all' mode a small colour tag names each field's type.
               const tag = (cueType === 'all' && r.type)
-                ? `<span class="ov-cue-tag" style="color:${OV_COLOUR[r.type]}">${r.type.slice(0,4).toUpperCase()}</span>` : '';
+                ? `<span class="ov-cue-tag" style="color:${cueTypeColour(r.type)}">${_ovEsc(r.type).slice(0,4).toUpperCase()}</span>` : '';
               html += `<div class="ov-cue-row" id="ov-ci-${rid}" data-abs="${absF}" data-cueid="${_ovEsc(c.id)}">
                 <div class="ov-cue-head"><span class="ov-cue-tc">${tag}${_ovEsc(c.offset)}</span><span class="ov-cue-cd"></span></div>
                 <span class="ov-cue-text">${_ovEsc(r.text)}</span>

@@ -12,10 +12,7 @@ const WF_COLOUR = {
   description: '#8A8F98',  // grey
 };
 
-function _wfField(cue, type) {
-  if (type === 'description') return cue.description || '';
-  return cue[type + 'Cue'] || '';
-}
+function _wfField(cue, type) { return cueFieldRaw(cue, type); }
 function _wfEsc(s) {
   return String(s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 }
@@ -44,7 +41,7 @@ const Waterfall = {
   // with several populated fields yields one row per field, so "All" really
   // shows all cue content; a filter narrows to one type.
   _entries() {
-    const types = this._cueType === 'any' ? WF_TYPES : [this._cueType];
+    const types = this._cueType === 'any' ? [...CUE_BASE_TYPES, ...customCueTypes()] : [this._cueType];
     const out = [];
     for (const song of (State.songs || [])) {
       const start = parseTC(song.timecode);
@@ -78,10 +75,24 @@ const Waterfall = {
 
   // Called on every TC update (via renderCurrent): re-anchor to the true TC
   // and rebuild the row set only when it structurally changes.
+  _syncTypeOptions() {
+    const sel = document.getElementById('wf-filter');
+    if (!sel) return;
+    const custom = customCueTypes();
+    const sig = custom.join('|');
+    if (sig === this._typeSig) return;
+    this._typeSig = sig;
+    const cur = sel.value;
+    const base = '<option value="any">All cues</option>'
+      + CUE_BASE_TYPES.map(t => `<option value="${t}">${t[0].toUpperCase()+t.slice(1)}</option>`).join('');
+    sel.innerHTML = base + custom.map(t => `<option value="${_wfEsc(t)}">${_wfEsc(t)}</option>`).join('');
+    sel.value = cur;
+  },
   render() {
     const body = document.getElementById('wf-body');
     const sel  = document.getElementById('wf-filter');
     if (!body) return;
+    this._syncTypeOptions();
     if (sel && sel.value !== this._cueType) sel.value = this._cueType;
 
     this._anchorFrames = State.tcFrames || parseTC(State.tc);
@@ -105,7 +116,7 @@ const Waterfall = {
       for (const e of this._slice) {
         const isPast = e.abs <= now;
         if (!isPast && !markerPlaced) { html += '<div class="wf-nowline"><span>NOW</span></div>'; markerPlaced = true; }
-        const col = WF_COLOUR[e.type] || WF_COLOUR.description;
+        const col = cueTypeColour(e.type);
         html += `<div class="wf-row${isPast ? ' past' : ''}" data-id="${e.id}" style="--wf:${col};--wf-dim:${col}22">
           <div class="wf-bar"><div class="wf-fill"></div>
             <span class="wf-num">${e.num}</span>

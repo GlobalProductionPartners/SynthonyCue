@@ -5,6 +5,36 @@
 
 const FR = 25;
 
+// Cue types. Five are built-in fixed fields; any others come from imported
+// sheet columns and live in cue.extra keyed by the column header.
+const CUE_BASE_TYPES = ['stage', 'host', 'conductor', 'camera', 'description'];
+function cueFieldRaw(cue, type) {
+  if (!cue) return '';
+  switch (type) {
+    case 'stage':       return cue.stageCue || '';
+    case 'host':        return cue.hostCue || '';
+    case 'conductor':   return cue.conductorCue || '';
+    case 'camera':      return cue.cameraCue || '';
+    case 'description': return cue.description || '';
+    default:            return (cue.extra && cue.extra[type]) || '';   // custom type
+  }
+}
+// Custom cue-type names present across the loaded show (sorted, unique).
+function customCueTypes() {
+  const set = new Set();
+  for (const song of (typeof State !== 'undefined' ? State.songs : []) || [])
+    for (const c of (song.cues || []))
+      for (const k in (c.extra || {})) if (c.extra[k]) set.add(k);
+  return [...set].sort();
+}
+// Deterministic colour for a custom type name (base types have fixed colours).
+function cueTypeColour(type) {
+  const base = { stage:'#F59E0B', host:'#3B82F6', conductor:'#8B5CF6', camera:'#06B6D4', description:'#8A8F98' };
+  if (base[type]) return base[type];
+  let h = 0; for (let i = 0; i < type.length; i++) h = (h * 31 + type.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 70% 55%)`;
+}
+
 // ── TC / duration helpers ─────────────────────────────────────────────────────
 
 function parseTC(tc) {
@@ -73,8 +103,7 @@ function getCurrentCue(song) {
 
 // description uses cue.description; all other types use cue[type+'Cue']
 function _hasCueField(cue, type) {
-  if (type === 'description') return !!cue.description;
-  return !!(cue[type + 'Cue']);
+  return !!cueFieldRaw(cue, type);
 }
 
 // ── Manual fire override ──────────────────────────────────────────────────────

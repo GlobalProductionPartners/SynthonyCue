@@ -1032,6 +1032,8 @@ app.get('/api/export/xlsx', (_req, res) => {
       rows.push({ Type: 'CUE', Offset: cue.offset, 'Stage Cue': cue.stageCue,
         'Host Cue': cue.hostCue, 'Conductor Cue': cue.conductorCue,
         'Camera Cue': cue.cameraCue, Description: cue.description, 'Cue Duration': cue.duration || '',
+        // Custom cue types (imported sheet columns) round-trip via their own columns.
+        ...(cue.extra || {}),
         'OSC En': cue.osc?.enabled, 'OSC Addr': cue.osc?.address,
         'OSC Args': cue.osc?.args, 'OSC Dest': cue.osc?.destination,
         'AN En': cue.artnet?.enabled, 'AN Uni': cue.artnet?.universe,
@@ -1126,9 +1128,23 @@ function parseSynthonySheet(rows) {
 
   function blankCue(fields) {
     return { id: uid(), offset: '00:00:00:00', stageCue: '', hostCue: '', conductorCue: '',
-      cameraCue: '', duration: '', description: '', ...fields,
+      cameraCue: '', duration: '', description: '', extra: {}, ...fields,
       osc: { enabled: false, address: '', args: '', destination: '', preRollFrames: 0 },
       artnet: { enabled: false, universe: 0, channel: 1, value: 0, destination: '', preRollFrames: 0 } };
+  }
+
+  // Header-driven custom cue types: any column past the known ones (index >= 10)
+  // becomes a custom cue type keyed by its header text (e.g. "LASERS, FIRE,
+  // PYRO", or a "Flames" column the user adds). Returns { headerName: value }.
+  const header = (rows[0] || []).map(x => String(x || '').trim());
+  function extraFrom(r) {
+    const ex = {};
+    for (let c = 10; c < header.length; c++) {
+      const name = header[c];
+      const val  = String(r[c] || '').trim();
+      if (name && val) ex[name] = val;
+    }
+    return ex;
   }
 
   const result = [];
@@ -1162,10 +1178,11 @@ function parseSynthonySheet(rows) {
       currentSong = { id: uid(), timecode: toTC(tc), trackName, duration, bpm,
         description: trackDesc, cues: [] };
       result.push(currentSong);
-      // Capture cue content on the track row itself (conductor, stage, host, or description at track start)
-      if (stageCue || hostCue || conductorCue || desc) {
+      // Capture cue content on the track row itself.
+      const trackExtra = extraFrom(r);
+      if (stageCue || hostCue || conductorCue || desc || Object.keys(trackExtra).length) {
         currentSong.cues.push(blankCue({ stageCue, hostCue, conductorCue,
-          cameraCue: cameraNotes || '', description: desc,
+          cameraCue: cameraNotes || '', description: desc, extra: trackExtra,
           duration: desc ? (duration || '') : '' }));
       }
       continue;
@@ -1176,21 +1193,22 @@ function parseSynthonySheet(rows) {
       currentSong = { id: uid(), timecode: toTC(tc), trackName, duration, bpm: null,
         description: desc, cues: [], isTransition: true };
       result.push(currentSong);
-      if (stageCue || hostCue || conductorCue) {
-        currentSong.cues.push(blankCue({ stageCue, hostCue, conductorCue, cameraCue, description: desc }));
+      const transExtra = extraFrom(r);
+      if (stageCue || hostCue || conductorCue || Object.keys(transExtra).length) {
+        currentSong.cues.push(blankCue({ stageCue, hostCue, conductorCue, cameraCue, description: desc, extra: transExtra }));
       }
       continue;
     }
 
     // Cue row (empty track name)
-    const hasCue = stageCue || hostCue || conductorCue || cameraCue;
+    const cueExtra = extraFrom(r);
+    const hasCue = stageCue || hostCue || conductorCue || cameraCue || Object.keys(cueExtra).length;
     if (!hasCue) continue;
     if (tc === null) { errors.push(`Row ${i+1}: cue row has no TC, skipped`); continue; }
     const target = currentSong || preShow;
     const offset = Math.max(0, tc - tcToSec(target.timecode));
-    const cueDesc = [desc, pyro].filter(Boolean).join(' | ');
     target.cues.push(blankCue({ offset: toTC(offset), stageCue, hostCue, conductorCue,
-      cameraCue: cameraCue || cameraNotes, description: cueDesc }));
+      cameraCue: cameraCue || cameraNotes, description: desc, extra: cueExtra }));
   }
 
   if (errors.length) console.warn('[Import] Warnings:\n' + errors.join('\n'));
