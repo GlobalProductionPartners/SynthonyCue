@@ -154,23 +154,26 @@ const Overview = {
       }
     }
 
-    // ── Column 3: Cue list ────────────────────────────────────────────────────
-    const totalCues = State.songs.reduce((n, s) => n + (s.cues?.length || 0), 0);
+    // ── Column 3: Cue list — CURRENT song only ────────────────────────────────
+    // Show just the running song's cues (or the next song's before the show
+    // starts) so operators see only what's relevant, not the whole show.
+    const listSong = song || getNextSong();
+    const shownCues = (listSong?.cues || []).filter(c => _ovField(c, cueType));
     const cueCntEl  = document.getElementById('ov-cuelist-count');
-    if (cueCntEl) cueCntEl.textContent = totalCues;
+    if (cueCntEl) cueCntEl.textContent = shownCues.length;
 
     const cueBody = document.getElementById('ov-cuelist-body');
     if (cueBody) {
-      if (rebuildLists) {
+      // Rebuild when the song list OR the shown song changes.
+      const listSongId  = listSong ? (listSong.id || listSong.timecode) : null;
+      const rebuildCue  = rebuildLists || listSongId !== this._cueListSong;
+      if (rebuildCue) {
         let html = '';
-        for (const s of State.songs) {
-          if (!s.cues?.length) continue;
-          const hasCueText = s.cues.some(c => _ovField(c, cueType));
-          if (!hasCueText) continue;
-          const sid    = _ovEsc(s.id || s.timecode);
-          const sStart = parseTC(s.timecode);
-          html += `<div class="ov-cue-song-hdr" id="ov-ch-${sid}" data-songid="${_ovEsc(s.id || s.timecode)}">${_ovEsc(s.trackName)}</div>`;
-          for (const c of s.cues) {
+        if (listSong && shownCues.length) {
+          const sid    = _ovEsc(listSong.id || listSong.timecode);
+          const sStart = parseTC(listSong.timecode);
+          html += `<div class="ov-cue-song-hdr" id="ov-ch-${sid}" data-songid="${sid}">${_ovEsc(listSong.trackName)}</div>`;
+          for (const c of listSong.cues) {
             const text = _ovField(c, cueType);
             if (!text) continue;
             const absF = sStart + parseTC(c.offset);
@@ -181,6 +184,7 @@ const Overview = {
           }
         }
         cueBody.innerHTML = html;
+        this._cueListSong = listSongId;
         delete cueBody.dataset.markerState;
       }
 
