@@ -23,7 +23,7 @@ function _wfEsc(s) {
 const Waterfall = {
   // Countdown horizon: a bar is full at fire time, and this many seconds out
   // it has shrunk to its minimum. 5 min matches typical cue lead times.
-  windowSec: 300,
+  windowSec: 90,        // bars grow only in the final 90s — tighter lead time
   minWidthPct: 8,
   pastShown: 3,          // greyed just-fired rows kept for context
   maxRows: 60,
@@ -72,50 +72,59 @@ const Waterfall = {
     const cnt  = document.getElementById('wf-count');
     if (cnt) cnt.textContent = all.length + (all.length === 1 ? ' cue' : ' cues');
 
-    if (!all.length) { body.innerHTML = '<div class="wf-empty">No cues' + (this._cueType === 'any' ? '' : ' for this type') + '</div>'; return; }
+    if (!all.length) { body.innerHTML = '<div class="wf-empty">No cues' + (this._cueType === 'any' ? '' : ' for this type') + '</div>'; this._sig = null; return; }
 
-    // First upcoming entry = the position marker anchor.
     let nextIdx = all.findIndex(e => e.abs > now);
     if (nextIdx < 0) nextIdx = all.length;
-
-    const from = Math.max(0, nextIdx - this.pastShown);
+    const from  = Math.max(0, nextIdx - this.pastShown);
     const slice = all.slice(from, Math.min(all.length, nextIdx + this.maxRows));
     const winF  = this.windowSec * FR;
 
-    let html = '';
-    let markerPlaced = false;
-    for (const e of slice) {
-      const isPast = e.abs <= now;
-      if (!isPast && !markerPlaced) {
-        html += '<div class="wf-nowline"><span>NOW</span></div>';
-        markerPlaced = true;
+    // Only the fill width and countdown change every tick; the row set changes
+    // rarely (when a cue fires). Rebuild the DOM only on a structural change so
+    // the CSS width transition can animate smoothly instead of flickering.
+    const sig = slice.map(e => e.id).join('|') + '#' + this._cueType;
+    if (sig !== this._sig) {
+      let html = '', markerPlaced = false;
+      for (const e of slice) {
+        const isPast = e.abs <= now;
+        if (!isPast && !markerPlaced) { html += '<div class="wf-nowline"><span>NOW</span></div>'; markerPlaced = true; }
+        const col = WF_COLOUR[e.type] || WF_COLOUR.description;
+        html += `<div class="wf-row${isPast ? ' past' : ''}" data-id="${e.id}" style="--wf:${col};--wf-dim:${col}22">
+          <div class="wf-bar"><div class="wf-fill"></div>
+            <span class="wf-num">${e.num}</span>
+            <span class="wf-text">${_wfEsc(e.text)}</span>
+          </div>
+          <div class="wf-cd"></div>
+        </div>`;
       }
+      body.innerHTML = html;
+      this._sig = sig;
+    }
+
+    // Per-tick in-place update of every row's fill + countdown.
+    for (const e of slice) {
+      const row = body.querySelector(`.wf-row[data-id="${CSS.escape(e.id)}"]`);
+      if (!row) continue;
+      const isPast = e.abs <= now;
+      row.classList.toggle('past', isPast);
       const tSec = Math.max(0, Math.round((e.abs - now) / FR));
-      // Bar grows toward fire: full at 0s, minimum at the horizon.
       let pct = isPast ? 100 : Math.round((1 - (e.abs - now) / winF) * 100);
       pct = Math.max(this.minWidthPct, Math.min(100, pct));
-      const col = WF_COLOUR[e.type] || WF_COLOUR.description;
-      const m = Math.floor(tSec / 60), sctext = String(tSec % 60).padStart(2, '0');
-      const cd = isPast ? '' : `-${String(m).padStart(2, '0')}:${sctext}`;
-      const imminent = !isPast && tSec <= 10 ? ' imminent' : '';
-      html += `<div class="wf-row${isPast ? ' past' : ''}" style="--wf:${col};--wf-dim:${col}22">
-        <div class="wf-bar"><div class="wf-fill" style="width:${pct}%"></div>
-          <span class="wf-num">${e.num}</span>
-          <span class="wf-text">${_wfEsc(e.text)}</span>
-        </div>
-        <div class="wf-cd${imminent}">${cd}</div>
-      </div>`;
+      const fill = row.querySelector('.wf-fill'); if (fill) fill.style.width = pct + '%';
+      const cd = row.querySelector('.wf-cd');
+      if (cd) {
+        const m = Math.floor(tSec / 60), ss = String(tSec % 60).padStart(2, '0');
+        cd.textContent = isPast ? '' : `-${String(m).padStart(2, '0')}:${ss}`;
+        cd.classList.toggle('imminent', !isPast && tSec <= 10);
+      }
     }
-    body.innerHTML = html;
 
-    // Keep the NOW marker parked near the top as cues advance.
-    if (this._lastNum !== (slice[0] && slice[0].num)) {
-      this._lastNum = slice[0] && slice[0].num;
-    }
+    // Park the NOW marker near the top; only scroll when it actually moves.
     const mk = body.querySelector('.wf-nowline');
     if (mk) {
-      const target = mk.offsetTop - body.clientHeight * 0.18;
-      if (Math.abs(body.scrollTop - target) > 40) body.scrollTop = Math.max(0, target);
+      const target = Math.max(0, mk.offsetTop - body.clientHeight * 0.18);
+      if (Math.abs(body.scrollTop - target) > 40) body.scrollTo({ top: target, behavior: 'smooth' });
     }
   }
 };
