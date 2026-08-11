@@ -627,8 +627,9 @@ function checkCueFires(nowFrames) {
               speakReadout(line);
             }
           };
-          if (hasStandby) cross(cueFrames - leadFrames, 'sb', `Standby, ${type}: ${text}`);
-          const goLine = (style === 'sr' || style === 'ro') ? String(text) : `${type}, go`;
+          // Spoken lines omit the department name — just "Standby, <cue>" / "Go".
+          if (hasStandby) cross(cueFrames - leadFrames, 'sb', `Standby, ${text}`);
+          const goLine = (style === 'sr' || style === 'ro') ? String(text) : 'Go';
           cross(cueFrames, 'go', goLine);
         }
       }

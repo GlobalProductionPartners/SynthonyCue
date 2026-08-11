@@ -131,9 +131,11 @@ const Caller = {
           const d = depts[type];
           if (!text || !d || !d.on) continue;
           const style = d.style || 'sg';
+          // Spoken lines deliberately omit the department name (the column
+          // headers are long and awkward aloud) — just "Standby, <cue>" / "Go".
           if (style === 'sg' || style === 'sr')
-            out.push({ at: cf - leadF, cueId: cue.id, type, phase: 'sb', line: `Standby, ${type}: ${text}` });
-          const go = (style === 'sr' || style === 'ro') ? String(text) : `${type}, go`;
+            out.push({ at: cf - leadF, cueId: cue.id, type, phase: 'sb', line: `Standby, ${text}` });
+          const go = (style === 'sr' || style === 'ro') ? String(text) : 'Go';
           out.push({ at: cf, cueId: cue.id, type, phase: 'go', line: go });
         }
       }
@@ -319,6 +321,7 @@ const Caller = {
       return `<div class="cr-next-row ${e.phase}">
         <span class="cr-dot" style="background:${cueTypeColour(e.type)}"></span>
         <span class="cr-next-tag">${tag}</span>
+        <span class="cr-next-type">${_crEsc(e.type)}</span>
         <span class="cr-next-line">${_crEsc(e.line)}</span>
         <span class="cr-next-cd">-${mm}:${ss}</span>
       </div>`;

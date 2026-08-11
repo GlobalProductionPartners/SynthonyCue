@@ -258,6 +258,7 @@ body.is-blackout { cursor: none; }
 .cr-next-row { display: flex; align-items: center; gap: var(--s-2); padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .cr-next-tag { font-family: var(--font-tc); font-size: 10px; font-weight: 700; width: 24px; color: var(--text-3); }
 .cr-next-row.go .cr-next-tag { color: var(--live); }
+.cr-next-type { font-family: var(--font-tc); font-size: 10px; letter-spacing: 0.04em; color: var(--text-3); max-width: 120px; flex: 0 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cr-next-line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cr-next-cd { font-family: var(--font-tc); color: var(--text-2); font-variant-numeric: tabular-nums; }
 

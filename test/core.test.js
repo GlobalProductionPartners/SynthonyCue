@@ -148,22 +148,22 @@ test('readout emits standby+go for an sg department', () => {
   const cf = sandbox.parseTC('01:00:30:00');            // absolute cue frame
   assert.equal(ev.length, 2);
   const sb = ev.find(e => e.phase === 'sb'), go = ev.find(e => e.phase === 'go');
-  assert.equal(sb.line, 'Standby, Stage Cue: Go SR');
+  assert.equal(sb.line, 'Standby, Go SR');              // department name omitted from speech
   assert.equal(sb.at, cf - 10 * 25);                    // lead 10s before the cue
-  assert.equal(go.line, 'Stage Cue, go');
+  assert.equal(go.line, 'Go');
   assert.equal(go.at, cf);
 });
 
 test('readout style sr reads the cue text at GO; go/ro skip standby', () => {
   readoutSetup({ Pyro: { on: true, style: 'sr' } });
   let ev = sandbox.Caller._events();
-  assert.equal(ev.find(e => e.phase === 'sb').line, 'Standby, Pyro: Flames');
+  assert.equal(ev.find(e => e.phase === 'sb').line, 'Standby, Flames');
   assert.equal(ev.find(e => e.phase === 'go').line, 'Flames');   // reads cue text
 
   readoutSetup({ Pyro: { on: true, style: 'go' } });
   ev = sandbox.Caller._events();
   assert.equal(ev.length, 1);                                    // no standby
-  assert.equal(ev[0].line, 'Pyro, go');
+  assert.equal(ev[0].line, 'Go');
 
   readoutSetup({ Pyro: { on: true, style: 'ro' } });
   ev = sandbox.Caller._events();
