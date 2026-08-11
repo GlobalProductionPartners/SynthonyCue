@@ -306,6 +306,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
   background: var(--bg3); border-color: var(--cyan);
 }
 #cue-table input[type="checkbox"] { accent-color: var(--cyan); }
+#cue-table select { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; padding: 2px 6px; }
+.btn-fire-toggle { font-size: 13px; }
+.btn-fire-toggle.on { color: var(--warn); border-color: var(--warn); }
+.editor-fire-row td { background: var(--bg2); padding: 8px 12px 8px 40px; }
+.fire-editor { display: flex; flex-direction: column; gap: 10px; }
+.fire-block { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fire-en { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.fire-editor input { font-size: 12px; }
 .tc-input { font-family: var(--font-tc) !important; color: var(--cyan) !important; width: 90px !important; }
 .col-track   { color: var(--green); font-weight: 600; }
 .col-stage   { color: var(--orange); }
@@ -1619,26 +1627,47 @@ const Editor = {
   render() {
     const tbody = document.getElementById('cue-tbody');
     const songs = State.localSongs || State.songs;
+    const custom = (typeof customCueTypes === 'function') ? customCueTypes() : [];
+    const totalCols = 9 + custom.length + 2;   // 9 base + custom + Fire + Actions
+
+    // Rebuild the header to include a column per custom cue type.
+    const htr = document.querySelector('#cue-table thead tr');
+    if (htr) htr.innerHTML =
+      `<th>TC / Offset</th><th>Song / Track</th><th>Duration</th><th>BPM</th>` +
+      `<th class="col-stage">Stage Cue</th><th class="col-host">Host Cue</th>` +
+      `<th class="col-conductor">Conductor</th><th class="col-camera">Camera Cue</th>` +
+      `<th class="col-desc">Description</th>` +
+      custom.map(t => `<th style="color:${cueTypeColour(t)}">${esc(t)}</th>`).join('') +
+      `<th>Fire</th><th></th>`;
+
     if (!songs.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--dim)">No songs. Import an XLSX or click + Add Song.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center;padding:32px;color:var(--dim)">No songs. Import an XLSX or click + Add Song.</td></tr>`;
       return;
     }
+
+    const oscDests = Object.keys(State.config?.oscDestinations || {});
+    const anDests  = Object.keys(State.config?.artnetDestinations || {});
+    const destOpts = (list, sel) => `<option value="">— dest —</option>` +
+      list.map(d => `<option value="${esc(d)}"${d === sel ? ' selected' : ''}>${esc(d)}</option>`).join('');
+
     let html = '';
     songs.forEach((song, si) => {
+      const noteSpan = 5 + custom.length + 1;   // Stage…Description + custom + Fire
       html += `<tr class="editor-song-row" data-si="${si}">
         <td><input class="tc-input" type="text" value="${esc(song.timecode)}" data-si="${si}" data-field="timecode" placeholder="HH:MM:SS:FF" style="width:105px"></td>
         <td><input class="col-track" type="text" value="${esc(song.trackName)}" data-si="${si}" data-field="trackName" style="min-width:180px;font-weight:700"></td>
         <td><input type="text" value="${esc(song.duration)}" data-si="${si}" data-field="duration" placeholder="m:ss" style="width:60px"></td>
         <td><input type="number" value="${song.bpm||''}" data-si="${si}" data-field="bpm" placeholder="BPM" style="width:60px"></td>
-        <td colspan="5"><input type="text" value="${esc(song.description)}" data-si="${si}" data-field="description" placeholder="Notes" style="width:100%"></td>
+        <td colspan="${noteSpan}"><input type="text" value="${esc(song.description)}" data-si="${si}" data-field="description" placeholder="Notes" style="width:100%"></td>
         <td><div class="row-actions">
-          <button class="row-btn btn-song-up" data-si="${si}" title="Move song earlier in the show" ${si === 0 ? 'disabled' : ''}>↑</button>
-          <button class="row-btn btn-song-down" data-si="${si}" title="Move song later in the show" ${si === songs.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="row-btn btn-song-up" data-si="${si}" title="Move song earlier" ${si === 0 ? 'disabled' : ''}>↑</button>
+          <button class="row-btn btn-song-down" data-si="${si}" title="Move song later" ${si === songs.length - 1 ? 'disabled' : ''}>↓</button>
           <button class="row-btn btn-add-cue" data-si="${si}">+ Cue</button>
           <button class="row-btn del btn-del-song" data-si="${si}">✕ Song</button>
         </div></td>
       </tr>`;
       (song.cues || []).forEach((cue, ci) => {
+        const fires = !!(cue.osc?.enabled || cue.artnet?.enabled);
         html += `<tr class="editor-cue-row" data-si="${si}" data-ci="${ci}">
           <td style="padding-left:28px"><input type="text" value="${esc(cue.offset)}" data-si="${si}" data-ci="${ci}" data-field="offset" style="width:95px;font-family:var(--font-tc);font-size:12px;color:var(--dim)"></td>
           <td></td>
@@ -1648,9 +1677,31 @@ const Editor = {
           <td><input class="col-host"      type="text" value="${esc(cue.hostCue)}"      data-si="${si}" data-ci="${ci}" data-field="hostCue"      style="min-width:100px"></td>
           <td><input class="col-conductor" type="text" value="${esc(cue.conductorCue)}" data-si="${si}" data-ci="${ci}" data-field="conductorCue" style="min-width:100px"></td>
           <td><input class="col-camera"    type="text" value="${esc(cue.cameraCue)}"    data-si="${si}" data-ci="${ci}" data-field="cameraCue"    style="min-width:100px"></td>
-          <td><input class="col-desc"      type="text" value="${esc(cue.description)}"  data-si="${si}" data-ci="${ci}" data-field="description"  style="min-width:120px;color:var(--dim)"></td>
+          <td><input class="col-desc"      type="text" value="${esc(cue.description)}"  data-si="${si}" data-ci="${ci}" data-field="description"  style="min-width:120px;color:var(--dim)"></td>` +
+          custom.map(t => `<td><input type="text" value="${esc((cue.extra||{})[t]||'')}" data-si="${si}" data-ci="${ci}" data-field="extra:${esc(t)}" style="min-width:90px" placeholder="—"></td>`).join('') +
+          `<td><button class="row-btn btn-fire-toggle${fires ? ' on' : ''}" data-si="${si}" data-ci="${ci}" title="Configure OSC / Art-Net output">⚡</button></td>
           <td><button class="row-btn del btn-del-cue" data-si="${si}" data-ci="${ci}">✕</button></td>
         </tr>`;
+        // Collapsed output editor — any cue can fire OSC and/or Art-Net.
+        html += `<tr class="editor-fire-row" id="fire-${si}-${ci}" style="display:none"><td colspan="${totalCols}">
+          <div class="fire-editor">
+            <div class="fire-block">
+              <label class="fire-en"><input type="checkbox" data-si="${si}" data-ci="${ci}" data-field="osc.enabled" ${cue.osc?.enabled ? 'checked' : ''}> OSC</label>
+              <select data-si="${si}" data-ci="${ci}" data-field="osc.destination">${destOpts(oscDests, cue.osc?.destination)}</select>
+              <input type="text" placeholder="/address" value="${esc(cue.osc?.address||'')}" data-si="${si}" data-ci="${ci}" data-field="osc.address" style="min-width:140px">
+              <input type="text" placeholder="args (space-sep)" value="${esc(cue.osc?.args||'')}" data-si="${si}" data-ci="${ci}" data-field="osc.args" style="min-width:120px">
+              <input type="number" title="pre-roll frames" placeholder="pre-roll" value="${cue.osc?.preRollFrames||0}" data-si="${si}" data-ci="${ci}" data-field="osc.preRollFrames" style="width:70px">
+            </div>
+            <div class="fire-block">
+              <label class="fire-en"><input type="checkbox" data-si="${si}" data-ci="${ci}" data-field="artnet.enabled" ${cue.artnet?.enabled ? 'checked' : ''}> Art-Net</label>
+              <select data-si="${si}" data-ci="${ci}" data-field="artnet.destination">${destOpts(anDests, cue.artnet?.destination)}</select>
+              <input type="number" placeholder="universe" value="${cue.artnet?.universe||0}" data-si="${si}" data-ci="${ci}" data-field="artnet.universe" style="width:80px">
+              <input type="number" placeholder="channel" value="${cue.artnet?.channel||1}" data-si="${si}" data-ci="${ci}" data-field="artnet.channel" style="width:70px">
+              <input type="number" placeholder="value" value="${cue.artnet?.value||0}" data-si="${si}" data-ci="${ci}" data-field="artnet.value" style="width:70px">
+              <input type="number" title="pre-roll frames" placeholder="pre-roll" value="${cue.artnet?.preRollFrames||0}" data-si="${si}" data-ci="${ci}" data-field="artnet.preRollFrames" style="width:70px">
+            </div>
+          </div>
+        </td></tr>`;
       });
     });
     tbody.innerHTML = html;
@@ -1690,22 +1741,38 @@ const Editor = {
     const tbody = document.getElementById('cue-tbody');
 
     // Input changes — write directly to localSongs on every keystroke
-    tbody.addEventListener('input', e => {
-      const inp = e.target;
-      if (inp.tagName !== 'INPUT') return;
+    const writeField = (inp) => {
+      if (!['INPUT', 'SELECT'].includes(inp.tagName)) return;
       this.ensureLocal();
       const si = inp.dataset.si != null ? parseInt(inp.dataset.si) : null;
       const ci = inp.dataset.ci != null ? parseInt(inp.dataset.ci) : null;
       const field = inp.dataset.field;
       if (si === null || !field) return;
-      const value = field === 'bpm' ? (Number(inp.value) || null) : inp.value;
-      if (ci != null) {
-        State.localSongs[si].cues[ci][field] = value;
+      const target = ci != null ? State.localSongs[si].cues[ci] : State.localSongs[si];
+      let value = inp.type === 'checkbox' ? inp.checked
+                : field === 'bpm' ? (Number(inp.value) || null)
+                : inp.value;
+      if (field.startsWith('extra:')) {
+        const name = field.slice(6);
+        if (!target.extra) target.extra = {};
+        target.extra[name] = value;
+      } else if (field.includes('.')) {                    // osc.x / artnet.x
+        const [grp, key] = field.split('.');
+        if (!target[grp]) target[grp] = {};
+        const numeric = ['universe', 'channel', 'value', 'preRollFrames'];
+        target[grp][key] = numeric.includes(key) ? (parseInt(inp.value) || 0) : value;
+        // Reflect fire state on the toggle button.
+        if (key === 'enabled') {
+          const row = document.querySelector(`.btn-fire-toggle[data-si="${si}"][data-ci="${ci}"]`);
+          if (row) row.classList.toggle('on', !!(target.osc?.enabled || target.artnet?.enabled));
+        }
       } else {
-        State.localSongs[si][field] = value;
+        target[field] = value;
       }
       this.markDirty();
-    });
+    };
+    tbody.addEventListener('input',  e => writeField(e.target));
+    tbody.addEventListener('change', e => writeField(e.target));  // selects/checkboxes
 
     // Re-order a cue when its offset is committed (Enter or blur) — never on
     // keystroke, or the row would teleport away mid-typing.
@@ -1740,6 +1807,11 @@ const Editor = {
       const si = btn.dataset.si != null ? parseInt(btn.dataset.si) : null;
       const ci = btn.dataset.ci != null ? parseInt(btn.dataset.ci) : null;
 
+      if (btn.classList.contains('btn-fire-toggle') && si != null && ci != null) {
+        const row = document.getElementById(`fire-${si}-${ci}`);
+        if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+        return;
+      }
       if ((btn.classList.contains('btn-song-up') || btn.classList.contains('btn-song-down')) && si != null) {
         // Song array order IS show order (deliberately independent of TC),
         // so reordering is a first-class edit, not a sort.
