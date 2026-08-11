@@ -1,0 +1,80 @@
+/* Waterfall — upcoming cues as countdown bars that fill toward fire time.
+   Shared by kiosk and admin. Category colours are set inline per row from
+   the type map in waterfall.js; structure lives here. */
+
+#view-waterfall { flex-direction: column; overflow: hidden; }
+
+.wf-head {
+  flex-shrink: 0; display: flex; align-items: center; gap: var(--s-4);
+  padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--border);
+}
+.wf-head .sec { flex: 0 0 auto; }
+.wf-head-spacer { flex: 1; }
+.wf-filter {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-2); color: var(--text); font-family: var(--font-ui);
+  font-size: 13px; padding: 4px var(--s-3); cursor: pointer;
+}
+.wf-count { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--text-3); }
+
+.wf-body { flex: 1; overflow-y: auto; padding: var(--s-2) var(--s-3); scroll-behavior: smooth; }
+
+/* Position marker between the just-fired and the next cue. */
+.wf-nowline {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 2px var(--s-2); margin: var(--s-2) 0;
+}
+.wf-nowline::before { content: '▶'; color: var(--accent); font-size: 12px; }
+.wf-nowline::after { content: ''; flex: 1; height: 2px; background: var(--accent); border-radius: 1px; }
+.wf-nowline span { font-family: var(--font-tc); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+
+.wf-row {
+  display: flex; align-items: stretch; gap: var(--s-2);
+  margin-bottom: var(--s-2); min-height: clamp(40px, 5vh, 68px);
+}
+/* The bar cell holds a dim full-width track (row background) and the growing
+   fill on top; text sits over both. --wf and --wf-dim are set per row. */
+.wf-bar {
+  position: relative; flex: 1; min-width: 0; overflow: hidden;
+  border-radius: var(--r-2); background: var(--wf-dim);
+  display: flex; align-items: center; isolation: isolate;
+}
+.wf-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 0;
+  background: var(--wf); border-radius: var(--r-2);
+  transition: width 240ms linear;
+}
+.wf-num {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: clamp(12px, 1.4vw, 18px); color: rgba(255,255,255,0.75);
+  padding: 0 var(--s-2) 0 var(--s-3); font-weight: 700;
+}
+.wf-text {
+  position: relative; z-index: 1; flex: 1; min-width: 0;
+  font-family: var(--font-ui); font-weight: 600;
+  font-size: clamp(14px, 1.9vw, 26px); color: #FFFFFF;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding-right: var(--s-3); letter-spacing: -0.01em;
+}
+/* White text reads over both the bright fill and the dim track behind it; the
+   shadow guarantees contrast on light-coloured fills (amber/cyan). */
+.wf-text, .wf-num { text-shadow: 0 1px 3px rgba(0,0,0,0.55); }
+
+.wf-cd {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end;
+  min-width: clamp(64px, 8vw, 104px);
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: clamp(14px, 1.8vw, 24px); font-weight: 700; color: var(--text-2);
+  padding-right: var(--s-2);
+}
+.wf-cd.imminent { color: var(--wf); }
+
+/* Just-fired cues recede above the now-line. */
+.wf-row.past { opacity: 0.35; }
+.wf-row.past .wf-fill { width: 100% !important; }
+
+.wf-empty {
+  padding: var(--s-6); text-align: center; color: var(--text-3);
+  font-family: var(--font-tc); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+}

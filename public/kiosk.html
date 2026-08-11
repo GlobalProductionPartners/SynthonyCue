@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/stage-cue.css">
 <link rel="stylesheet" href="/cue-console.css">
 <link rel="stylesheet" href="/show-overview.css">
+<link rel="stylesheet" href="/waterfall.css">
 <style>
 /* Legacy aliases — old names kept pointing at the token system so the
    view stylesheets and inline scripts keep working during the redesign. */
@@ -307,6 +308,24 @@ body.video-clean .video-stage { background: #000; }
     </div>
   </div>
 
+  <!-- WATERFALL -->
+  <div class="view" id="view-waterfall">
+    <div class="wf-head">
+      <div class="sec"><span class="sep">//</span> WATERFALL</div>
+      <div class="wf-head-spacer"></div>
+      <span class="wf-count" id="wf-count">0 cues</span>
+      <select class="wf-filter" id="wf-filter" onchange="Waterfall.setCueType(this.value)">
+        <option value="any">All cues</option>
+        <option value="stage">Stage</option>
+        <option value="host">Host</option>
+        <option value="conductor">Conductor</option>
+        <option value="camera">Camera</option>
+        <option value="description">Description</option>
+      </select>
+    </div>
+    <div class="wf-body" id="wf-body"></div>
+  </div>
+
   <!-- VIDEO (HDMI via encoder → MJPEG) -->
   <div class="view" id="view-video">
     <div class="video-stage">
@@ -537,6 +556,7 @@ body.video-clean .video-stage { background: #000; }
     <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Single Cue</button>
     <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Multi Cue</button>
     <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
+    <button class="menu-btn" id="view-btn-waterfall" onclick="switchView('waterfall')">Waterfall</button>
     <button class="menu-btn" id="view-btn-video" onclick="switchView('video')">Video</button>
     <button class="menu-btn" id="view-btn-videofull" onclick="switchView('videofull')">Video — Full Screen</button>
   </div>
@@ -775,6 +795,7 @@ function renderCurrent() {
   else if (currentView === 'stage')  renderStage(slots);
   else if (currentView === 'test')   renderTestView();
   else if (currentView === 'overview') Overview.render();
+  else if (currentView === 'waterfall') Waterfall.render();
   else if (currentView === 'video' || currentView === 'videofull') renderVideo();
 }
 
@@ -988,6 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script src="/show-overview.js"></script>
+<script src="/waterfall.js"></script>
 <script src="/stage-cue.js"></script>
 </body>
 </html>
