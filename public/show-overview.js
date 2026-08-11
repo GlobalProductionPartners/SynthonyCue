@@ -20,6 +20,19 @@ function _ovEsc(s) {
   return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
+const OV_TYPES  = ['stage', 'host', 'conductor', 'camera', 'description'];
+const OV_COLOUR = { stage:'#F59E0B', host:'#3B82F6', conductor:'#8B5CF6', camera:'#06B6D4', description:'#8A8F98' };
+
+// Rows to show for one cue under the current filter.
+//   'all'  → one row per populated field (stage, host, …)
+//   'any'  → a single row using the first populated field (Auto)
+//   type   → a single row for that field only
+function _ovCueRows(cue, cueType) {
+  if (cueType === 'all') return OV_TYPES.map(t => ({ type: t, text: _ovField(cue, t) })).filter(r => r.text);
+  const text = _ovField(cue, cueType);
+  return text ? [{ type: cueType === 'any' ? null : cueType, text }] : [];
+}
+
 function _ovScrollCenter(container, el) {
   if (!container || !el) return;
   const top = el.offsetTop - container.clientHeight / 2 + el.offsetHeight / 2;
@@ -211,9 +224,9 @@ const Overview = {
     if (scopeSel && scopeSel.value !== this._cueScope) scopeSel.value = this._cueScope;
     const listSong  = song || getNextSong();
     const scopeSongs = this._cueScope === 'all'
-      ? State.songs.filter(s => (s.cues || []).some(c => _ovField(c, cueType)))
+      ? State.songs.filter(s => (s.cues || []).some(c => _ovCueRows(c, cueType).length))
       : (listSong ? [listSong] : []);
-    const shownCount = scopeSongs.reduce((n, s) => n + (s.cues || []).filter(c => _ovField(c, cueType)).length, 0);
+    const shownCount = scopeSongs.reduce((n, s) => n + (s.cues || []).reduce((m, c) => m + _ovCueRows(c, cueType).length, 0), 0);
     const cueCntEl  = document.getElementById('ov-cuelist-count');
     if (cueCntEl) cueCntEl.textContent = shownCount;
 
@@ -228,20 +241,25 @@ const Overview = {
       if (rebuildCue) {
         let html = '';
         for (const s of scopeSongs) {
-          const cs = (s.cues || []).filter(c => _ovField(c, cueType));
-          if (!cs.length) continue;
+          if (!(s.cues || []).some(c => _ovCueRows(c, cueType).length)) continue;
           const sid    = _ovEsc(s.id || s.timecode);
           const sStart = parseTC(s.timecode);
           html += `<div class="ov-cue-song-hdr" id="ov-ch-${sid}" data-songid="${sid}">${_ovEsc(s.trackName)}</div>`;
           for (const c of s.cues) {
-            const text = _ovField(c, cueType);
-            if (!text) continue;
+            const rows = _ovCueRows(c, cueType);
+            if (!rows.length) continue;
             const absF = sStart + parseTC(c.offset);
-            html += `<div class="ov-cue-row" id="ov-ci-${_ovEsc(c.id)}" data-abs="${absF}" data-cueid="${_ovEsc(c.id)}">
-              <div class="ov-cue-head"><span class="ov-cue-tc">${_ovEsc(c.offset)}</span><span class="ov-cue-cd"></span></div>
-              <span class="ov-cue-text">${_ovEsc(text)}</span>
-              <div class="ov-cue-bar"><div class="ov-cue-fill"></div></div>
-            </div>`;
+            for (const r of rows) {
+              const rid = _ovEsc(c.id) + (r.type ? '-' + r.type : '');
+              // In 'all' mode a small colour tag names each field's type.
+              const tag = (cueType === 'all' && r.type)
+                ? `<span class="ov-cue-tag" style="color:${OV_COLOUR[r.type]}">${r.type.slice(0,4).toUpperCase()}</span>` : '';
+              html += `<div class="ov-cue-row" id="ov-ci-${rid}" data-abs="${absF}" data-cueid="${_ovEsc(c.id)}">
+                <div class="ov-cue-head"><span class="ov-cue-tc">${tag}${_ovEsc(c.offset)}</span><span class="ov-cue-cd"></span></div>
+                <span class="ov-cue-text">${_ovEsc(r.text)}</span>
+                <div class="ov-cue-bar"><div class="ov-cue-fill"></div></div>
+              </div>`;
+            }
           }
         }
         cueBody.innerHTML = html;
@@ -266,12 +284,9 @@ const Overview = {
         });
         // Override: active cue is not past
         if (liveCueId) {
-          const activeRow = document.getElementById('ov-ci-' + liveCueId);
-          if (activeRow) {
-            activeRow.classList.remove('past');
-            activeRow.classList.add('active');
-            _ovScrollCenter(cueBody, activeRow);
-          }
+          const rows = cueBody.querySelectorAll(`.ov-cue-row[data-cueid="${CSS.escape(liveCueId)}"]`);
+          rows.forEach(r => { r.classList.remove('past'); r.classList.add('active'); });
+          if (rows[0]) _ovScrollCenter(cueBody, rows[0]);
         }
 
         // Mark past/active on song headers

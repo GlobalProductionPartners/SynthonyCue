@@ -315,3 +315,5 @@
   line-height: 1.2;
 }
 .ov-cue-row.active .ov-cue-text { color: var(--text); font-weight: 700; }
+
+.ov-cue-tag { font-family: var(--font-tc); font-size: 8px; font-weight: 700; letter-spacing: 0.08em; margin-right: 5px; }

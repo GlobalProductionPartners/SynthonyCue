@@ -962,7 +962,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
           <div class="ov-col-spacer"></div>
           <select class="ov-scope-sel" id="ov-scope-sel" onchange="Overview.setScope(this.value)"><option value="song">This Song</option><option value="all">All Songs</option></select>
           <select class="ov-cue-type-sel" id="ov-cue-type-sel" onchange="Overview.setCueType(this.value)">
-            <option value="any">Auto</option>
+            <option value="any">Auto</option><option value="all">All cues</option>
             <option value="stage">Stage</option>
             <option value="host">Host</option>
             <option value="conductor">Conductor</option>
@@ -1175,6 +1175,7 @@ function handleServerMessage(msg) {
       if (msg.cameraType) Camera.setType(msg.cameraType);
       if (msg.ovCueType) Overview.setCueType(msg.ovCueType);
       if (msg.wfCueType) Waterfall.setCueType(msg.wfCueType);
+      if (msg.ovScope) Overview.setScope(msg.ovScope);
       break;
   }
 }
@@ -1996,80 +1997,65 @@ const Settings = {
 
     const wrap = document.getElementById('screens-list-wrap');
     if (!wrap) return;
-    // Heartbeats re-broadcast the screens list every few seconds; rebuilding
-    // while a dropdown is open would snatch it mid-selection. The next
-    // broadcast repaints once focus has left the table.
+    // Heartbeats re-broadcast every few seconds; don't rebuild while a control
+    // in the table is focused, or it would snatch the dropdown mid-selection.
     if (wrap.contains(document.activeElement)) return;
     const screens = State.screens || [];
     if (!screens.length) { wrap.innerHTML = '<div style="color:var(--dim);font-size:13px">No screens connected</div>'; return; }
 
-    // Exactly the views a kiosk can render, with the same labels the kiosk's
-    // own menu uses. The old list offered dashboard/waterfall/editor, which
-    // are admin-only and did nothing when pushed to a screen, and omitted
-    // Show Overview, Multi Cue and both video modes.
-    const viewOpts = [
-      ['conductor','Simple View'],
-      ['stage','Stage'],
-      ['camera','Single Cue'],
-      ['test','Multi Cue'],
-      ['overview','Show Overview'],
-      ['waterfall','Waterfall'],
-      ['video','Video'],
-      ['videofull','Video — Full Screen']
-    ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+    const opts = (pairs) => pairs.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+    const viewOpts  = opts([['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['video','Video'],['videofull','Video — Full Screen']]);
+    const typeOpts  = opts([['camera','Camera'],['stage','Stage Cue'],['host','Host Cue'],['conductor','Conductor'],['description','Description']]);
+    const ovOpts    = opts([['any','Auto'],['all','All cues'],['stage','Stage'],['host','Host'],['conductor','Conductor'],['camera','Camera'],['description','Description']]);
+    const wfOpts    = opts([['any','All cues'],['stage','Stage'],['host','Host'],['conductor','Conductor'],['camera','Camera'],['description','Description']]);
+    const scopeOpts = opts([['song','This Song'],['all','All Songs']]);
 
-    // Overview cue-type: Auto resolves per-cue (first non-empty field)
-    const ovOpts = [
-      ['any','Auto'],['stage','Stage'],['host','Host'],['conductor','Conductor'],['camera','Camera'],['description','Description']
-    ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+    const sel = (id, disabled, options) =>
+      `<select id="${id}" onchange="Settings.sendScreenCommand('${id.replace(/^sc-\w+-/, '')}')" ` +
+      `style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${disabled?' disabled':''}>${options}</select>`;
+    const lbl = (t) => `<span style="font-size:10px;color:var(--text-3);margin:0 4px 0 8px">${t}</span>`;
 
-    const typeOpts = [
-      ['camera','Camera'],['stage','Stage Cue'],['host','Host Cue'],['conductor','Conductor'],['description','Description']
-    ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+    // Only the controls that view actually uses.
+    const optionsFor = (v, id, dis) => {
+      switch (v) {
+        case 'stage': return lbl('A') + sel(`sc-slota-${id}`, dis, typeOpts) + lbl('B') + sel(`sc-slotb-${id}`, dis, typeOpts);
+        case 'test':  return lbl('A') + sel(`sc-slota-${id}`, dis, typeOpts) + lbl('B') + sel(`sc-slotb-${id}`, dis, typeOpts);
+        case 'camera': return lbl('Type') + sel(`sc-cam-${id}`, dis, typeOpts);
+        case 'overview': return lbl('Cues') + sel(`sc-ov-${id}`, dis, ovOpts) + lbl('Scope') + sel(`sc-ovs-${id}`, dis, scopeOpts);
+        case 'waterfall': return lbl('Filter') + sel(`sc-wf-${id}`, dis, wfOpts);
+        default: return '<span style="color:var(--text-3);font-size:12px">—</span>';
+      }
+    };
 
     wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="color:var(--dim);text-align:left">
         <th style="padding:4px 8px">Name</th>
         <th style="padding:4px 8px">View</th>
-        <th style="padding:4px 8px">Slot A</th>
-        <th style="padding:4px 8px">Slot B</th>
-        <th style="padding:4px 8px">Cam Type</th>
-        <th style="padding:4px 8px">Overview</th>
-        <th style="padding:4px 8px">Waterfall</th>
+        <th style="padding:4px 8px">Options</th>
       </tr></thead>
       <tbody>${screens.map(s => {
         const isMe = s.id === SCREEN_ID;
+        const sec = s.lastSeen ? Math.round((Date.now() - s.lastSeen) / 1000) : null;
+        const col = sec == null ? '' : sec < 25 ? 'var(--live)' : sec < 60 ? 'var(--warn)' : 'var(--urgent)';
+        const age = sec == null ? '' : `<span style="font-family:var(--font-tc);font-size:10px;color:${col};margin-left:6px">${sec}s</span>`;
         return `<tr style="border-top:1px solid var(--border)${isMe ? ';opacity:0.5' : ''}">
-          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}
-            ${(() => { const age = s.lastSeen ? (Date.now() - new Date(s.lastSeen).getTime ? Date.now() - s.lastSeen : 0) : null;
-              if (age == null) return '';
-              const sec = Math.round(age / 1000);
-              const col = sec < 25 ? 'var(--live)' : sec < 60 ? 'var(--warn)' : 'var(--urgent)';
-              return `<span style="font-family:var(--font-tc);font-size:10px;color:${col};margin-left:6px">${sec}s</span>`; })()}</td>
-          <td style="padding:6px 8px"><select id="sc-view-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${viewOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-slota-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-slotb-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-cam-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${typeOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-ov-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${ovOpts}</select></td>
-          <td style="padding:6px 8px"><select id="sc-wf-${s.id}" onchange="Settings.sendScreenCommand('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe?' disabled':''}>${ovOpts}</select></td>
+          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}${age}</td>
+          <td style="padding:6px 8px">${sel(`sc-view-${s.id}`, isMe, viewOpts)}</td>
+          <td style="padding:6px 8px">${optionsFor(s.view || 'conductor', s.id, isMe)}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
 
-    // Set current values on each dropdown
+    // Reflect current values on whatever controls this render produced.
     for (const s of screens) {
-      const vEl = document.getElementById(`sc-view-${s.id}`);
-      const aEl = document.getElementById(`sc-slota-${s.id}`);
-      const bEl = document.getElementById(`sc-slotb-${s.id}`);
-      const cEl = document.getElementById(`sc-cam-${s.id}`);
-      if (vEl) vEl.value = s.view || 'conductor';
-      if (aEl) aEl.value = s.slots?.a || 'stage';
-      if (bEl) bEl.value = s.slots?.b || 'host';
-      if (cEl) cEl.value = s.cameraType || 'camera';
-      const oEl = document.getElementById(`sc-ov-${s.id}`);
-      if (oEl) oEl.value = s.ovCueType || 'any';
-      const wEl = document.getElementById(`sc-wf-${s.id}`);
-      if (wEl) wEl.value = s.wfCueType || 'any';
+      const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+      set(`sc-view-${s.id}`,  s.view || 'conductor');
+      set(`sc-slota-${s.id}`, s.slots?.a || 'stage');
+      set(`sc-slotb-${s.id}`, s.slots?.b || 'host');
+      set(`sc-cam-${s.id}`,   s.cameraType || 'camera');
+      set(`sc-ov-${s.id}`,    s.ovCueType || 'any');
+      set(`sc-ovs-${s.id}`,   s.ovScope || 'song');
+      set(`sc-wf-${s.id}`,    s.wfCueType || 'any');
     }
   },
 
@@ -2079,8 +2065,9 @@ const Settings = {
     const slotB    = document.getElementById(`sc-slotb-${targetId}`)?.value;
     const camType  = document.getElementById(`sc-cam-${targetId}`)?.value;
     const ovType   = document.getElementById(`sc-ov-${targetId}`)?.value;
+    const ovScope  = document.getElementById(`sc-ovs-${targetId}`)?.value;
     const wfType   = document.getElementById(`sc-wf-${targetId}`)?.value;
-    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, cameraType: camType, ovCueType: ovType, wfCueType: wfType });
+    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, cameraType: camType, ovCueType: ovType, wfCueType: wfType, ovScope });
   },
 
   onSourceChange(src, sendToServer) {
