@@ -1240,7 +1240,13 @@ const PORT = process.env.PORT || config.port || 3001;
 // server is actually running. Best-effort: discovery failing must never stop
 // the show server.
 let _bonjour = null;
+// Advertise ONLY when running as the installed service (systemd sets
+// SYNTHONY_DATA_DIR). A dev `npm start` must never advertise — otherwise a
+// laptop on the show LAN becomes a rogue server that clients can latch onto.
 try {
+  if (!process.env.SYNTHONY_DATA_DIR && process.env.SYNTHONY_ADVERTISE !== '1') {
+    throw new Error('not the installed service — mDNS advertising skipped (set SYNTHONY_ADVERTISE=1 to force)');
+  }
   const { Bonjour } = require('bonjour-service');
   _bonjour = new Bonjour();
   const svcName = `Synthony Cue (${require('os').hostname().replace(/\.local$/i, '')})`;
