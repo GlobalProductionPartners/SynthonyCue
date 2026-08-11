@@ -42,7 +42,6 @@
 .wf-fill {
   position: absolute; left: 0; top: 0; bottom: 0; z-index: 0;
   background: var(--wf); border-radius: var(--r-2);
-  transition: width 240ms linear;
 }
 .wf-num {
   position: relative; z-index: 1; flex: 0 0 auto;

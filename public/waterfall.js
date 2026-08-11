@@ -61,15 +61,35 @@ const Waterfall = {
     return out;
   },
 
+  _anchorFrames: 0, _anchorWall: 0, _raf: null, _lastSec: -1,
+
+  // Continuous "now" in frames, interpolated from the last authoritative TC
+  // using the browser clock — so motion is smooth between the ~1/s TC updates.
+  _nowFrames() {
+    const base = this._anchorFrames;
+    if (!(State.tcRunning)) return base;
+    return base + ((performance.now() - this._anchorWall) / 1000) * FR;
+  },
+
+  _visible() {
+    const b = document.getElementById('wf-body');
+    return b && b.offsetParent !== null;
+  },
+
+  // Called on every TC update (via renderCurrent): re-anchor to the true TC
+  // and rebuild the row set only when it structurally changes.
   render() {
     const body = document.getElementById('wf-body');
     const sel  = document.getElementById('wf-filter');
     if (!body) return;
     if (sel && sel.value !== this._cueType) sel.value = this._cueType;
 
-    const now  = State.tcFrames || parseTC(State.tc);
-    const all  = this._entries();
-    const cnt  = document.getElementById('wf-count');
+    this._anchorFrames = State.tcFrames || parseTC(State.tc);
+    this._anchorWall   = performance.now();
+
+    const now = this._anchorFrames;
+    const all = this._entries();
+    const cnt = document.getElementById('wf-count');
     if (cnt) cnt.textContent = all.length + (all.length === 1 ? ' cue' : ' cues');
 
     if (!all.length) { body.innerHTML = '<div class="wf-empty">No cues' + (this._cueType === 'any' ? '' : ' for this type') + '</div>'; this._sig = null; return; }
@@ -77,16 +97,12 @@ const Waterfall = {
     let nextIdx = all.findIndex(e => e.abs > now);
     if (nextIdx < 0) nextIdx = all.length;
     const from  = Math.max(0, nextIdx - this.pastShown);
-    const slice = all.slice(from, Math.min(all.length, nextIdx + this.maxRows));
-    const winF  = this.windowSec * FR;
+    this._slice = all.slice(from, Math.min(all.length, nextIdx + this.maxRows));
 
-    // Only the fill width and countdown change every tick; the row set changes
-    // rarely (when a cue fires). Rebuild the DOM only on a structural change so
-    // the CSS width transition can animate smoothly instead of flickering.
-    const sig = slice.map(e => e.id).join('|') + '#' + this._cueType;
+    const sig = this._slice.map(e => e.id).join('|') + '#' + this._cueType;
     if (sig !== this._sig) {
       let html = '', markerPlaced = false;
-      for (const e of slice) {
+      for (const e of this._slice) {
         const isPast = e.abs <= now;
         if (!isPast && !markerPlaced) { html += '<div class="wf-nowline"><span>NOW</span></div>'; markerPlaced = true; }
         const col = WF_COLOUR[e.type] || WF_COLOUR.description;
@@ -99,32 +115,54 @@ const Waterfall = {
         </div>`;
       }
       body.innerHTML = html;
+      // cache row element refs so the rAF loop doesn't query the DOM each frame
+      this._els = this._slice.map(e => {
+        const row = body.querySelector(`.wf-row[data-id="${CSS.escape(e.id)}"]`);
+        return row ? { e, row, fill: row.querySelector('.wf-fill'), cd: row.querySelector('.wf-cd') } : null;
+      }).filter(Boolean);
       this._sig = sig;
+      this._lastSec = -1;
+
+      const mk = body.querySelector('.wf-nowline');
+      if (mk) { const t = Math.max(0, mk.offsetTop - body.clientHeight * 0.18); body.scrollTo({ top: t, behavior: 'smooth' }); }
     }
 
-    // Per-tick in-place update of every row's fill + countdown.
-    for (const e of slice) {
-      const row = body.querySelector(`.wf-row[data-id="${CSS.escape(e.id)}"]`);
-      if (!row) continue;
-      const isPast = e.abs <= now;
-      row.classList.toggle('past', isPast);
-      const tSec = Math.max(0, Math.round((e.abs - now) / FR));
-      let pct = isPast ? 100 : Math.round((1 - (e.abs - now) / winF) * 100);
+    this._paint();       // immediate paint
+    this._startLoop();   // ensure the smooth loop is running
+  },
+
+  // Runs ~60fps while the view is visible: sets each bar width from the
+  // interpolated now. No CSS transition involved, so no stop-start.
+  _paint() {
+    if (!this._els) return;
+    const now  = this._nowFrames();
+    const winF = this.windowSec * FR;
+    const sec  = Math.floor(now / FR);
+    const secChanged = sec !== this._lastSec; this._lastSec = sec;
+    for (const it of this._els) {
+      const dt = it.e.abs - now;
+      const isPast = dt <= 0;
+      let pct = isPast ? 100 : (1 - dt / winF) * 100;
       pct = Math.max(this.minWidthPct, Math.min(100, pct));
-      const fill = row.querySelector('.wf-fill'); if (fill) fill.style.width = pct + '%';
-      const cd = row.querySelector('.wf-cd');
-      if (cd) {
+      if (it.fill) it.fill.style.width = pct.toFixed(2) + '%';
+      // Countdown text only needs updating when the whole second changes.
+      if (secChanged && it.cd) {
+        const tSec = Math.max(0, Math.round(dt / FR));
         const m = Math.floor(tSec / 60), ss = String(tSec % 60).padStart(2, '0');
-        cd.textContent = isPast ? '' : `-${String(m).padStart(2, '0')}:${ss}`;
-        cd.classList.toggle('imminent', !isPast && tSec <= 10);
+        it.cd.textContent = isPast ? '' : `-${String(m).padStart(2, '0')}:${ss}`;
+        it.cd.classList.toggle('imminent', !isPast && tSec <= 10);
+        it.row.classList.toggle('past', isPast);
       }
     }
+  },
 
-    // Park the NOW marker near the top; only scroll when it actually moves.
-    const mk = body.querySelector('.wf-nowline');
-    if (mk) {
-      const target = Math.max(0, mk.offsetTop - body.clientHeight * 0.18);
-      if (Math.abs(body.scrollTop - target) > 40) body.scrollTo({ top: target, behavior: 'smooth' });
-    }
+  _startLoop() {
+    if (this._raf) return;
+    const loop = () => {
+      if (!this._visible()) { this._raf = null; return; }
+      this._paint();
+      this._raf = requestAnimationFrame(loop);
+    };
+    this._raf = requestAnimationFrame(loop);
   }
 };
