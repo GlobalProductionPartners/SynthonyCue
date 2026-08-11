@@ -136,7 +136,7 @@ test('sort by parseTC(offset) is stable for equal offsets', () => {
 function readoutSetup(depts, lead = 10) {
   sandbox.State.songs = [
     { id: 's1', timecode: '01:00:00:00', cues: [
-      { id: 'c1', offset: '00:00:30:00', extra: { 'Stage Cue': 'Go SR', 'Pyro': 'Flames' } },
+      { id: 'c1', offset: '00:00:30:00', extra: { 'Stage Cue': 'Go stage right', 'Pyro': 'Flames' } },
     ]},
   ];
   sandbox.State.config = { readout: { lead, depts } };
@@ -148,7 +148,7 @@ test('readout emits standby+go for an sg department', () => {
   const cf = sandbox.parseTC('01:00:30:00');            // absolute cue frame
   assert.equal(ev.length, 2);
   const sb = ev.find(e => e.phase === 'sb'), go = ev.find(e => e.phase === 'go');
-  assert.equal(sb.line, 'Standby, Go SR');              // department name omitted from speech
+  assert.equal(sb.line, 'Standby, Go stage right');     // department name omitted from speech
   assert.equal(sb.at, cf - 10 * 25);                    // lead 10s before the cue
   assert.equal(go.line, 'Go');
   assert.equal(go.at, cf);
@@ -174,4 +174,19 @@ test('readout style sr reads the cue text at GO; go/ro skip standby', () => {
 test('readout ignores unticked departments', () => {
   readoutSetup({ 'Stage Cue': { on: false, style: 'sg' } });   // Pyro not configured at all
   assert.equal(sandbox.Caller._events().length, 0);
+});
+
+test('speakable title-cases ALL-CAPS words (so TTS says them, not spells them)', () => {
+  assert.equal(sandbox.speakable('KAPA HAKA'), 'Kapa Haka');
+  assert.equal(sandbox.speakable('START SHOW on show director cue'), 'Start Show on show director cue');
+  assert.equal(sandbox.speakable('Stand by {Flames}'), 'Stand by Flames');   // braces dropped
+  assert.equal(sandbox.speakable('go go'), 'go go');                          // lowercase untouched
+});
+
+test('readout speaks title-cased cue text, not the raw ALL-CAPS', () => {
+  sandbox.State.songs = [{ id: 's', timecode: '01:00:00:00', cues: [
+    { id: 'c', offset: '00:00:30:00', extra: { 'Stage Cue': 'KAPA HAKA ENTRANCE' } } ]}];
+  sandbox.State.config = { readout: { lead: 10, depts: { 'Stage Cue': { on: true, style: 'sg' } } } };
+  const sb = sandbox.Caller._events().find(e => e.phase === 'sb');
+  assert.equal(sb.line, 'Standby, Kapa Haka Entrance');
 });

@@ -87,6 +87,16 @@ function cueLabel(cue) {
   for (const k in (cue.extra || {})) if (cue.extra[k]) return cue.extra[k];
   return '';
 }
+
+// Mirror of public/cue-utils.js speakable(): ALL-CAPS words are spelled out by
+// most TTS voices, so title-case them and drop punctuation that reads badly.
+function speakableText(s) {
+  return String(s == null ? '' : s)
+    .replace(/[{}\[\]|<>]/g, ' ')
+    .replace(/\b[A-Z][A-Z0-9]+\b/g, w => w.charAt(0) + w.slice(1).toLowerCase())
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 normalizeSongs(songs);   // migrate legacy show files loaded above, in place
 
 function loadJSON(filePath, defaults) {
@@ -628,8 +638,9 @@ function checkCueFires(nowFrames) {
             }
           };
           // Spoken lines omit the department name — just "Standby, <cue>" / "Go".
-          if (hasStandby) cross(cueFrames - leadFrames, 'sb', `Standby, ${text}`);
-          const goLine = (style === 'sr' || style === 'ro') ? String(text) : 'Go';
+          const spoken = speakableText(text);
+          if (hasStandby) cross(cueFrames - leadFrames, 'sb', `Standby, ${spoken}`);
+          const goLine = (style === 'sr' || style === 'ro') ? spoken : 'Go';
           cross(cueFrames, 'go', goLine);
         }
       }

@@ -40,6 +40,17 @@ function cueTypeColour(type) {
   let h = 0; for (let i = 0; i < String(type).length; i++) h = (h * 31 + type.charCodeAt(i)) >>> 0;
   return `hsl(${h % 360} 70% 55%)`;
 }
+
+// Make cue text read naturally aloud. Many TTS voices spell ALL-CAPS words out
+// letter by letter (they read them as acronyms), so title-case any all-caps run,
+// and drop punctuation that reads badly ({}, [], |, <>).
+function speakable(s) {
+  return String(s == null ? '' : s)
+    .replace(/[{}\[\]|<>]/g, ' ')
+    .replace(/\b[A-Z][A-Z0-9]+\b/g, w => w.charAt(0) + w.slice(1).toLowerCase())
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 // <option> markup for every cue type the show uses, with `selected` marked.
 // opts.extra prepends fixed choices, e.g. [['any','Auto'],['all','All cues']].
 function cueTypeOptionsHTML(selected, opts) {

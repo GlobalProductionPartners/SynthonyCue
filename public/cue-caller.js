@@ -20,6 +20,13 @@ const CALL_STYLES = [
 const SRV_VOICES = [['en', 'English'], ['en-us', 'English (US)'], ['en-gb', 'English (UK)'],
   ['en+f3', 'Female'], ['en+m3', 'Male']];
 
+// Voice quality heuristics — the browser exposes everything the OS has, from
+// natural neural voices down to macOS's novelty gimmick voices. Rank the good
+// ones up and the gimmicks down so the picker (and the auto-default) lands well.
+const VOICE_GOOD    = /premium|enhanced|natural|neural|siri/i;
+const VOICE_NICE    = /\b(Samantha|Daniel|Karen|Moira|Tessa|Rishi|Alex|Serena|Fiona|Victoria|Allison|Ava|Zoe|Evan|Nicky|Aaron|Tom|Susan|Kate|Serena|Nora|Google)\b/i;
+const VOICE_NOVELTY = /\b(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Deranged|Good News|Hysterical|Jester|Junior|Kathy|Organ|Ralph|Fred|Trinoids|Whisper|Wobble|Zarvox|Superstar|Grandma|Grandpa|Reed|Rocko|Sandy|Shelley|Flo|Eddy)\b/i;
+
 function _crEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 }
@@ -68,7 +75,25 @@ const Caller = {
     }
     if (this.enabled) this._startEngine();
   },
-  _loadVoices() { try { this._voices = speechSynthesis.getVoices() || []; } catch { this._voices = []; } },
+  _voiceScore(v) {
+    let s = 0;
+    if (VOICE_GOOD.test(v.name)) s += 100;
+    if (!v.localService) s += 40;              // network voices (Google) are natural-ish
+    if (VOICE_NICE.test(v.name)) s += 20;
+    if (/^en/i.test(v.lang)) s += 300;         // English first — it's an English show
+    if (VOICE_NOVELTY.test(v.name)) s -= 200;  // gimmick voices to the bottom
+    return s;
+  },
+  _loadVoices() {
+    try { this._voices = (speechSynthesis.getVoices() || []).slice().sort((a, b) => this._voiceScore(b) - this._voiceScore(a)); }
+    catch { this._voices = []; }
+    // First run, or the chosen voice is gone → land on the most natural English
+    // voice available rather than the OS default (often a mediocre one).
+    if (this._voices.length && !this._voices.some(v => v.voiceURI === this.voiceURI)) {
+      const best = this._voices.find(v => /^en/i.test(v.lang)) || this._voices[0];
+      if (best) { this.voiceURI = best.voiceURI; this._save(); }
+    }
+  },
   _active() { const r = document.getElementById('view-cueread'); return r && r.offsetParent !== null; },
 
   // ── Speech ────────────────────────────────────────────────────────────────
@@ -131,11 +156,12 @@ const Caller = {
           const d = depts[type];
           if (!text || !d || !d.on) continue;
           const style = d.style || 'sg';
+          const spoken = speakable(text);
           // Spoken lines deliberately omit the department name (the column
           // headers are long and awkward aloud) — just "Standby, <cue>" / "Go".
           if (style === 'sg' || style === 'sr')
-            out.push({ at: cf - leadF, cueId: cue.id, type, phase: 'sb', line: `Standby, ${text}` });
-          const go = (style === 'sr' || style === 'ro') ? String(text) : 'Go';
+            out.push({ at: cf - leadF, cueId: cue.id, type, phase: 'sb', line: `Standby, ${spoken}` });
+          const go = (style === 'sr' || style === 'ro') ? spoken : 'Go';
           out.push({ at: cf, cueId: cue.id, type, phase: 'go', line: go });
         }
       }
@@ -206,7 +232,10 @@ const Caller = {
     const types = customCueTypes();
     const admin = this.ADMIN;
     const voiceOpts = this._voices.length
-      ? this._voices.map(v => `<option value="${_crEsc(v.voiceURI)}"${v.voiceURI === this.voiceURI ? ' selected' : ''}>${_crEsc(v.name)} (${_crEsc(v.lang)})</option>`).join('')
+      ? this._voices.map(v => {
+          const star = (VOICE_GOOD.test(v.name) || !v.localService) ? '★ ' : '';
+          return `<option value="${_crEsc(v.voiceURI)}"${v.voiceURI === this.voiceURI ? ' selected' : ''}>${star}${_crEsc(v.name)} (${_crEsc(v.lang)})</option>`;
+        }).join('')
       : '<option value="">— no voices on this device —</option>';
     const styleOpts = sel => CALL_STYLES.map(([v, l]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
     const dis = admin ? '' : ' disabled';
@@ -256,7 +285,9 @@ const Caller = {
           <label class="cr-field">Rate <input type="range" min="0.6" max="1.6" step="0.05" value="${this.rate}" data-act="dev-rate"></label>
           <label class="cr-field">Volume <input type="range" min="0" max="1" step="0.05" value="${this.volume}" data-act="dev-volume"></label>
           <button class="cr-btn" data-act="dev-test">Test voice</button>
-          ${this._voices.length ? '' : '<div class="cr-note cr-warn">No speech voices on this device. On a Raspberry Pi: <code>sudo apt install speech-dispatcher espeak-ng</code>, or use the server readout.</div>'}
+          ${this._voices.length
+            ? '<div class="cr-note">★ marks the more natural voices. macOS: add Siri-quality voices in System Settings → Accessibility → Spoken Content → Manage Voices; Chrome’s “Google” voices need internet.</div>'
+            : '<div class="cr-note cr-warn">No speech voices on this device. On a Raspberry Pi: <code>sudo apt install speech-dispatcher espeak-ng</code>, or use the server readout.</div>'}
         </div>
 
         ${serverPanel}
