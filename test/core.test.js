@@ -11,11 +11,19 @@ const vm = require('node:vm');
 const sandbox = {
   window: { innerHeight: 1080, addEventListener() {} },
   document: { getElementById: () => null, querySelector: () => null },
-  State: { songs: [], tc: '00:00:00:00', tcFrames: 0 },
+  localStorage: { _d: {}, getItem(k) { return this._d[k] ?? null; }, setItem(k, v) { this._d[k] = String(v); } },
+  performance: { now: () => 0 },
+  State: { songs: [], tc: '00:00:00:00', tcFrames: 0, config: {} },
 };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'cue-utils.js'), 'utf8'), sandbox);
+// A later runInContext call sees the prior call's top-level `const`s (FR, …), but
+// cue-caller's own `const Caller` isn't a property of the context — hang it on the
+// global so the tests can reach it.
+vm.runInContext(
+  fs.readFileSync(path.join(__dirname, '..', 'public', 'cue-caller.js'), 'utf8') + '\nthis.Caller = Caller;',
+  sandbox);
 
 // ── parseTC ───────────────────────────────────────────────────────────────────
 test('parseTC round numbers', () => {
@@ -122,4 +130,48 @@ test('sort by parseTC(offset) is stable for equal offsets', () => {
   ];
   cues.sort((x, y) => sandbox.parseTC(x.offset) - sandbox.parseTC(y.offset));
   assert.deepEqual(cues.map(c => c.n), [2, 1, 3]);
+});
+
+// ── Cue Readout: standby/go event generation (shared with server checkCueFires) ─
+function readoutSetup(depts, lead = 10) {
+  sandbox.State.songs = [
+    { id: 's1', timecode: '01:00:00:00', cues: [
+      { id: 'c1', offset: '00:00:30:00', extra: { 'Stage Cue': 'Go SR', 'Pyro': 'Flames' } },
+    ]},
+  ];
+  sandbox.State.config = { readout: { lead, depts } };
+}
+
+test('readout emits standby+go for an sg department', () => {
+  readoutSetup({ 'Stage Cue': { on: true, style: 'sg' } });
+  const ev = sandbox.Caller._events();
+  const cf = sandbox.parseTC('01:00:30:00');            // absolute cue frame
+  assert.equal(ev.length, 2);
+  const sb = ev.find(e => e.phase === 'sb'), go = ev.find(e => e.phase === 'go');
+  assert.equal(sb.line, 'Standby, Stage Cue: Go SR');
+  assert.equal(sb.at, cf - 10 * 25);                    // lead 10s before the cue
+  assert.equal(go.line, 'Stage Cue, go');
+  assert.equal(go.at, cf);
+});
+
+test('readout style sr reads the cue text at GO; go/ro skip standby', () => {
+  readoutSetup({ Pyro: { on: true, style: 'sr' } });
+  let ev = sandbox.Caller._events();
+  assert.equal(ev.find(e => e.phase === 'sb').line, 'Standby, Pyro: Flames');
+  assert.equal(ev.find(e => e.phase === 'go').line, 'Flames');   // reads cue text
+
+  readoutSetup({ Pyro: { on: true, style: 'go' } });
+  ev = sandbox.Caller._events();
+  assert.equal(ev.length, 1);                                    // no standby
+  assert.equal(ev[0].line, 'Pyro, go');
+
+  readoutSetup({ Pyro: { on: true, style: 'ro' } });
+  ev = sandbox.Caller._events();
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].line, 'Flames');
+});
+
+test('readout ignores unticked departments', () => {
+  readoutSetup({ 'Stage Cue': { on: false, style: 'sg' } });   // Pyro not configured at all
+  assert.equal(sandbox.Caller._events().length, 0);
 });

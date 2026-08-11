@@ -535,6 +535,9 @@ body.video-clean .video-stage { background: #000; }
     </div>
   </div>
 
+  <!-- CUE READOUT — spoken cue calling (populated by cue-caller.js) -->
+  <div class="view" id="view-cueread"></div>
+
 </div><!-- /app -->
 
 <!-- TC corner (hidden — TC shown in header) -->
@@ -558,6 +561,7 @@ body.video-clean .video-stage { background: #000; }
     <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Multi Cue</button>
     <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
     <button class="menu-btn" id="view-btn-waterfall" onclick="switchView('waterfall')">Waterfall</button>
+    <button class="menu-btn" id="view-btn-cueread" onclick="switchView('cueread')">Cue Readout</button>
     <button class="menu-btn" id="view-btn-video" onclick="switchView('video')">Video</button>
     <button class="menu-btn" id="view-btn-videofull" onclick="switchView('videofull')">Video — Full Screen</button>
   </div>
@@ -822,6 +826,7 @@ function renderCurrent() {
   else if (currentView === 'test')   renderTestView();
   else if (currentView === 'overview') Overview.render();
   else if (currentView === 'waterfall') Waterfall.render();
+  else if (currentView === 'cueread') Caller.render();
   else if (currentView === 'video' || currentView === 'videofull') renderVideo();
 }
 
@@ -844,6 +849,9 @@ function switchView(view) {
   document.getElementById('menu-cam-section').style.display  = view === 'camera' ? '' : 'none';
   document.getElementById('menu-test-section').style.display = view === 'test'   ? '' : 'none';
   if (isVideo) attachVideo(); else detachVideo();
+  // A display Pi shown "Cue Readout" IS the caller — calling follows the view
+  // here (the admin uses a manual master switch instead).
+  if (typeof Caller !== 'undefined') Caller.setEnabled(view === 'cueread');
   renderCurrent();
   sendScreenUpdate();
 }
@@ -1003,7 +1011,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('menu-cam-type').value      = cameraType;
   document.getElementById('menu-test-slot-a').value = testSlots.a;
   document.getElementById('menu-test-slot-b').value = testSlots.b;
-  switchView(currentView);
+  if (typeof Caller !== 'undefined') Caller.init();
+  switchView(currentView);   // ties the caller on/off to whether this view is shown
   wsConnect();
 
   // Wall clock — update every second
@@ -1039,6 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script src="/show-overview.js"></script>
 <script src="/waterfall.js"></script>
+<script src="/cue-caller.js"></script>
 <script src="/stage-cue.js"></script>
 </body>
 </html>

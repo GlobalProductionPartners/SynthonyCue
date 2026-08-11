@@ -517,6 +517,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
     <button class="tab" data-view="conductor">Simple View</button>
     <button class="tab" data-view="camera">Single Cue</button>
     <button class="tab" data-view="stage">Multi Cue</button>
+    <button class="tab" data-view="cueread">Cue Readout</button>
     <button class="tab" data-view="editor">Cue Editor</button>
     <button class="tab" data-view="settings">Settings</button>
   </div>
@@ -755,6 +756,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
       </div>
       <div class="wf-body" id="wf-body"></div>
     </div>
+
+    <!-- CUE READOUT — spoken cue calling (populated by cue-caller.js) -->
+    <div class="view" id="view-cueread"></div>
 
     <!-- SETTINGS -->
     <div class="view" id="view-settings">
@@ -1029,6 +1033,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 <script src="/cue-utils.js"></script>
 <script>
 'use strict';
+window.__ADMIN__ = true;   // cue-caller.js shows the server-readout panel + can edit shared config
 // ══════════════════════════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1286,6 +1291,7 @@ const Views = {
       case 'settings':   Settings.render(); break;
       case 'overview':   Overview.render(); break;
       case 'waterfall':  Waterfall.render(); break;
+      case 'cueread':    Caller.render(); break;
     }
   }
 };
@@ -2129,7 +2135,7 @@ const Settings = {
     if (!screens.length) { wrap.innerHTML = '<div style="color:var(--dim);font-size:13px">No screens connected</div>'; return; }
 
     const opts = (pairs) => pairs.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
-    const viewOpts  = opts([['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['video','Video'],['videofull','Video — Full Screen']]);
+    const viewOpts  = opts([['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['cueread','Cue Readout'],['video','Video'],['videofull','Video — Full Screen']]);
     // Cue-type pickers are driven by the show's own columns.
     const typeOpts  = cueTypeOptionsHTML();
     const ovOpts    = cueTypeOptionsHTML(null, { extra: [['any','Auto'],['all','All cues']] });
@@ -2533,6 +2539,7 @@ function applyURLParams() {
     dashboard: 'dashboard',
     stage: 'stage', 'stage-manager': 'stage',
     camera: 'camera', conductor: 'conductor',
+    overview: 'overview', waterfall: 'waterfall', cueread: 'cueread',
     editor: 'editor', settings: 'settings'
   };
   if (view && map[view]) return map[view];
@@ -2615,6 +2622,10 @@ function openJamModal() {
 // EVENT WIRING
 // ══════════════════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
+  // Cue Readout engine: loads voices and starts calling if this device was left
+  // enabled — independent of which tab is showing.
+  if (typeof Caller !== 'undefined') Caller.init();
+
   // Tabs
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.view));
@@ -2738,6 +2749,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script src="/show-overview.js"></script>
 <script src="/waterfall.js"></script>
+<script src="/cue-caller.js"></script>
 <script src="/stage-cue.js"></script>
 </body>
 </html>

@@ -31,7 +31,11 @@ let config = loadJSON(CONFIG_PATH, {
   videoSource: '',
   videoWidth: 1280,
   videoFps: 15,
-  videoQuality: 6
+  videoQuality: 6,
+  // Server-side spoken cue calling (this Pi's own audio out → comms). Off by
+  // default; departments are keyed by cue-type column name. Style per dept:
+  // 'sg' standby→go, 'sr' standby→read cue, 'go' go-only, 'ro' read-cue-only.
+  readout: { enabled: false, lead: 10, voice: 'en', rate: 175, depts: {} }
 });
 
 // Normalised just below, once LEGACY_FIELD_NAMES and normalizeSongs exist
@@ -567,16 +571,24 @@ const TC = (() => {
 let blackout = false;
 
 const firedOutputs = new Set();
+const spokenCalls = new Set();   // server readout: `${cueId}:${type}:${phase}` said once
 let lastBroadcastFrames = 0;
 const FRAME_RATE_FIRE_WINDOW = 250; // 10s at 25fps — late allowance, not a drop window
+const READOUT_WINDOW = 50;          // 2s — speech mustn't dump a burst after a seek
 
 function checkCueFires(nowFrames) {
   // Reset on TC jump backwards
   if (nowFrames < lastBroadcastFrames - 50) {
     firedOutputs.clear();
+    spokenCalls.clear();
+    try { require('./output/tts').flush(); } catch {}
     console.log('[TC] Jump detected — cleared fired outputs');
   }
   lastBroadcastFrames = nowFrames;
+
+  const ro = config.readout;
+  const roOn = ro && ro.enabled;
+  const leadFrames = Math.max(0, (ro?.lead || 10)) * 25;
 
   for (const song of songs) {
     const songFrames = TC.parse(song.timecode || '00:00:00:00');
@@ -598,8 +610,38 @@ function checkCueFires(nowFrames) {
           fireTrigger(cue, trig);
         }
       });
+
+      // Server readout: speak standby/go for each enabled department this cue
+      // has text in. Same threshold-crossing model as triggers, tighter window.
+      if (roOn) {
+        for (const type in (cue.extra || {})) {
+          const text = cue.extra[type];
+          const dept = ro.depts?.[type];
+          if (!text || !dept || !dept.on) continue;
+          const style = dept.style || 'sg';
+          const hasStandby = style === 'sg' || style === 'sr';
+          const cross = (at, phase, line) => {
+            const k = `${cue.id}:${type}:${phase}`;
+            if (nowFrames >= at && nowFrames < at + READOUT_WINDOW && !spokenCalls.has(k)) {
+              spokenCalls.add(k);
+              speakReadout(line);
+            }
+          };
+          if (hasStandby) cross(cueFrames - leadFrames, 'sb', `Standby, ${type}: ${text}`);
+          const goLine = (style === 'sr' || style === 'ro') ? String(text) : `${type}, go`;
+          cross(cueFrames, 'go', goLine);
+        }
+      }
     }
   }
+}
+
+// Speak a server-readout line out the Pi's audio via espeak-ng (best-effort).
+function speakReadout(line) {
+  try {
+    require('./output/tts').speak(line, { voice: config.readout?.voice, rate: config.readout?.rate });
+    flightLog('READOUT', line);
+  } catch (e) { console.warn('[Readout]', e.message); }
 }
 
 // A cue's outputs. Kept tolerant of legacy shapes (cue.osc / cue.artnet) so a
@@ -837,6 +879,18 @@ function handleClientMessage(ws, msg) {
           console.log(`[LTC] Restarted → device:${config.ltcDevice} channel:${config.ltcChannel}`);
         } catch (e) { console.log(`[LTC] Restart failed: ${e.message}`); }
       }
+      break;
+    }
+
+    case 'test_readout': {
+      // Speak a line immediately out the server's audio — proves the espeak-ng
+      // path + audio wiring without waiting for a cue.
+      if (!verifyEdit(ws, msg)) return;
+      const line = String(msg.text || 'Synthony cue readout test. Stage, go.').slice(0, 200);
+      try {
+        require('./output/tts').speak(line, { voice: config.readout?.voice, rate: config.readout?.rate });
+        safeSend(ws, { type: 'readout_test', ok: true });
+      } catch (e) { safeSend(ws, { type: 'readout_test', ok: false, error: e.message }); }
       break;
     }
 

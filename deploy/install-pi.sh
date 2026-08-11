@@ -57,9 +57,18 @@ if [ "$MODE" = "server" ]; then
   # dropped ltc-tools from the archive; Art-Net timecode is unaffected.
   sudo apt-get install -y ltc-tools alsa-utils \
     || warn "ltc-tools/alsa-utils unavailable on this OS — LTC timecode disabled (Art-Net unaffected)"
+  # Cue Readout: server speaks cues out this Pi's audio via espeak-ng. Optional —
+  # if it's missing the server readout just stays silent (browser readout still works).
+  sudo apt-get install -y espeak-ng \
+    || warn "espeak-ng unavailable — server-side Cue Readout disabled (browser readout unaffected)"
 else
   # A client is just a browser + discovery + the bash stats agent.
   sudo apt-get install -y curl ca-certificates avahi-utils
+  # Cue Readout in the browser needs voices; Chromium on Pi OS has none until
+  # speech-dispatcher + espeak are present. Best-effort — a non-caller display
+  # doesn't need it.
+  sudo apt-get install -y speech-dispatcher espeak-ng \
+    || warn "speech-dispatcher/espeak-ng unavailable — browser Cue Readout on this Pi will have no voice"
 fi
 sudo apt-get install -y chromium-browser 2>/dev/null || sudo apt-get install -y chromium
 
