@@ -254,6 +254,7 @@
 .ov-cue-song-hdr.active { color: var(--live); background: var(--surface); }
 
 .ov-cue-row {
+  position: relative; overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -261,6 +262,36 @@
   border-bottom: 1px solid var(--border);
   border-left: 3px solid transparent;
   transition: background-color 150ms ease;
+}
+/* Per-cue countdown bar along the bottom edge: fills toward the cue's fire
+   time (full = imminent), neutral until the last 30s, then amber then red —
+   same state language as the main view's countdown. */
+.ov-cue-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: var(--surface); z-index: 0;
+}
+.ov-cue-fill {
+  height: 100%; width: 0%; background: var(--text-3);
+}
+.ov-cue-fill.warn   { background: var(--warn); }
+.ov-cue-fill.urgent { background: var(--urgent); }
+.ov-cue-row.past .ov-cue-fill { background: var(--border-str); width: 100%; }
+.ov-cue-row.active .ov-cue-fill { background: var(--live); }
+.ov-cue-row > .ov-cue-tc, .ov-cue-row > .ov-cue-text,
+.ov-cue-row > .ov-cue-head { position: relative; z-index: 1; }
+.ov-cue-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.ov-cue-cd {
+  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
+  font-size: 10px; color: var(--text-3); flex: 0 0 auto;
+}
+.ov-cue-cd.warn { color: var(--warn); }
+.ov-cue-cd.urgent { color: var(--urgent); }
+
+/* Scope toggle sits beside the type filter. */
+.ov-scope-sel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-2);
+  color: var(--text-2); font-size: 10px; font-family: var(--font-ui);
+  padding: 2px var(--s-2); cursor: pointer; margin-right: var(--s-2);
 }
 .ov-cue-row.past .ov-cue-text { color: var(--text-3); font-weight: 600; }
 .ov-cue-row.active {

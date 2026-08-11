@@ -520,7 +520,8 @@ body.video-clean .video-stage { background: #000; }
       <div class="ov-col-header">
         <span class="ov-col-title">CUE LIST</span>
         <div class="ov-col-spacer"></div>
-        <select class="ov-cue-type-sel" id="ov-cue-type-sel" onchange="Overview.setCueType(this.value)">
+        <select class="ov-scope-sel" id="ov-scope-sel" onchange="Overview.setScope(this.value)"><option value="song">This Song</option><option value="all">All Songs</option></select>
+          <select class="ov-cue-type-sel" id="ov-cue-type-sel" onchange="Overview.setCueType(this.value)">
           <option value="any">Auto</option>
           <option value="stage">Stage</option>
           <option value="host">Host</option>

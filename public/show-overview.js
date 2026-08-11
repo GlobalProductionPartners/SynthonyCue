@@ -30,11 +30,60 @@ const Overview = {
   _songsKey:    null,
   _markerState: null,
   _cueType:     localStorage.getItem('ov-cue-type') || 'any',
+  _cueScope:    localStorage.getItem('ov-cue-scope') || 'song',
+  _anchorFrames: 0, _anchorWall: 0, _raf: null, _cueEls: null,
 
   setCueType(val) {
     this._cueType = val;
     localStorage.setItem('ov-cue-type', val);
-    this._songsKey = null; // force full list rebuild
+    this._songsKey = null; this._cueListSong = null; // force list rebuild
+  },
+  setScope(val) {
+    if (!val) return;
+    this._cueScope = val;
+    localStorage.setItem('ov-cue-scope', val);
+    this._cueListSong = null;               // force cue-list rebuild
+    const sel = document.getElementById('ov-scope-sel');
+    if (sel && sel.value !== val) sel.value = val;
+    this.render();
+    if (typeof sendScreenUpdate === 'function') try { sendScreenUpdate(); } catch {}
+  },
+
+  // Continuous 'now' interpolated from the browser clock between TC updates,
+  // so the per-cue countdown bars move smoothly rather than stepping.
+  _nowFrames() {
+    if (!State.tcRunning) return this._anchorFrames;
+    return this._anchorFrames + ((performance.now() - this._anchorWall) / 1000) * FR;
+  },
+  _paintBars() {
+    if (!this._cueEls || !this._cueEls.length) return;
+    const now = this._nowFrames();
+    const winF = 90 * FR;   // bars grow in the final 90s (matches waterfall)
+    for (const it of this._cueEls) {
+      const dt = it.abs - now;
+      if (dt <= 0) { it.fill.style.width = '100%'; continue; }
+      let pct = (1 - dt / winF) * 100;
+      pct = Math.max(0, Math.min(100, pct));
+      it.fill.style.width = pct.toFixed(2) + '%';
+      const remSec = Math.round(dt / FR);
+      const cls = remSec <= 10 ? 'urgent' : remSec <= 30 ? 'warn' : '';
+      if (it.fill.dataset.st !== cls) { it.fill.className = 'ov-cue-fill' + (cls ? ' ' + cls : ''); it.fill.dataset.st = cls; }
+      if (it.cd) {
+        const m = Math.floor(remSec / 60), ss = String(remSec % 60).padStart(2,'0');
+        it.cd.textContent = `-${m}:${ss}`;
+        if (it.cd.dataset.st !== cls) { it.cd.className = 'ov-cue-cd' + (cls ? ' ' + cls : ''); it.cd.dataset.st = cls; }
+      }
+    }
+  },
+  _startBarLoop() {
+    if (this._raf) return;
+    const loop = () => {
+      const b = document.getElementById('ov-cuelist-body');
+      if (!b || b.offsetParent === null) { this._raf = null; return; }
+      this._paintBars();
+      this._raf = requestAnimationFrame(loop);
+    };
+    this._raf = requestAnimationFrame(loop);
   },
 
   render() {
@@ -157,36 +206,56 @@ const Overview = {
     // ── Column 3: Cue list — CURRENT song only ────────────────────────────────
     // Show just the running song's cues (or the next song's before the show
     // starts) so operators see only what's relevant, not the whole show.
-    const listSong = song || getNextSong();
-    const shownCues = (listSong?.cues || []).filter(c => _ovField(c, cueType));
+    // Scope: 'song' shows the running (or next) song only; 'all' shows every song.
+    const scopeSel = document.getElementById('ov-scope-sel');
+    if (scopeSel && scopeSel.value !== this._cueScope) scopeSel.value = this._cueScope;
+    const listSong  = song || getNextSong();
+    const scopeSongs = this._cueScope === 'all'
+      ? State.songs.filter(s => (s.cues || []).some(c => _ovField(c, cueType)))
+      : (listSong ? [listSong] : []);
+    const shownCount = scopeSongs.reduce((n, s) => n + (s.cues || []).filter(c => _ovField(c, cueType)).length, 0);
     const cueCntEl  = document.getElementById('ov-cuelist-count');
-    if (cueCntEl) cueCntEl.textContent = shownCues.length;
+    if (cueCntEl) cueCntEl.textContent = shownCount;
+
+    // Anchor the interpolation clock every render (TC update).
+    this._anchorFrames = nowF;
+    this._anchorWall   = performance.now();
 
     const cueBody = document.getElementById('ov-cuelist-body');
     if (cueBody) {
-      // Rebuild when the song list OR the shown song changes.
-      const listSongId  = listSong ? (listSong.id || listSong.timecode) : null;
-      const rebuildCue  = rebuildLists || listSongId !== this._cueListSong;
+      const scopeKey   = this._cueScope + ':' + scopeSongs.map(s => s.id || s.timecode).join(',');
+      const rebuildCue = rebuildLists || scopeKey !== this._cueListSong;
       if (rebuildCue) {
         let html = '';
-        if (listSong && shownCues.length) {
-          const sid    = _ovEsc(listSong.id || listSong.timecode);
-          const sStart = parseTC(listSong.timecode);
-          html += `<div class="ov-cue-song-hdr" id="ov-ch-${sid}" data-songid="${sid}">${_ovEsc(listSong.trackName)}</div>`;
-          for (const c of listSong.cues) {
+        for (const s of scopeSongs) {
+          const cs = (s.cues || []).filter(c => _ovField(c, cueType));
+          if (!cs.length) continue;
+          const sid    = _ovEsc(s.id || s.timecode);
+          const sStart = parseTC(s.timecode);
+          html += `<div class="ov-cue-song-hdr" id="ov-ch-${sid}" data-songid="${sid}">${_ovEsc(s.trackName)}</div>`;
+          for (const c of s.cues) {
             const text = _ovField(c, cueType);
             if (!text) continue;
             const absF = sStart + parseTC(c.offset);
             html += `<div class="ov-cue-row" id="ov-ci-${_ovEsc(c.id)}" data-abs="${absF}" data-cueid="${_ovEsc(c.id)}">
-              <span class="ov-cue-tc">${_ovEsc(c.offset)}</span>
+              <div class="ov-cue-head"><span class="ov-cue-tc">${_ovEsc(c.offset)}</span><span class="ov-cue-cd"></span></div>
               <span class="ov-cue-text">${_ovEsc(text)}</span>
+              <div class="ov-cue-bar"><div class="ov-cue-fill"></div></div>
             </div>`;
           }
         }
         cueBody.innerHTML = html;
-        this._cueListSong = listSongId;
+        this._cueListSong = scopeKey;
+        // Cache fill/countdown elements for the rAF loop.
+        this._cueEls = Array.from(cueBody.querySelectorAll('.ov-cue-row')).map(row => ({
+          abs: parseInt(row.dataset.abs || '0'),
+          fill: row.querySelector('.ov-cue-fill'),
+          cd: row.querySelector('.ov-cue-cd')
+        }));
         delete cueBody.dataset.markerState;
       }
+      this._paintBars();
+      this._startBarLoop();
 
       if (cueBody.dataset.markerState !== markerState) {
         // Mark past/active on cue rows using data-abs
