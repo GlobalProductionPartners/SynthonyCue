@@ -5,34 +5,57 @@
 
 const FR = 25;
 
-// Cue types. Five are built-in fixed fields; any others come from imported
-// sheet columns and live in cue.extra keyed by the column header.
-const CUE_BASE_TYPES = ['stage', 'host', 'conductor', 'camera', 'description'];
+// Cue types are entirely spreadsheet-driven: every cue's content lives in
+// cue.extra keyed by the column header, and the set of types is whatever
+// columns the loaded show actually uses. Nothing is hard-coded. CUE_BASE_TYPES
+// stays as an (empty) export so callers doing [...CUE_BASE_TYPES, ...cueTypes]
+// keep working.
+const CUE_BASE_TYPES = [];
 function cueFieldRaw(cue, type) {
   if (!cue) return '';
-  switch (type) {
-    case 'stage':       return cue.stageCue || '';
-    case 'host':        return cue.hostCue || '';
-    case 'conductor':   return cue.conductorCue || '';
-    case 'camera':      return cue.cameraCue || '';
-    case 'description': return cue.description || '';
-    default:            return (cue.extra && cue.extra[type]) || '';   // custom type
-  }
+  return (cue.extra && cue.extra[type]) || '';
 }
-// Custom cue-type names present across the loaded show (sorted, unique).
+// Every cue-type name present across the loaded show, in spreadsheet-column
+// order. Each cue's extra preserves the sheet's left-to-right order, but a
+// single sparse cue can't reveal the full order — so seed from the richest cue
+// (the one populating the most columns) and append any columns only seen
+// elsewhere.
 function customCueTypes() {
-  const set = new Set();
-  for (const song of (typeof State !== 'undefined' ? State.songs : []) || [])
+  const songs = (typeof State !== 'undefined' ? State.songs : []) || [];
+  let best = [];
+  for (const song of songs)
+    for (const c of (song.cues || [])) {
+      const keys = Object.keys(c.extra || {}).filter(k => c.extra[k]);
+      if (keys.length > best.length) best = keys;
+    }
+  const out = [...best];
+  for (const song of songs)
     for (const c of (song.cues || []))
-      for (const k in (c.extra || {})) if (c.extra[k]) set.add(k);
-  return [...set].sort();
+      for (const k in (c.extra || {}))
+        if (c.extra[k] && !out.includes(k)) out.push(k);
+  return out;
 }
-// Deterministic colour for a custom type name (base types have fixed colours).
+// Deterministic colour for a cue-type name (hashed hue — stable per name).
 function cueTypeColour(type) {
-  const base = { stage:'#F59E0B', host:'#3B82F6', conductor:'#8B5CF6', camera:'#06B6D4', description:'#8A8F98' };
-  if (base[type]) return base[type];
-  let h = 0; for (let i = 0; i < type.length; i++) h = (h * 31 + type.charCodeAt(i)) >>> 0;
+  let h = 0; for (let i = 0; i < String(type).length; i++) h = (h * 31 + type.charCodeAt(i)) >>> 0;
   return `hsl(${h % 360} 70% 55%)`;
+}
+// <option> markup for every cue type the show uses, with `selected` marked.
+// opts.extra prepends fixed choices, e.g. [['any','Auto'],['all','All cues']].
+function cueTypeOptionsHTML(selected, opts) {
+  const e = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fixed = ((opts && opts.extra) || [])
+    .map(([v, l]) => `<option value="${e(v)}"${v === selected ? ' selected' : ''}>${e(l)}</option>`).join('');
+  const types = customCueTypes()
+    .map(t => `<option value="${e(t)}"${t === selected ? ' selected' : ''}>${e(t)}</option>`).join('');
+  return fixed + types;
+}
+// Resolve a stored type against what the show actually has now; if it's gone
+// (different sheet loaded), fall back to the Nth available type.
+function resolveCueType(current, fallbackIndex) {
+  const types = customCueTypes();
+  if (types.includes(current)) return current;
+  return types[fallbackIndex || 0] || types[0] || '';
 }
 
 // ── TC / duration helpers ─────────────────────────────────────────────────────
@@ -101,7 +124,7 @@ function getCurrentCue(song) {
 
 // ── Global cue helpers ────────────────────────────────────────────────────────
 
-// description uses cue.description; all other types use cue[type+'Cue']
+// True when the cue has content for this spreadsheet-driven type (see cueFieldRaw).
 function _hasCueField(cue, type) {
   return !!cueFieldRaw(cue, type);
 }

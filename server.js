@@ -34,7 +34,56 @@ let config = loadJSON(CONFIG_PATH, {
   videoQuality: 6
 });
 
+// Normalised just below, once LEGACY_FIELD_NAMES and normalizeSongs exist
+// (const declarations aren't hoisted, so the call can't precede them).
 let songs = loadJSON(SONGS_PATH, []);
+
+// Cue content is spreadsheet-driven and lives in cue.extra keyed by column
+// name; outputs live in cue.triggers (an array). Older show files used fixed
+// fields (stageCue/hostCue/…) and single cue.osc / cue.artnet objects — fold
+// those into the new shape on the way in. Idempotent: safe to run repeatedly.
+const LEGACY_FIELD_NAMES = {
+  stageCue: 'Stage Cue', hostCue: 'Host Cue', conductorCue: 'Conductor Cue',
+  cameraCue: 'Camera Cue', description: 'Description',
+};
+function normalizeCue(cue) {
+  if (!cue || typeof cue !== 'object') return cue;
+  // Fixed fields → extra columns (preserving a sensible left-to-right order).
+  const hasLegacyField = Object.keys(LEGACY_FIELD_NAMES).some(k => k in cue);
+  if (hasLegacyField || typeof cue.extra !== 'object' || cue.extra === null) {
+    const merged = {};
+    for (const [key, name] of Object.entries(LEGACY_FIELD_NAMES)) {
+      const v = typeof cue[key] === 'string' ? cue[key].trim() : '';
+      if (v && !(name in merged)) merged[name] = v;
+      delete cue[key];
+    }
+    for (const k in (cue.extra || {})) if (!(k in merged)) merged[k] = cue.extra[k];
+    cue.extra = merged;
+  }
+  // Single osc/artnet objects → triggers array.
+  if (!Array.isArray(cue.triggers)) {
+    const trigs = [];
+    if (cue.osc && (cue.osc.enabled || cue.osc.destination || cue.osc.address))
+      trigs.push({ kind: 'osc', ...cue.osc });
+    if (cue.artnet && (cue.artnet.enabled || cue.artnet.destination))
+      trigs.push({ kind: 'artnet', ...cue.artnet });
+    cue.triggers = trigs;
+  }
+  delete cue.osc; delete cue.artnet;
+  cue.triggers = cue.triggers.map(t => ({ enabled: !!t.enabled, preRollFrames: 0, ...t, kind: t.kind || 'osc' }));
+  return cue;
+}
+function normalizeSongs(list) {
+  for (const song of (Array.isArray(list) ? list : []))
+    for (const cue of (song.cues || [])) normalizeCue(cue);
+  return Array.isArray(list) ? list : [];
+}
+// First non-empty cue field — a human label for logs.
+function cueLabel(cue) {
+  for (const k in (cue.extra || {})) if (cue.extra[k]) return cue.extra[k];
+  return '';
+}
+normalizeSongs(songs);   // migrate legacy show files loaded above, in place
 
 function loadJSON(filePath, defaults) {
   try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
@@ -534,58 +583,58 @@ function checkCueFires(nowFrames) {
     for (const cue of (song.cues || [])) {
       const cueFrames = songFrames + TC.parse(cue.offset || '00:00:00:00');
 
-      if (cue.osc?.enabled) {
-        const key    = `osc-${cue.id}`;
-        const fireAt = cueFrames - (cue.osc.preRollFrames || 0);
+      // Every cue can carry any number of triggers. Each is keyed by cue id +
+      // its index so one cue's triggers fire independently.
+      cueTriggers(cue).forEach((trig, ti) => {
+        if (!trig || !trig.enabled) return;
+        const key    = `${cue.id}-${ti}`;
+        const fireAt = cueFrames - (trig.preRollFrames || 0);
         // Fire on threshold-crossing with a 10s late allowance: a GC pause or
-        // busy Pi must delay a cue, never silently drop it. The ceiling stops
-        // a large TC seek from replaying ancient cues.
+        // busy Pi must delay a trigger, never silently drop it. The ceiling
+        // stops a large TC seek from replaying ancient cues.
         if (nowFrames >= fireAt && nowFrames < fireAt + FRAME_RATE_FIRE_WINDOW && !firedOutputs.has(key)) {
           firedOutputs.add(key);
-          if (nowFrames > fireAt + 5) flightLog('LATE-FIRE', `osc cue ${cue.id} ${(nowFrames - fireAt)} frames late`);
-          fireOSC(cue);
+          if (nowFrames > fireAt + 5) flightLog('LATE-FIRE', `${trig.kind} cue ${cue.id} ${(nowFrames - fireAt)} frames late`);
+          fireTrigger(cue, trig);
         }
-      }
-      if (cue.artnet?.enabled) {
-        const key    = `artnet-${cue.id}`;
-        const fireAt = cueFrames - (cue.artnet.preRollFrames || 0);
-        if (nowFrames >= fireAt && nowFrames < fireAt + FRAME_RATE_FIRE_WINDOW && !firedOutputs.has(key)) {
-          firedOutputs.add(key);
-          if (nowFrames > fireAt + 5) flightLog('LATE-FIRE', `artnet cue ${cue.id} ${(nowFrames - fireAt)} frames late`);
-          fireArtNet(cue);
-        }
-      }
+      });
     }
   }
 }
 
-// ── OSC output ────────────────────────────────────────────────────────────────
-let oscModule = null;
-try { oscModule = require('./output/osc'); } catch {}
-
-function fireOSC(cue) {
-  const dest = config.oscDestinations?.[cue.osc.destination];
-  if (!dest) { logOutput('osc', cue.id, false, `Unknown destination: ${cue.osc.destination}`); return; }
-  if (oscModule) {
-    oscModule.send(dest.host, dest.port, cue.osc.address, cue.osc.args,
-      (err) => logOutput('osc', cue.id, !err, err?.message));
-  } else {
-    logOutput('osc', cue.id, false, 'OSC module not available');
-  }
+// A cue's outputs. Kept tolerant of legacy shapes (cue.osc / cue.artnet) so a
+// stale file that skipped normalisation still fires.
+function cueTriggers(cue) {
+  if (Array.isArray(cue.triggers)) return cue.triggers;
+  const out = [];
+  if (cue.osc)    out.push({ kind: 'osc',    ...cue.osc });
+  if (cue.artnet) out.push({ kind: 'artnet', ...cue.artnet });
+  return out;
 }
 
-// ── ArtNet output ─────────────────────────────────────────────────────────────
+// ── Output modules ────────────────────────────────────────────────────────────
+let oscModule = null;
+try { oscModule = require('./output/osc'); } catch {}
 let artnetModule = null;
 try { artnetModule = require('./output/artnet-out'); } catch {}
 
-function fireArtNet(cue) {
-  const dest = config.artnetDestinations?.[cue.artnet.destination];
-  if (!dest) { logOutput('artnet', cue.id, false, `Unknown destination: ${cue.artnet.destination}`); return; }
-  if (artnetModule) {
-    artnetModule.send(dest.host, cue.artnet.universe, cue.artnet.channel, cue.artnet.value,
+// Fire one trigger of any kind. New kinds slot in here without touching the
+// engine above.
+function fireTrigger(cue, trig) {
+  if (trig.kind === 'osc') {
+    const dest = config.oscDestinations?.[trig.destination];
+    if (!dest) { logOutput('osc', cue.id, false, `Unknown destination: ${trig.destination}`); return; }
+    if (!oscModule) { logOutput('osc', cue.id, false, 'OSC module not available'); return; }
+    oscModule.send(dest.host, dest.port, trig.address, trig.args,
+      (err) => logOutput('osc', cue.id, !err, err?.message));
+  } else if (trig.kind === 'artnet') {
+    const dest = config.artnetDestinations?.[trig.destination];
+    if (!dest) { logOutput('artnet', cue.id, false, `Unknown destination: ${trig.destination}`); return; }
+    if (!artnetModule) { logOutput('artnet', cue.id, false, 'ArtNet module not available'); return; }
+    artnetModule.send(dest.host, trig.universe, trig.channel, trig.value,
       (err) => logOutput('artnet', cue.id, !err, err?.message));
   } else {
-    logOutput('artnet', cue.id, false, 'ArtNet module not available');
+    logOutput(trig.kind || 'trigger', cue.id, false, `Unknown trigger kind: ${trig.kind}`);
   }
 }
 
@@ -705,7 +754,7 @@ function handleClientMessage(ws, msg) {
       const file = path.join(SHOWS_DIR, slug + '.json');
       if (!slug || !fs.existsSync(file)) { safeSend(ws, { type: 'error', message: 'Show not found' }); return; }
       try {
-        songs = JSON.parse(fs.readFileSync(file, 'utf8'));
+        songs = normalizeSongs(JSON.parse(fs.readFileSync(file, 'utf8')));
         saveJSON(SONGS_PATH, songs);      // loading a show IS the new live state
         firedOutputs.clear();
         flightLog('SHOW-LOADED', slug);
@@ -744,16 +793,19 @@ function handleClientMessage(ws, msg) {
         if (fired) break;
       }
       if (!fired) { safeSend(ws, { type: 'error', message: 'Cue not found' }); return; }
-      if (fired.cue.osc?.enabled)    { firedOutputs.add(`osc-${fired.cue.id}`);    fireOSC(fired.cue); }
-      if (fired.cue.artnet?.enabled) { firedOutputs.add(`artnet-${fired.cue.id}`); fireArtNet(fired.cue); }
-      flightLog('MANUAL-FIRE', `cue ${fired.cue.id} (${fired.cue.stageCue || fired.cue.hostCue || fired.cue.description || ''})`);
+      cueTriggers(fired.cue).forEach((trig, ti) => {
+        if (!trig || !trig.enabled) return;
+        firedOutputs.add(`${fired.cue.id}-${ti}`);
+        fireTrigger(fired.cue, trig);
+      });
+      flightLog('MANUAL-FIRE', `cue ${fired.cue.id} (${cueLabel(fired.cue)})`);
       broadcast({ type: 'manual_cue', cue: fired.cue, songId: fired.song.id, atFrames: TC.currentFrames() });
       break;
     }
 
     case 'save_songs': {
       if (!verifyEdit(ws, msg)) return;
-      songs = msg.songs;
+      songs = normalizeSongs(msg.songs);
       // Normalise cue order within each song regardless of which client saved:
       // cue playback walks the array and stops at the first future offset, so
       // an out-of-order list silently skips cues mid-show.
@@ -1029,15 +1081,10 @@ app.get('/api/export/xlsx', (_req, res) => {
     rows.push({ Type: 'SONG', TC: song.timecode, 'Track Name': song.trackName,
       Duration: song.duration, BPM: song.bpm, Description: song.description });
     for (const cue of (song.cues || [])) {
-      rows.push({ Type: 'CUE', Offset: cue.offset, 'Stage Cue': cue.stageCue,
-        'Host Cue': cue.hostCue, 'Conductor Cue': cue.conductorCue,
-        'Camera Cue': cue.cameraCue, Description: cue.description, 'Cue Duration': cue.duration || '',
-        // Custom cue types (imported sheet columns) round-trip via their own columns.
+      rows.push({ Type: 'CUE', Offset: cue.offset, 'Cue Duration': cue.duration || '',
+        // Every cue-type column round-trips under its own header, in sheet order.
         ...(cue.extra || {}),
-        'OSC En': cue.osc?.enabled, 'OSC Addr': cue.osc?.address,
-        'OSC Args': cue.osc?.args, 'OSC Dest': cue.osc?.destination,
-        'AN En': cue.artnet?.enabled, 'AN Uni': cue.artnet?.universe,
-        'AN Ch': cue.artnet?.channel, 'AN Val': cue.artnet?.value });
+        Triggers: (cue.triggers || []).filter(t => t.enabled).map(t => t.kind).join(', ') });
     }
   }
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -1127,19 +1174,19 @@ function parseSynthonySheet(rows) {
   }
 
   function blankCue(fields) {
-    return { id: uid(), offset: '00:00:00:00', stageCue: '', hostCue: '', conductorCue: '',
-      cameraCue: '', duration: '', description: '', extra: {}, ...fields,
-      osc: { enabled: false, address: '', args: '', destination: '', preRollFrames: 0 },
-      artnet: { enabled: false, universe: 0, channel: 1, value: 0, destination: '', preRollFrames: 0 } };
+    return { id: uid(), offset: '00:00:00:00', duration: '', extra: {}, triggers: [], ...fields };
   }
 
-  // Header-driven custom cue types: any column past the known ones (index >= 10)
-  // becomes a custom cue type keyed by its header text (e.g. "LASERS, FIRE,
-  // PYRO", or a "Flames" column the user adds). Returns { headerName: value }.
+  // Cue types are entirely header-driven. Columns 0–3 are the structural
+  // skeleton (TC / duration / track / BPM); every column from index 4 onward is
+  // a cue type keyed by its header text ("Stage Cue", "Camera Cues / Key
+  // Moments", "Lasers, Fire, Pyro", or anything the sheet adds). Order is
+  // preserved so the editor shows columns in spreadsheet order.
   const header = (rows[0] || []).map(x => String(x || '').trim());
+  const FIRST_CUE_COL = 4;
   function extraFrom(r) {
     const ex = {};
-    for (let c = 10; c < header.length; c++) {
+    for (let c = FIRST_CUE_COL; c < header.length; c++) {
       const name = header[c];
       const val  = String(r[c] || '').trim();
       if (name && val) ex[name] = val;
@@ -1157,34 +1204,24 @@ function parseSynthonySheet(rows) {
     const r = rows[i];
     if (i === 0) continue; // header row
 
-    const tc       = parseTCStr(r[0]);
+    const tc        = parseTCStr(r[0]);
     const trackName = String(r[2] || '').trim();
     const duration  = parseDurStr(r[1]);
     const bpm       = parseInt(String(r[3] || '')) || null;
-    const desc      = String(r[4] || '').trim();
-    const stageCue  = String(r[5] || '').trim();
-    const hostCue   = String(r[6] || '').trim();
-    const conductorCue = String(r[7] || '').trim();
-    const cameraNotes  = String(r[8] || '').trim(); // "give camera cue at" — informational
-    const cameraCue    = String(r[9] || '').trim(); // camera cues / key moments
-    const pyro         = String(r[10] || '').trim();
+    const desc      = String(r[4] || '').trim();   // column 4 doubles as the track's own description
+    const extra     = extraFrom(r);                // every cue-type column (index >= 4), in sheet order
+    const hasContent = Object.keys(extra).length > 0;
 
     const isTransition = trackName.toLowerCase().startsWith('next track');
     const isTrack = trackName && !isTransition;
 
     if (isTrack) {
       if (tc === null) { errors.push(`Row ${i+1}: track "${trackName}" has no valid TC, skipped`); continue; }
-      const trackDesc = [desc, cameraCue, pyro].filter(Boolean).join(' | ');
       currentSong = { id: uid(), timecode: toTC(tc), trackName, duration, bpm,
-        description: trackDesc, cues: [] };
+        description: desc, cues: [] };
       result.push(currentSong);
-      // Capture cue content on the track row itself.
-      const trackExtra = extraFrom(r);
-      if (stageCue || hostCue || conductorCue || desc || Object.keys(trackExtra).length) {
-        currentSong.cues.push(blankCue({ stageCue, hostCue, conductorCue,
-          cameraCue: cameraNotes || '', description: desc, extra: trackExtra,
-          duration: desc ? (duration || '') : '' }));
-      }
+      // Capture any cue content on the track row itself.
+      if (hasContent) currentSong.cues.push(blankCue({ extra }));
       continue;
     }
 
@@ -1193,22 +1230,16 @@ function parseSynthonySheet(rows) {
       currentSong = { id: uid(), timecode: toTC(tc), trackName, duration, bpm: null,
         description: desc, cues: [], isTransition: true };
       result.push(currentSong);
-      const transExtra = extraFrom(r);
-      if (stageCue || hostCue || conductorCue || Object.keys(transExtra).length) {
-        currentSong.cues.push(blankCue({ stageCue, hostCue, conductorCue, cameraCue, description: desc, extra: transExtra }));
-      }
+      if (hasContent) currentSong.cues.push(blankCue({ extra }));
       continue;
     }
 
     // Cue row (empty track name)
-    const cueExtra = extraFrom(r);
-    const hasCue = stageCue || hostCue || conductorCue || cameraCue || Object.keys(cueExtra).length;
-    if (!hasCue) continue;
+    if (!hasContent) continue;
     if (tc === null) { errors.push(`Row ${i+1}: cue row has no TC, skipped`); continue; }
     const target = currentSong || preShow;
     const offset = Math.max(0, tc - tcToSec(target.timecode));
-    target.cues.push(blankCue({ offset: toTC(offset), stageCue, hostCue, conductorCue,
-      cameraCue: cameraCue || cameraNotes, description: desc, extra: cueExtra }));
+    target.cues.push(blankCue({ offset: toTC(offset), extra }));
   }
 
   if (errors.length) console.warn('[Import] Warnings:\n' + errors.join('\n'));

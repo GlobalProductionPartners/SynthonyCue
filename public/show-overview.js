@@ -18,7 +18,6 @@ function _ovEsc(s) {
   return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
-const OV_TYPES  = ['stage', 'host', 'conductor', 'camera', 'description'];
 let _ovTypeSig = '';
 function _ovSyncTypeOptions() {
   const sel = document.getElementById('ov-cue-type-sel');
@@ -28,12 +27,10 @@ function _ovSyncTypeOptions() {
   if (sig === _ovTypeSig) return;
   _ovTypeSig = sig;
   const cur = sel.value;
-  const base = '<option value="any">Auto</option><option value="all">All cues</option>'
-    + ['stage','host','conductor','camera','description'].map(t => `<option value="${t}">${t[0].toUpperCase()+t.slice(1)}</option>`).join('');
+  const base = '<option value="any">Auto</option><option value="all">All cues</option>';
   sel.innerHTML = base + custom.map(t => `<option value="${_ovEsc(t)}">${_ovEsc(t)}</option>`).join('');
   sel.value = cur;
 }
-const OV_COLOUR = { stage:'#F59E0B', host:'#3B82F6', conductor:'#8B5CF6', camera:'#06B6D4', description:'#8A8F98' };
 
 // Rows to show for one cue under the current filter.
 //   'all'  → one row per populated field (stage, host, …)

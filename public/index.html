@@ -307,13 +307,21 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 }
 #cue-table input[type="checkbox"] { accent-color: var(--cyan); }
 #cue-table select { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; padding: 2px 6px; }
-.btn-fire-toggle { font-size: 13px; }
-.btn-fire-toggle.on { color: var(--warn); border-color: var(--warn); }
-.editor-fire-row td { background: var(--bg2); padding: 8px 12px 8px 40px; }
-.fire-editor { display: flex; flex-direction: column; gap: 10px; }
-.fire-block { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.fire-en { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
-.fire-editor input { font-size: 12px; }
+.btn-trig-toggle { font-size: 12px; font-family: var(--font-tc); }
+.btn-trig-toggle.on { color: var(--warn); border-color: var(--warn); }
+.btn-trig-add { margin-top: 4px; color: var(--cyan); border-color: var(--border-str); }
+.btn-trig-add:hover { border-color: var(--cyan); }
+.editor-trig-row td { background: var(--bg2); padding: 8px 12px 8px 40px; }
+.trig-editor { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
+.trig-block { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0; width: 100%; }
+.btn-trig-add { align-self: flex-start; }
+.trig-kind { font-weight: 600; }
+.trig-en { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.trig-empty { font-size: 12px; color: var(--dim); font-style: italic; }
+.trig-editor input, .trig-editor select { font-size: 12px; }
+/* The table gives every input width:100%; trigger fields must size to content
+   so a trigger lays out as one horizontal row, not a stack. */
+#cue-table .trig-block input, #cue-table .trig-block select { width: auto; }
 .tc-input { font-family: var(--font-tc) !important; color: var(--cyan) !important; width: 90px !important; }
 .col-track   { color: var(--green); font-weight: 600; }
 .col-stage   { color: var(--orange); }
@@ -1325,7 +1333,7 @@ const Dash = {
     const cc = document.getElementById('dash-current');
     cc.querySelector('.cue-card-tc').textContent   = curSong?.timecode || '—';
     cc.querySelector('.cue-card-name').textContent = curSong?.trackName || 'No active song';
-    cc.querySelector('.cue-card-text').textContent = curCue?.stageCue || curCue?.description || '';
+    cc.querySelector('.cue-card-text').textContent = Object.values(curCue?.extra || {}).find(Boolean) || '';
 
     // Next cue card
     const nc = document.getElementById('dash-next');
@@ -1333,7 +1341,7 @@ const Dash = {
       const absTC = formatTC(nextGlobal.absFrames);
       nc.querySelector('.cue-card-tc').textContent   = absTC;
       nc.querySelector('.cue-card-name').textContent = nextGlobal.song.trackName;
-      nc.querySelector('.cue-card-text').textContent = nextGlobal.cue.stageCue || nextGlobal.cue.cameraCue || '';
+      nc.querySelector('.cue-card-text').textContent = Object.values(nextGlobal.cue.extra || {}).find(Boolean) || '';
       document.getElementById('dash-countdown').textContent = countdownStr(nextGlobal.absFrames);
     } else {
       nc.querySelector('.cue-card-tc').textContent   = nextSong?.timecode || '—';
@@ -1515,27 +1523,46 @@ const Shows = {
 };
 
 const Stage = {
-  slots: { a: 'stage', b: 'host' },
+  slots: { a: localStorage.getItem('slot-a-type') || null, b: localStorage.getItem('slot-b-type') || null },
+
+  // Rebuild both slot pickers from the show's actual cue types and resolve each
+  // slot to a valid type (slot A → first type, slot B → second, if present).
+  syncTypes() {
+    for (const slot of ['a', 'b']) {
+      const sel = document.getElementById(`slot-${slot}-type`);
+      if (!sel) continue;
+      const v = resolveCueType(this.slots[slot], slot === 'b' ? 1 : 0);
+      this.slots[slot] = v;
+      sel.innerHTML = cueTypeOptionsHTML(v) || '<option value="">— no cue types —</option>';
+      sel.value = v;
+      const badge = document.getElementById(`slot-${slot}-badge`);
+      if (badge) { badge.textContent = (v || '—').toUpperCase(); badge.className = 'stage-slot-type'; badge.style.color = v ? cueTypeColour(v) : ''; }
+    }
+  },
 
   setSlotType(slot, type) {
     this.slots[slot] = type;
-    const badge = document.getElementById(`slot-${slot}-badge`);
-    if (badge) { badge.textContent = type.toUpperCase(); badge.className = `stage-slot-type slot-${type}`; }
-    const sel = document.getElementById(`slot-${slot}-type`);
-    if (sel) sel.value = type;
-    this.render();
     localStorage.setItem(`slot-${slot}-type`, type);
+    this.render();
     sendScreenUpdate();
   },
 
-  render() { renderStage(this.slots); }
+  render() { this.syncTypes(); renderStage(this.slots); }
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CAMERA
 // ══════════════════════════════════════════════════════════════════════════════
 const Camera = {
-  type: localStorage.getItem('camera-type') || 'camera',
+  type: localStorage.getItem('camera-type') || null,
+
+  syncTypes() {
+    const sel = document.getElementById('camera-type');
+    const v = resolveCueType(this.type, 0);
+    this.type = v;
+    if (sel) { sel.innerHTML = cueTypeOptionsHTML(v) || '<option value="">—</option>'; sel.value = v; }
+    return v;
+  },
 
   setType(type) {
     this.type = type;
@@ -1545,9 +1572,9 @@ const Camera = {
   },
 
   render() {
+    const type   = this.syncTypes();
     const song   = getCurrentSong();
     const curCue = getCurrentCue(song);
-    const type   = this.type;
     const nextG  = getNextCueGlobal(type);
     document.getElementById('camera-label').textContent     = song?.trackName || '—';
     const _camCue  = document.getElementById('camera-cue');
@@ -1623,22 +1650,21 @@ const Conductor = {
 // EDITOR
 // ══════════════════════════════════════════════════════════════════════════════
 const Editor = {
+  _openTrig: new Set(),   // cue ids whose trigger editor is expanded
+
   // Render the full table from scratch
   render() {
     const tbody = document.getElementById('cue-tbody');
     const songs = State.localSongs || State.songs;
-    const custom = (typeof customCueTypes === 'function') ? customCueTypes() : [];
-    const totalCols = 9 + custom.length + 2;   // 9 base + custom + Fire + Actions
+    const types = (typeof customCueTypes === 'function') ? customCueTypes() : [];
+    const totalCols = 4 + types.length + 2;   // TC/Track/Dur/BPM + type cols + Triggers + Actions
 
-    // Rebuild the header to include a column per custom cue type.
+    // The header is entirely spreadsheet-driven: one column per cue type in use.
     const htr = document.querySelector('#cue-table thead tr');
     if (htr) htr.innerHTML =
       `<th>TC / Offset</th><th>Song / Track</th><th>Duration</th><th>BPM</th>` +
-      `<th class="col-stage">Stage Cue</th><th class="col-host">Host Cue</th>` +
-      `<th class="col-conductor">Conductor</th><th class="col-camera">Camera Cue</th>` +
-      `<th class="col-desc">Description</th>` +
-      custom.map(t => `<th style="color:${cueTypeColour(t)}">${esc(t)}</th>`).join('') +
-      `<th>Fire</th><th></th>`;
+      types.map(t => `<th style="color:${cueTypeColour(t)}">${esc(t)}</th>`).join('') +
+      `<th>Triggers</th><th></th>`;
 
     if (!songs.length) {
       tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center;padding:32px;color:var(--dim)">No songs. Import an XLSX or click + Add Song.</td></tr>`;
@@ -1650,9 +1676,34 @@ const Editor = {
     const destOpts = (list, sel) => `<option value="">— dest —</option>` +
       list.map(d => `<option value="${esc(d)}"${d === sel ? ' selected' : ''}>${esc(d)}</option>`).join('');
 
+    // The expandable output editor for one cue: a list of triggers, each of any
+    // kind, plus an add button. Any cue can carry any number.
+    const trigEditor = (cue, si, ci) => {
+      const trigs = cue.triggers || [];
+      const blocks = trigs.map((t, ti) => {
+        const kind = t.kind || 'osc';
+        const head = `<select class="trig-kind" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:kind">
+            <option value="osc"${kind==='osc'?' selected':''}>OSC</option>
+            <option value="artnet"${kind==='artnet'?' selected':''}>Art-Net</option></select>
+          <label class="trig-en"><input type="checkbox" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:enabled" ${t.enabled?'checked':''}> on</label>`;
+        const body = kind === 'artnet'
+          ? `<select data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:destination">${destOpts(anDests, t.destination)}</select>
+             <input type="number" placeholder="universe" value="${t.universe||0}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:universe" style="width:80px">
+             <input type="number" placeholder="channel" value="${t.channel||1}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:channel" style="width:70px">
+             <input type="number" placeholder="value" value="${t.value||0}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:value" style="width:70px">
+             <input type="number" title="pre-roll frames" placeholder="pre-roll" value="${t.preRollFrames||0}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:preRollFrames" style="width:70px">`
+          : `<select data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:destination">${destOpts(oscDests, t.destination)}</select>
+             <input type="text" placeholder="/address" value="${esc(t.address||'')}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:address" style="min-width:140px">
+             <input type="text" placeholder="args (space-sep)" value="${esc(t.args||'')}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:args" style="min-width:120px">
+             <input type="number" title="pre-roll frames" placeholder="pre-roll" value="${t.preRollFrames||0}" data-si="${si}" data-ci="${ci}" data-field="trig:${ti}:preRollFrames" style="width:70px">`;
+        return `<div class="trig-block">${head}${body}<button class="row-btn del btn-trig-del" data-si="${si}" data-ci="${ci}" data-ti="${ti}" title="Remove trigger">✕</button></div>`;
+      }).join('');
+      return `<div class="trig-editor">${blocks || '<span class="trig-empty">No triggers on this cue yet.</span>'}<button class="row-btn btn-trig-add" data-si="${si}" data-ci="${ci}">+ Add trigger</button></div>`;
+    };
+
     let html = '';
     songs.forEach((song, si) => {
-      const noteSpan = 5 + custom.length + 1;   // Stage…Description + custom + Fire
+      const noteSpan = types.length + 1;   // type columns + Triggers
       html += `<tr class="editor-song-row" data-si="${si}">
         <td><input class="tc-input" type="text" value="${esc(song.timecode)}" data-si="${si}" data-field="timecode" placeholder="HH:MM:SS:FF" style="width:105px"></td>
         <td><input class="col-track" type="text" value="${esc(song.trackName)}" data-si="${si}" data-field="trackName" style="min-width:180px;font-weight:700"></td>
@@ -1667,41 +1718,19 @@ const Editor = {
         </div></td>
       </tr>`;
       (song.cues || []).forEach((cue, ci) => {
-        const fires = !!(cue.osc?.enabled || cue.artnet?.enabled);
+        const trigs = cue.triggers || [];
+        const anyOn = trigs.some(t => t.enabled);
+        const open  = this._openTrig.has(cue.id);
         html += `<tr class="editor-cue-row" data-si="${si}" data-ci="${ci}">
           <td style="padding-left:28px"><input type="text" value="${esc(cue.offset)}" data-si="${si}" data-ci="${ci}" data-field="offset" style="width:95px;font-family:var(--font-tc);font-size:12px;color:var(--dim)"></td>
           <td></td>
           <td><input type="text" value="${esc(cue.duration||'')}" data-si="${si}" data-ci="${ci}" data-field="duration" style="width:55px;font-size:12px" placeholder="m:ss"></td>
-          <td></td>
-          <td><input class="col-stage"     type="text" value="${esc(cue.stageCue)}"     data-si="${si}" data-ci="${ci}" data-field="stageCue"     style="min-width:100px"></td>
-          <td><input class="col-host"      type="text" value="${esc(cue.hostCue)}"      data-si="${si}" data-ci="${ci}" data-field="hostCue"      style="min-width:100px"></td>
-          <td><input class="col-conductor" type="text" value="${esc(cue.conductorCue)}" data-si="${si}" data-ci="${ci}" data-field="conductorCue" style="min-width:100px"></td>
-          <td><input class="col-camera"    type="text" value="${esc(cue.cameraCue)}"    data-si="${si}" data-ci="${ci}" data-field="cameraCue"    style="min-width:100px"></td>
-          <td><input class="col-desc"      type="text" value="${esc(cue.description)}"  data-si="${si}" data-ci="${ci}" data-field="description"  style="min-width:120px;color:var(--dim)"></td>` +
-          custom.map(t => `<td><input type="text" value="${esc((cue.extra||{})[t]||'')}" data-si="${si}" data-ci="${ci}" data-field="extra:${esc(t)}" style="min-width:90px" placeholder="—"></td>`).join('') +
-          `<td><button class="row-btn btn-fire-toggle${fires ? ' on' : ''}" data-si="${si}" data-ci="${ci}" title="Configure OSC / Art-Net output">⚡</button></td>
+          <td></td>` +
+          types.map(t => `<td><input type="text" value="${esc((cue.extra||{})[t]||'')}" data-si="${si}" data-ci="${ci}" data-field="extra:${esc(t)}" style="min-width:90px" placeholder="—"></td>`).join('') +
+          `<td><button class="row-btn btn-trig-toggle${anyOn ? ' on' : ''}" data-si="${si}" data-ci="${ci}" title="Add / edit triggers">${trigs.length ? '⚡ ' + trigs.length : '＋'}</button></td>
           <td><button class="row-btn del btn-del-cue" data-si="${si}" data-ci="${ci}">✕</button></td>
         </tr>`;
-        // Collapsed output editor — any cue can fire OSC and/or Art-Net.
-        html += `<tr class="editor-fire-row" id="fire-${si}-${ci}" style="display:none"><td colspan="${totalCols}">
-          <div class="fire-editor">
-            <div class="fire-block">
-              <label class="fire-en"><input type="checkbox" data-si="${si}" data-ci="${ci}" data-field="osc.enabled" ${cue.osc?.enabled ? 'checked' : ''}> OSC</label>
-              <select data-si="${si}" data-ci="${ci}" data-field="osc.destination">${destOpts(oscDests, cue.osc?.destination)}</select>
-              <input type="text" placeholder="/address" value="${esc(cue.osc?.address||'')}" data-si="${si}" data-ci="${ci}" data-field="osc.address" style="min-width:140px">
-              <input type="text" placeholder="args (space-sep)" value="${esc(cue.osc?.args||'')}" data-si="${si}" data-ci="${ci}" data-field="osc.args" style="min-width:120px">
-              <input type="number" title="pre-roll frames" placeholder="pre-roll" value="${cue.osc?.preRollFrames||0}" data-si="${si}" data-ci="${ci}" data-field="osc.preRollFrames" style="width:70px">
-            </div>
-            <div class="fire-block">
-              <label class="fire-en"><input type="checkbox" data-si="${si}" data-ci="${ci}" data-field="artnet.enabled" ${cue.artnet?.enabled ? 'checked' : ''}> Art-Net</label>
-              <select data-si="${si}" data-ci="${ci}" data-field="artnet.destination">${destOpts(anDests, cue.artnet?.destination)}</select>
-              <input type="number" placeholder="universe" value="${cue.artnet?.universe||0}" data-si="${si}" data-ci="${ci}" data-field="artnet.universe" style="width:80px">
-              <input type="number" placeholder="channel" value="${cue.artnet?.channel||1}" data-si="${si}" data-ci="${ci}" data-field="artnet.channel" style="width:70px">
-              <input type="number" placeholder="value" value="${cue.artnet?.value||0}" data-si="${si}" data-ci="${ci}" data-field="artnet.value" style="width:70px">
-              <input type="number" title="pre-roll frames" placeholder="pre-roll" value="${cue.artnet?.preRollFrames||0}" data-si="${si}" data-ci="${ci}" data-field="artnet.preRollFrames" style="width:70px">
-            </div>
-          </div>
-        </td></tr>`;
+        html += `<tr class="editor-trig-row" id="trig-${si}-${ci}" style="display:${open ? '' : 'none'}"><td colspan="${totalCols}">${trigEditor(cue, si, ci)}</td></tr>`;
       });
     });
     tbody.innerHTML = html;
@@ -1756,15 +1785,17 @@ const Editor = {
         const name = field.slice(6);
         if (!target.extra) target.extra = {};
         target.extra[name] = value;
-      } else if (field.includes('.')) {                    // osc.x / artnet.x
-        const [grp, key] = field.split('.');
-        if (!target[grp]) target[grp] = {};
+      } else if (field.startsWith('trig:')) {              // trig:<index>:<key>
+        const parts = field.split(':');
+        const ti = parseInt(parts[1]), key = parts[2];
+        if (!Array.isArray(target.triggers)) target.triggers = [];
+        if (!target.triggers[ti]) target.triggers[ti] = { kind: 'osc', enabled: false };
         const numeric = ['universe', 'channel', 'value', 'preRollFrames'];
-        target[grp][key] = numeric.includes(key) ? (parseInt(inp.value) || 0) : value;
-        // Reflect fire state on the toggle button.
+        target.triggers[ti][key] = numeric.includes(key) ? (parseInt(inp.value) || 0) : value;
+        if (key === 'kind') { this.markDirty(); this.render(); return; }  // fields differ by kind
         if (key === 'enabled') {
-          const row = document.querySelector(`.btn-fire-toggle[data-si="${si}"][data-ci="${ci}"]`);
-          if (row) row.classList.toggle('on', !!(target.osc?.enabled || target.artnet?.enabled));
+          const btn = document.querySelector(`.btn-trig-toggle[data-si="${si}"][data-ci="${ci}"]`);
+          if (btn) btn.classList.toggle('on', target.triggers.some(t => t.enabled));
         }
       } else {
         target[field] = value;
@@ -1807,9 +1838,34 @@ const Editor = {
       const si = btn.dataset.si != null ? parseInt(btn.dataset.si) : null;
       const ci = btn.dataset.ci != null ? parseInt(btn.dataset.ci) : null;
 
-      if (btn.classList.contains('btn-fire-toggle') && si != null && ci != null) {
-        const row = document.getElementById(`fire-${si}-${ci}`);
-        if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+      if (btn.classList.contains('btn-trig-toggle') && si != null && ci != null) {
+        const cue = (State.localSongs || State.songs)[si]?.cues[ci];
+        const row = document.getElementById(`trig-${si}-${ci}`);
+        if (cue) {
+          if (this._openTrig.has(cue.id)) this._openTrig.delete(cue.id);
+          else this._openTrig.add(cue.id);
+          if (row) row.style.display = this._openTrig.has(cue.id) ? '' : 'none';
+        }
+        return;
+      }
+      if (btn.classList.contains('btn-trig-add') && si != null && ci != null) {
+        this.ensureLocal();
+        const cue = State.localSongs[si].cues[ci];
+        if (!Array.isArray(cue.triggers)) cue.triggers = [];
+        cue.triggers.push({ kind: 'osc', enabled: true, destination: '', address: '', args: '', preRollFrames: 0 });
+        this._openTrig.add(cue.id);
+        this.markDirty();
+        this.render();
+        return;
+      }
+      if (btn.classList.contains('btn-trig-del') && si != null && ci != null) {
+        const ti = parseInt(btn.dataset.ti);
+        this.ensureLocal();
+        const cue = State.localSongs[si].cues[ci];
+        (cue.triggers || []).splice(ti, 1);
+        this._openTrig.add(cue.id);
+        this.markDirty();
+        this.render();
         return;
       }
       if ((btn.classList.contains('btn-song-up') || btn.classList.contains('btn-song-down')) && si != null) {
@@ -1840,10 +1896,7 @@ const Editor = {
       } else if (btn.classList.contains('btn-add-cue') && si != null) {
         this.ensureLocal();
         State.localSongs[si].cues.push({
-          id: Date.now().toString(36), offset: '00:00:00:00',
-          stageCue: '', hostCue: '', conductorCue: '', cameraCue: '', description: '',
-          osc:    { enabled: false, address: '', args: '', destination: '', preRollFrames: 0 },
-          artnet: { enabled: false, universe: 0, channel: 1, value: 0, destination: '', preRollFrames: 0 }
+          id: Date.now().toString(36), offset: '00:00:00:00', duration: '', extra: {}, triggers: []
         });
         this.markDirty();
         this.render();
@@ -2077,9 +2130,10 @@ const Settings = {
 
     const opts = (pairs) => pairs.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
     const viewOpts  = opts([['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['video','Video'],['videofull','Video — Full Screen']]);
-    const typeOpts  = opts([['camera','Camera'],['stage','Stage Cue'],['host','Host Cue'],['conductor','Conductor'],['description','Description']]);
-    const ovOpts    = opts([['any','Auto'],['all','All cues'],['stage','Stage'],['host','Host'],['conductor','Conductor'],['camera','Camera'],['description','Description']]);
-    const wfOpts    = opts([['any','All cues'],['stage','Stage'],['host','Host'],['conductor','Conductor'],['camera','Camera'],['description','Description']]);
+    // Cue-type pickers are driven by the show's own columns.
+    const typeOpts  = cueTypeOptionsHTML();
+    const ovOpts    = cueTypeOptionsHTML(null, { extra: [['any','Auto'],['all','All cues']] });
+    const wfOpts    = cueTypeOptionsHTML(null, { extra: [['any','All cues']] });
     const scopeOpts = opts([['song','This Song'],['all','All Songs']]);
 
     const sel = (id, disabled, options) =>
@@ -2122,9 +2176,9 @@ const Settings = {
     for (const s of screens) {
       const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
       set(`sc-view-${s.id}`,  s.view || 'conductor');
-      set(`sc-slota-${s.id}`, s.slots?.a || 'stage');
-      set(`sc-slotb-${s.id}`, s.slots?.b || 'host');
-      set(`sc-cam-${s.id}`,   s.cameraType || 'camera');
+      set(`sc-slota-${s.id}`, resolveCueType(s.slots?.a, 0));
+      set(`sc-slotb-${s.id}`, resolveCueType(s.slots?.b, 1));
+      set(`sc-cam-${s.id}`,   resolveCueType(s.cameraType, 0));
       set(`sc-ov-${s.id}`,    s.ovCueType || 'any');
       set(`sc-ovs-${s.id}`,   s.ovScope || 'song');
       set(`sc-wf-${s.id}`,    s.wfCueType || 'any');
@@ -2507,7 +2561,7 @@ function esc(str) {
 // TEST VIEW — V1 Console Classic
 // ══════════════════════════════════════════════════════════════════════════════
 const TestStage = {
-  slots: { a: 'stage', b: 'host' },
+  slots: { a: localStorage.getItem('con-slot-a-type') || null, b: localStorage.getItem('con-slot-b-type') || null },
 
   setSlotType(slot, type) {
     this.slots[slot] = type;
@@ -2517,7 +2571,11 @@ const TestStage = {
     localStorage.setItem(`con-slot-${slot}-type`, type);
   },
 
-  render() { renderTestStage(this.slots); }
+  render() {
+    this.slots.a = resolveCueType(this.slots.a, 0);
+    this.slots.b = resolveCueType(this.slots.b, 1);
+    renderTestStage(this.slots);
+  }
 };
 
 function renderTestStage(slots) { renderConsoleView(slots); }
@@ -2590,7 +2648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const type = Stage.slots[btn.dataset.slot];
       const next = getNextCueGlobal(type);
       if (!next) { alert('No upcoming ' + type + ' cue to fire.'); return; }
-      const label = getField(next.cue, type) || next.cue.description || next.cue.id;
+      const label = getField(next.cue, type) || Object.values(next.cue.extra || {}).find(Boolean) || next.cue.id;
       if (!confirm(`Fire now: "${label}"?`)) return;
       wsSend({ type: 'manual_fire', cueId: next.cue.id });
     });

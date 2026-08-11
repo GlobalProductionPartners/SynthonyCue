@@ -3,15 +3,6 @@
 // width as its fire time approaches. Shared by kiosk and admin.
 // Depends on cue-utils.js: parseTC, _ovField (via show-overview), State, FR.
 
-const WF_TYPES = ['stage', 'host', 'conductor', 'camera', 'description'];
-const WF_COLOUR = {
-  stage:       '#F59E0B',  // amber
-  host:        '#3B82F6',  // blue
-  conductor:   '#8B5CF6',  // purple
-  camera:      '#06B6D4',  // cyan
-  description: '#8A8F98',  // grey
-};
-
 function _wfField(cue, type) { return cueFieldRaw(cue, type); }
 function _wfEsc(s) {
   return String(s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));

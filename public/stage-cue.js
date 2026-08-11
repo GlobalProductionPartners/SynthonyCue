@@ -4,9 +4,8 @@
 //   getNextCueGlobal, getPrevCueGlobal, durationCountdown, framesToDisplay, formatHMSF
 
 function getField(cue, type) {
-  if (!cue) return '';
-  const map = { stage: 'stageCue', host: 'hostCue', camera: 'cameraCue', conductor: 'conductorCue', description: 'description' };
-  return cue[map[type] || type] || '';
+  // All cue content is spreadsheet-driven and lives in cue.extra (see cue-utils).
+  return cueFieldRaw(cue, type);
 }
 
 function renderStage(slots, prefix = '') {

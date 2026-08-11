@@ -63,13 +63,14 @@ function loadShow(songs, tcFrames) {
   sandbox.State.tcFrames = tcFrames;
 }
 
+// Cue content is spreadsheet-driven and lives in cue.extra keyed by column name.
 const SHOW = [
   { id: 'a', trackName: 'A', timecode: '01:00:00:00', duration: '2:00', cues: [
-    { id: 'a1', offset: '00:00:05:00', stageCue: 'A-EARLY' },
-    { id: 'a2', offset: '00:01:00:00', stageCue: 'A-MID' },
+    { id: 'a1', offset: '00:00:05:00', extra: { 'Stage Cue': 'A-EARLY' } },
+    { id: 'a2', offset: '00:01:00:00', extra: { 'Stage Cue': 'A-MID' } },
   ]},
   { id: 'b', trackName: 'B', timecode: '02:00:00:00', duration: '3:00', cues: [
-    { id: 'b1', offset: '00:00:10:00', stageCue: 'B-FIRST' },
+    { id: 'b1', offset: '00:00:10:00', extra: { 'Stage Cue': 'B-FIRST' } },
   ]},
 ];
 
@@ -99,14 +100,14 @@ test('getCurrentCue respects offsets and ORDER — out-of-order lists mis-fire',
 
 test('getNextCueGlobal walks into the next song', () => {
   loadShow(SHOW, sandbox.parseTC('01:01:30:00')); // after a2
-  const next = sandbox.getNextCueGlobal('stage');
+  const next = sandbox.getNextCueGlobal('Stage Cue');
   assert.equal(next.cue.id, 'b1');
 });
 
 test('durationCountdown chains song durations, not raw TC gaps', () => {
   // 30s into A (duration 2:00) → 1:30 left in A, then B starts, b1 at +10s.
   loadShow(SHOW, sandbox.parseTC('01:00:30:00'));
-  const next = sandbox.getNextCueGlobal('stage', 1); // skip a2 → b1
+  const next = sandbox.getNextCueGlobal('Stage Cue', 1); // skip a2 → b1
   assert.equal(next.cue.id, 'b1');
   const frames = sandbox.durationCountdown(next);
   assert.equal(frames, (90 + 10) * 25); // NOT the raw hour gap to 02:00:00:00

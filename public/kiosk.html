@@ -784,7 +784,32 @@ function renderVideo() {
 
 function renderTestView() { renderConsoleView(testSlots); }
 
+// Cue types are spreadsheet-driven, so the menu pickers and the current slot /
+// camera selections are resolved against whatever columns the show has now.
+let _kioskTypeSig = null;
+function syncKioskMenuTypes() {
+  slots.a = resolveCueType(slots.a, 0);
+  slots.b = resolveCueType(slots.b, 1);
+  cameraType = resolveCueType(cameraType, 0);
+  testSlots.a = resolveCueType(testSlots.a, 0);
+  testSlots.b = resolveCueType(testSlots.b, 1);
+  const ids = { 'menu-slot-a': slots.a, 'menu-slot-b': slots.b, 'menu-cam-type': cameraType,
+                'menu-test-slot-a': testSlots.a, 'menu-test-slot-b': testSlots.b };
+  const sig = customCueTypes().join('|');
+  if (sig !== _kioskTypeSig) {
+    _kioskTypeSig = sig;
+    const opt = cueTypeOptionsHTML() || '<option value="">—</option>';
+    for (const id in ids) { const el = document.getElementById(id); if (el) el.innerHTML = opt; }
+  }
+  for (const id in ids) { const el = document.getElementById(id); if (el) el.value = ids[id]; }
+  for (const slot of ['a', 'b']) {
+    const badge = document.getElementById(`slot-${slot}-badge`);
+    if (badge) { badge.textContent = (slots[slot] || '—').toUpperCase(); badge.className = 'stage-slot-type'; badge.style.color = slots[slot] ? cueTypeColour(slots[slot]) : ''; }
+  }
+}
+
 function renderCurrent() {
+  syncKioskMenuTypes();
   document.getElementById('tc-corner').textContent = State.tc;
   const khTc = document.getElementById('kh-tc');
   if (khTc) {
@@ -833,10 +858,7 @@ function setTestSlotType(slot, type) {
 function setSlotType(slot, type) {
   slots[slot] = type;
   localStorage.setItem(`kiosk-slot-${slot}`, type);
-  const badge = document.getElementById(`slot-${slot}-badge`);
-  badge.textContent = type.toUpperCase();
-  badge.className = `stage-slot-type slot-${type}`;
-  renderCurrent();
+  renderCurrent();   // re-syncs badge + menu selects
   sendScreenUpdate();
 }
 
