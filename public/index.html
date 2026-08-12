@@ -283,6 +283,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
   border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; align-items: center;
 }
 .editor-toolbar .spacer { flex: 1; }
+.editor-total { font-family: var(--font-tc); font-size: 13px; color: var(--cyan); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.editor-total .lbl { color: var(--dim); margin-right: 6px; font-size: 11px; letter-spacing: 0.06em; }
+.editor-total .cnt { color: var(--dim); margin-left: 8px; font-size: 11px; }
 #cue-table-wrap { flex: 1; overflow: auto; }
 #cue-table {
   width: 100%; border-collapse: collapse; font-size: 12px;
@@ -715,6 +718,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <button class="btn" id="btn-show-delete">Delete</button>
         <button class="btn" id="btn-revert">Revert to Saved</button>
         <div class="spacer"></div>
+        <span id="editor-total" class="editor-total" title="Total show length — sum of all song durations"></span>
         <a class="btn" href="/logout" style="color:var(--dim)">Logout</a>
         <button class="btn primary" id="btn-save-cues">Save Songs</button>
       </div>
@@ -1023,6 +1027,22 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
     <div style="display:flex;gap:8px">
       <button class="btn primary" id="import-result-ok">OK</button>
       <button class="btn" id="import-result-cancel" style="display:none">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT CUE-TYPE PICKER -->
+<div class="modal-overlay hidden" id="import-select-modal">
+  <div class="modal" style="max-width:460px;width:90vw">
+    <h2 id="import-select-title">Import cue types</h2>
+    <p style="font-size:13px;color:var(--dim);margin:0 0 8px">Tick the columns to import as cue types. Unticked ones are left out.</p>
+    <div id="import-select-list" style="display:flex;flex-direction:column;gap:2px;max-height:320px;overflow-y:auto;margin:0 0 12px"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" id="import-select-all" style="font-size:12px">All</button>
+      <button class="btn" id="import-select-none" style="font-size:12px">None</button>
+      <div style="flex:1"></div>
+      <button class="btn" id="import-select-cancel">Cancel</button>
+      <button class="btn primary" id="import-select-ok">Import</button>
     </div>
   </div>
 </div>
@@ -1741,6 +1761,18 @@ const Editor = {
     });
     tbody.innerHTML = html;
     this.highlightCurrent();
+    this.updateTotal(songs);
+  },
+
+  // Running total show length — sum of every song's duration.
+  updateTotal(songs) {
+    const el = document.getElementById('editor-total');
+    if (!el) return;
+    songs = songs || State.localSongs || State.songs || [];
+    const frames = songs.reduce((a, s) => a + parseDuration(s.duration || ''), 0);
+    el.innerHTML = songs.length
+      ? `<span class="lbl">TOTAL</span>${formatClock(frames)}<span class="cnt">${songs.length} song${songs.length !== 1 ? 's' : ''}</span>`
+      : '';
   },
 
   _lastActiveSongId: null,
@@ -1929,6 +1961,7 @@ const Editor = {
   markDirty() {
     const b = document.getElementById('btn-save-cues');
     if (b && !b.classList.contains('dirty')) { b.classList.add('dirty'); b.textContent = 'Save Songs ●'; }
+    this.updateTotal();   // keep the total live while editing durations
   },
   clearDirty() {
     const b = document.getElementById('btn-save-cues');
@@ -2470,9 +2503,9 @@ async function importXLSX(file) {
     return;
   }
 
-  // Songs found — import immediately, show warnings as info only (non-blocking)
-  const doImport = () => {
-    wsSend({ type: 'save_songs', songs: data.songs });
+  // Save the (possibly filtered) songs, then show any skipped-row warnings.
+  const doImport = (songs) => {
+    wsSend({ type: 'save_songs', songs });
     switchTab('editor');
     if (data.warnings?.length) {
       showImportModal(
@@ -2484,7 +2517,53 @@ async function importXLSX(file) {
     }
   };
 
-  doImport();
+  // Let the operator choose which cue-type columns to bring in.
+  const types = distinctCueTypes(data.songs);
+  if (types.length <= 1) { doImport(data.songs); return; }
+  showImportSelect(types, selected => doImport(filterSongsToTypes(data.songs, selected)));
+}
+
+// Cue-type column names present across a parsed show, in first-seen (sheet) order.
+function distinctCueTypes(songs) {
+  const seen = new Set(), out = [];
+  for (const s of (songs || []))
+    for (const c of (s.cues || []))
+      for (const k in (c.extra || {}))
+        if (c.extra[k] && !seen.has(k)) { seen.add(k); out.push(k); }
+  return out;
+}
+
+// Keep only the selected cue types; drop cues left with no content.
+function filterSongsToTypes(songs, selected) {
+  return songs.map(s => {
+    const cues = (s.cues || []).map(c => {
+      const extra = {};
+      for (const k in (c.extra || {})) if (selected.has(k)) extra[k] = c.extra[k];
+      return { ...c, extra };
+    }).filter(c => Object.keys(c.extra).length > 0);
+    return { ...s, cues };
+  });
+}
+
+function showImportSelect(types, onConfirm) {
+  const overlay = document.getElementById('import-select-modal');
+  const list = document.getElementById('import-select-list');
+  document.getElementById('import-select-title').textContent = `Import cue types (${types.length})`;
+  list.innerHTML = types.map(t => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:5px 4px;border-radius:4px">
+      <input type="checkbox" data-type="${esc(t)}" checked style="accent-color:var(--cyan);width:15px;height:15px">
+      <span style="width:10px;height:10px;border-radius:50%;background:${cueTypeColour(t)};flex:0 0 auto"></span>
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t)}</span>
+    </label>`).join('');
+  const boxes = () => [...list.querySelectorAll('input[type=checkbox]')];
+  document.getElementById('import-select-all').onclick  = () => boxes().forEach(b => b.checked = true);
+  document.getElementById('import-select-none').onclick = () => boxes().forEach(b => b.checked = false);
+  document.getElementById('import-select-cancel').onclick = () => overlay.classList.add('hidden');
+  document.getElementById('import-select-ok').onclick = () => {
+    const selected = new Set(boxes().filter(b => b.checked).map(b => b.dataset.type));
+    overlay.classList.add('hidden');
+    onConfirm(selected);
+  };
+  overlay.classList.remove('hidden');
 }
 
 function showImportModal(title, msg, warnings, onOk) {

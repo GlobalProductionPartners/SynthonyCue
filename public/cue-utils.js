@@ -92,6 +92,16 @@ function formatHMSF(frames) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// Frames → clock. Shows H:MM:SS once it passes an hour, else M:SS. Used for the
+// running total show length.
+function formatClock(frames) {
+  const total = Math.round((frames || 0) / FR);
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function framesToDisplay(frames) {
   const totalSec = Math.floor(frames / FR);
   const m = Math.floor(totalSec / 60);

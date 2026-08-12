@@ -1,0 +1,3170 @@
+[
+  {
+    "id": "msp565mj",
+    "timecode": "00:00:00:00",
+    "trackName": "Show start",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565mk",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "START SHOW on show director cue (orchestra willl be tuning)",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565ml",
+    "timecode": "01:10:00:00",
+    "trackName": "1. Six60 - Don't forget your roots",
+    "duration": "4:30",
+    "bpm": 146,
+    "description": "[3 SPECIFIC STAGE CUES, OTHERWISE SCREEN / WIDE CAPTURE, CONDUCTOR SR ENTRY] | {Flames}",
+    "cues": [
+      {
+        "id": "msp565mm",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Flames}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565mn",
+        "offset": "00:02:00:00",
+        "stageCue": "Kapahaka group entrance",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565mo",
+        "offset": "00:03:28:00",
+        "stageCue": "Stand by Flames",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565mp",
+    "timecode": "01:14:10:00",
+    "trackName": "Next track - 2. Sundown",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565mq",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 2. Sundown",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565mr",
+    "timecode": "01:20:00:00",
+    "trackName": "2. Six60 - Sundown",
+    "duration": "4:01",
+    "bpm": 105,
+    "description": "{Flames}",
+    "cues": [
+      {
+        "id": "msp565ms",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Flames}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565mt",
+    "timecode": "01:23:40:00",
+    "trackName": "Next track - 3. Vibes",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565mu",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 3. Vibes",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565mv",
+    "timecode": "01:30:00:00",
+    "trackName": "3. Six60 - Vibes",
+    "duration": "3:43",
+    "bpm": 103,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565mw",
+    "timecode": "01:33:22:00",
+    "trackName": "Next track - 4. Only to be",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565mx",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 4. Only to be",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565my",
+    "timecode": "01:40:00:00",
+    "trackName": "4. Six60 - Only to be",
+    "duration": "5:28",
+    "bpm": 88,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565mz",
+    "timecode": "01:45:27:00",
+    "trackName": "Next track - 5. Someone to be around",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565n0",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 5. Someone to be around",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565n1",
+    "timecode": "01:50:00:00",
+    "trackName": "5. Six60 - Someone to be around",
+    "duration": "3:35",
+    "bpm": 142,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565n2",
+    "timecode": "01:53:14:00",
+    "trackName": "Next track - 6. Don't give up",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565n3",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 6. Don't give up",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565n4",
+    "timecode": "02:00:00:00",
+    "trackName": "6. Six60 - Don't give up",
+    "duration": "3:34",
+    "bpm": 110,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565n5",
+    "timecode": "02:03:13:00",
+    "trackName": "Next track - 7. We made it",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565n6",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 7. We made it",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565n7",
+    "timecode": "02:10:00:00",
+    "trackName": "7. Six60 - We made it",
+    "duration": "2:48",
+    "bpm": 80,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565n8",
+    "timecode": "02:12:28:00",
+    "trackName": "Next track - 8. All she wrote",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565n9",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 8. All she wrote",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565na",
+    "timecode": "02:20:00:00",
+    "trackName": "8. Six60 - All she wrote",
+    "duration": "3:39",
+    "bpm": 125,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565nb",
+    "timecode": "02:23:19:00",
+    "trackName": "Next track - 9. Enjoy the view",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nc",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 9. Enjoy the view",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565nd",
+    "timecode": "02:30:00:00",
+    "trackName": "9. Six60 - Enjoy the view",
+    "duration": "3:00",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565ne",
+    "timecode": "02:32:30:00",
+    "trackName": "Next track - 10. Special",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nf",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 10. Special",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565ng",
+    "timecode": "02:40:00:00",
+    "trackName": "10. Six60 - Special",
+    "duration": "3:21",
+    "bpm": 95,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565nh",
+    "timecode": "02:43:01:00",
+    "trackName": "Next track - 11. Raining",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ni",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 11. Raining",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565nj",
+    "timecode": "02:50:00:00",
+    "trackName": "11. Six60 - Raining",
+    "duration": "4:02",
+    "bpm": 119,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nk",
+        "offset": "00:00:40:00",
+        "stageCue": "Drax Project standing by",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565nl",
+    "timecode": "02:53:42:00",
+    "trackName": "Next track - 12. Catching feelings",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nm",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 12. Catching feelings",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565nn",
+    "timecode": "03:00:00:00",
+    "trackName": "12. Six60 - Catching feelings",
+    "duration": "3:16",
+    "bpm": 176,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565no",
+        "offset": "00:00:55:00",
+        "stageCue": "Drax Project on stage",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565np",
+    "timecode": "03:02:56:00",
+    "trackName": "Next track - 13. Fade away",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nq",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 13. Fade away",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565nr",
+    "timecode": "03:10:00:00",
+    "trackName": "13. Six60 - Fade Away",
+    "duration": "4:06",
+    "bpm": 78,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ns",
+        "offset": "00:00:11:00",
+        "stageCue": "Preset B stage",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565nt",
+    "timecode": "03:13:46:00",
+    "trackName": "Next track - 14. Purple",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nu",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 14. Purple",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565nv",
+        "offset": "00:00:11:00",
+        "stageCue": "Six60 to walk to B stage",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565nw",
+    "timecode": "03:30:00:00",
+    "trackName": "14. Six60 - Purple",
+    "duration": "4:41",
+    "bpm": 95,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nx",
+        "offset": "00:00:13:00",
+        "stageCue": "Start Six60 - Synthony change over",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565ny",
+    "timecode": "03:34:20:00",
+    "trackName": "Next track - 15. Rivers",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565nz",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 15. Rivers",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565o0",
+    "timecode": "03:40:00:00",
+    "trackName": "15. Six60 - Rivers",
+    "duration": "4:11",
+    "bpm": 78,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565o1",
+        "offset": "00:03:31:00",
+        "stageCue": "Change over 90% done check in",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565o2",
+    "timecode": "03:43:50:00",
+    "trackName": "Next track - 16. Endlessly",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565o3",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 16. Endlessly",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565o4",
+    "timecode": "03:50:00:00",
+    "trackName": "16. Six60 - Endlessly",
+    "duration": "3:27",
+    "bpm": 122,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565o5",
+        "offset": "00:00:16:00",
+        "stageCue": "Orchestra start walking on",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565o6",
+    "timecode": "04:00:00:00",
+    "trackName": "17. Fatboy Slim - Right Here Right Now (Camelphat)",
+    "duration": "3:30",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565o7",
+    "timecode": "04:03:10:00",
+    "trackName": "Next track - Swing",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565o8",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Swing",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565o9",
+    "timecode": "04:10:00:00",
+    "trackName": "18. Savage - Swing",
+    "duration": "4:13",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565oa",
+    "timecode": "04:13:53:00",
+    "trackName": "Next track - Wake me up",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ob",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Wake me up",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565oc",
+    "timecode": "04:20:00:00",
+    "trackName": "19. Avicii - Wake Me Up",
+    "duration": "4:16",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565od",
+    "timecode": "04:23:56:00",
+    "trackName": "Next track - Feel the Love",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565oe",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Feel the Love",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565of",
+    "timecode": "04:30:00:00",
+    "trackName": "20.Rudimental - Feel The Love",
+    "duration": "4:30",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565og",
+    "timecode": "04:34:10:00",
+    "trackName": "Next track - Blue",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565oh",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Blue",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565oi",
+    "timecode": "04:40:00:00",
+    "trackName": "21. David Guetta - Blue",
+    "duration": "4:04",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565oj",
+    "timecode": "04:43:44:00",
+    "trackName": "Next track - Blind Faith",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ok",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Blind Faith",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565ol",
+    "timecode": "04:50:00:00",
+    "trackName": "22. Chase & Status - Blind Faith",
+    "duration": "4:54",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565om",
+    "timecode": "04:54:34:00",
+    "trackName": "Next track - Don't let me down",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565on",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Don't let me down",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565oo",
+    "timecode": "05:00:00:00",
+    "trackName": "23. Don't let me down",
+    "duration": "3:49",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565op",
+        "offset": "00:01:01:00",
+        "stageCue": "Stand by flames",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565oq",
+        "offset": "00:01:46:00",
+        "stageCue": "Stand by flames",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565or",
+        "offset": "00:02:07:00",
+        "stageCue": "Stand by flames",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565os",
+    "timecode": "05:03:05:00",
+    "trackName": "Next track - Bohemian Rhapsody",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ot",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Bohemian Rhapsody",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565ou",
+    "timecode": "05:10:00:00",
+    "trackName": "24. Queen - Bohemian Rhapsody",
+    "duration": "1:40",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565ov",
+    "timecode": "05:11:20:00",
+    "trackName": "Next track - Losing it",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ow",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Losing it",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565ox",
+    "timecode": "05:20:00:00",
+    "trackName": "25. Fisher - Losing It",
+    "duration": "2:19",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565oy",
+    "timecode": "05:21:56:00",
+    "trackName": "Next track - Miracle maker",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565oz",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Miracle maker",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565p0",
+    "timecode": "05:30:00:00",
+    "trackName": "26. Dom Dolla - Miracle Maker",
+    "duration": "3:27",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565p1",
+    "timecode": "05:33:06:00",
+    "trackName": "Next track - System check",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565p2",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - System check",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565p3",
+    "timecode": "09:00:00:00",
+    "trackName": "27 system check",
+    "duration": "1:24",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565p4",
+    "timecode": "09:01:03:00",
+    "trackName": "Next track - Kernkraft 400",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565p5",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Kernkraft 400",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565p6",
+    "timecode": "09:10:00:00",
+    "trackName": "28. Zombie Nation - Kernkraft 400",
+    "duration": "2:46",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565p7",
+    "timecode": "09:12:09:00",
+    "trackName": "Next track - Freed from Desire",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565p8",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Freed from Desire",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565p9",
+    "timecode": "05:40:00:00",
+    "trackName": "29. Gala - Freed From Desire",
+    "duration": "4:54",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565pa",
+    "timecode": "05:44:34:00",
+    "trackName": "Next track - Levels",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565pb",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Levels",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565pc",
+    "timecode": "05:50:00:00",
+    "trackName": "30. Avicii - Levels",
+    "duration": "3:54",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565pd",
+    "timecode": "05:53:31:00",
+    "trackName": "Next track - Don't you worry child",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565pe",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Don't you worry child",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565pf",
+    "timecode": "06:00:00:00",
+    "trackName": "31. Swedish House Mafia - Don’t You Worry Child",
+    "duration": "4:05",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565pg",
+    "timecode": "06:03:12:00",
+    "trackName": "Next track - Satisfaction",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ph",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Satisfaction",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565pi",
+    "timecode": "06:10:00:00",
+    "trackName": "32. Bennie Benassi - Satisfaction",
+    "duration": "2:03",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565pj",
+    "timecode": "06:11:43:00",
+    "trackName": "Next track - We found love",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565pk",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - We found love",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565pl",
+    "timecode": "06:20:00:00",
+    "trackName": "33. Calvin Harris / Rihanna - We Found Love",
+    "duration": "3:56",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565pm",
+    "timecode": "06:23:36:00",
+    "trackName": "Next track - Afterglow",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565pn",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Afterglow",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565po",
+    "timecode": "06:40:00:00",
+    "trackName": "34. Wilkinson - Afterglow",
+    "duration": "3:35",
+    "bpm": null,
+    "description": "",
+    "cues": []
+  },
+  {
+    "id": "msp565pp",
+    "timecode": "06:03:12:00",
+    "trackName": "Next track - Freakstorm",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565pq",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Freakstorm",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565pr",
+    "timecode": "06:30:00:00",
+    "trackName": "35. Freakstorm",
+    "duration": "4:24",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ps",
+        "offset": "00:00:28:00",
+        "stageCue": "Mutt to arrive at lift to get ready",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565pt",
+    "timecode": "06:33:50:00",
+    "trackName": "Next track - Rise up",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565pu",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - Rise up",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565pv",
+    "timecode": "07:00:00:00",
+    "trackName": "36. Six60 - Rise up",
+    "duration": "3:19",
+    "bpm": 128,
+    "description": "{Pyro, Lazers}",
+    "cues": [
+      {
+        "id": "msp565pw",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Pyro, Lazers}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565px",
+        "offset": "00:00:05:00",
+        "stageCue": "Lift starts travelling",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565py",
+        "offset": "00:00:54:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Comet AF - 75' Purple LSL"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565pz",
+        "offset": "00:01:39:00",
+        "stageCue": "Lift starts coming down",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565q0",
+        "offset": "00:02:21:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Tracer Comet AF - 30' White w/Tail"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565q1",
+        "offset": "00:02:22:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Comet AF - 75' Purple LSL"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565q2",
+    "timecode": "07:02:59:00",
+    "trackName": "Next track - 37. White lines",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565q3",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 37. White lines",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565q4",
+    "timecode": "07:10:00:00",
+    "trackName": "37. Six60 - White lines",
+    "duration": "3:21",
+    "bpm": 92,
+    "description": "{Pyro, Lazers}",
+    "cues": [
+      {
+        "id": "msp565q5",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Pyro, Lazers}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565q6",
+        "offset": "00:00:52:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Tracer Comet AF - 30' White w/Tail"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565q7",
+        "offset": "00:01:55:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Tracer Comet AF - 30' White w/Tail"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565q8",
+    "timecode": "07:13:00:00",
+    "trackName": "Next track - 38. Before you leave",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565q9",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 38. Before you leave",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565qa",
+    "timecode": "07:20:00:00",
+    "trackName": "38. Six60 - Before you leave",
+    "duration": "4:18",
+    "bpm": 120,
+    "description": "{Flames}",
+    "cues": [
+      {
+        "id": "msp565qb",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Flames}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565qc",
+    "timecode": "07:23:57:00",
+    "trackName": "Next track - 39. Lost",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565qd",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 39. Lost",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565qe",
+    "timecode": "07:30:00:00",
+    "trackName": "39. Six60 - Lost",
+    "duration": "4:39",
+    "bpm": 100,
+    "description": "{Lazers}",
+    "cues": [
+      {
+        "id": "msp565qf",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Lazers}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565qg",
+    "timecode": "07:34:08:00",
+    "trackName": "Next track - 40. Medley",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565qh",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 40. Medley",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565qi",
+    "timecode": "07:40:00:00",
+    "trackName": "40. Six60 Medley - So High, Up There, Please Don't Go",
+    "duration": "10:00",
+    "bpm": null,
+    "description": "{Pyro}",
+    "cues": [
+      {
+        "id": "msp565qj",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Pyro}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qk",
+        "offset": "00:02:08:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Comet AF - 75' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565ql",
+        "offset": "00:02:19:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qm",
+        "offset": "00:02:35:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 25' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565qn",
+    "timecode": "07:49:40:00",
+    "trackName": "Next track - 41. Forever",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565qo",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 41. Forever",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565qp",
+    "timecode": "07:50:00:00",
+    "trackName": "41. Six60 - Forever",
+    "duration": "5:05",
+    "bpm": 84,
+    "description": "{Pyro, Lazers}",
+    "cues": [
+      {
+        "id": "msp565qq",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Pyro, Lazers}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qr",
+        "offset": "00:01:18:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Aqua/Teal"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qs",
+        "offset": "00:01:22:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Aqua/Teal"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565qt",
+    "timecode": "07:54:45:00",
+    "trackName": "Next track - 42. Never Enough",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565qu",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 42. Never Enough",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565qv",
+    "timecode": "08:00:00:00",
+    "trackName": "42. Six60 - Never Enough",
+    "duration": "3:51",
+    "bpm": 126,
+    "description": "{Pyro, Lazers}",
+    "cues": [
+      {
+        "id": "msp565qw",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Pyro, Lazers}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qx",
+        "offset": "00:00:13:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Fireball – Large"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qy",
+        "offset": "00:00:27:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Comet AF - 75' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565qz",
+        "offset": "00:01:24:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Comet AF - 75' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565r0",
+        "offset": "00:01:38:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 25' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565r1",
+    "timecode": "08:03:31:00",
+    "trackName": "Next track - 43. The Greatest",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565r2",
+        "offset": "00:00:00:00",
+        "stageCue": "Next track - 43. The Greatest",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ],
+    "isTransition": true
+  },
+  {
+    "id": "msp565r3",
+    "timecode": "08:10:00:00",
+    "trackName": "43. Six60 - The Greatest",
+    "duration": "2:52",
+    "bpm": 118,
+    "description": "{Pyro, Flames}",
+    "cues": [
+      {
+        "id": "msp565r4",
+        "offset": "00:00:00:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "{Pyro, Flames}"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565r5",
+        "offset": "00:00:38:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565r6",
+        "offset": "00:01:40:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565r7",
+        "offset": "00:02:28:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      },
+      {
+        "id": "msp565r8",
+        "offset": "00:02:52:00",
+        "stageCue": "",
+        "hostCue": "",
+        "conductorCue": "",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {
+          "LASERS, FIRE, PYRO": "Mine AF - 35' Red"
+        },
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "msp565r9",
+    "timecode": "08:13:01:00",
+    "trackName": "Show End",
+    "duration": "",
+    "bpm": null,
+    "description": "",
+    "cues": [
+      {
+        "id": "msp565ra",
+        "offset": "00:00:00:00",
+        "stageCue": "CONDUCTOR - conductor stands orchestra, orchestra stays standing, conductor leaves stage",
+        "hostCue": "#26 - THANKS, FINAL SHOUT-OUT, GOODNIGHT",
+        "conductorCue": "STOP SHOW",
+        "cameraCue": "",
+        "duration": "",
+        "description": "",
+        "extra": {},
+        "osc": {
+          "enabled": false,
+          "address": "",
+          "args": "",
+          "destination": "",
+          "preRollFrames": 0
+        },
+        "artnet": {
+          "enabled": false,
+          "universe": 0,
+          "channel": 1,
+          "value": 0,
+          "destination": "",
+          "preRollFrames": 0
+        }
+      }
+    ]
+  }
+]

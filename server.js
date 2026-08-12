@@ -1248,7 +1248,10 @@ function parseSynthonySheet(rows) {
   // a cue type keyed by its header text ("Stage Cue", "Camera Cues / Key
   // Moments", "Lasers, Fire, Pyro", or anything the sheet adds). Order is
   // preserved so the editor shows columns in spreadsheet order.
-  const header = (rows[0] || []).map(x => String(x || '').trim());
+  // First line only — sheet headers sometimes carry a multi-line legend
+  // ("PLAYBACK / CONDUCTOR CUE\nBold markers are safety points…") that makes an
+  // unwieldy cue-type name.
+  const header = (rows[0] || []).map(x => String(x || '').split('\n')[0].trim());
   const FIRST_CUE_COL = 4;
   function extraFrom(r) {
     const ex = {};
