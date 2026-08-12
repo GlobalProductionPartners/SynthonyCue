@@ -132,6 +132,30 @@ test('sort by parseTC(offset) is stable for equal offsets', () => {
   assert.deepEqual(cues.map(c => c.n), [2, 1, 3]);
 });
 
+// ── Show time (cumulative setlist duration, re-synced at each track top) ─────
+test('show time: counts up, holds gaps, truth-checks to the plan at each track top', () => {
+  // Array order is the performance order; TCs are scattered islands.
+  loadShow([
+    { timecode: '01:00:00:00', duration: '2:00', trackName: 'A' },   // 120s
+    { timecode: '05:00:00:00', duration: '1:00', trackName: 'B' },   // jammed to a far TC island
+  ], 0);
+  const st = tc => { sandbox.State.tcFrames = sandbox.parseTC(tc); return Math.round(sandbox.getShowTime() / 25); };
+  assert.equal(st('01:00:30:00'), 30);    // 30s into A — counts up
+  assert.equal(st('01:02:30:00'), 120);   // 30s past A's 2:00 — holds at A's duration (gap, no inflation)
+  assert.equal(st('05:00:00:00'), 120);   // top of B — re-anchors to cumulative A (truth check), continuous
+  assert.equal(st('05:00:20:00'), 140);   // 20s into B — 120 + 20
+});
+
+test('show time: a track firing early catches up to the plan at the next track top', () => {
+  loadShow([
+    { timecode: '01:00:00:00', duration: '2:00', trackName: 'A' },
+    { timecode: '01:01:30:00', duration: '1:00', trackName: 'B' },   // fires 30s early
+  ], 0);
+  const st = tc => { sandbox.State.tcFrames = sandbox.parseTC(tc); return Math.round(sandbox.getShowTime() / 25); };
+  assert.equal(st('01:01:29:00'), 89);    // 1:29 into A
+  assert.equal(st('01:01:30:00'), 120);   // B's top → snaps forward to A's full planned 2:00 (truth check)
+});
+
 // ── Cue Readout: standby/go event generation (shared with server checkCueFires) ─
 function readoutSetup(depts, lead = 10) {
   sandbox.State.songs = [
