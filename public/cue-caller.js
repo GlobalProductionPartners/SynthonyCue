@@ -77,8 +77,10 @@ const Caller = {
   },
   _voiceScore(v) {
     let s = 0;
-    if (VOICE_GOOD.test(v.name)) s += 100;
-    if (!v.localService) s += 40;              // network voices (Google) are natural-ish
+    if (VOICE_GOOD.test(v.name)) s += 100;     // premium / enhanced / neural OS voices
+    // Prefer offline (local) voices — a show network often has no internet, and
+    // the cloud voices (e.g. Chrome's "Google …") simply go silent offline.
+    if (v.localService) s += 30; else s -= 15;
     if (VOICE_NICE.test(v.name)) s += 20;
     if (/^en/i.test(v.lang)) s += 300;         // English first — it's an English show
     if (VOICE_NOVELTY.test(v.name)) s -= 200;  // gimmick voices to the bottom
@@ -233,8 +235,9 @@ const Caller = {
     const admin = this.ADMIN;
     const voiceOpts = this._voices.length
       ? this._voices.map(v => {
-          const star = (VOICE_GOOD.test(v.name) || !v.localService) ? '★ ' : '';
-          return `<option value="${_crEsc(v.voiceURI)}"${v.voiceURI === this.voiceURI ? ' selected' : ''}>${star}${_crEsc(v.name)} (${_crEsc(v.lang)})</option>`;
+          const star = (VOICE_GOOD.test(v.name) || VOICE_NICE.test(v.name)) ? '★ ' : '';
+          const net = v.localService ? '' : ' · online';   // needs internet
+          return `<option value="${_crEsc(v.voiceURI)}"${v.voiceURI === this.voiceURI ? ' selected' : ''}>${star}${_crEsc(v.name)} (${_crEsc(v.lang)})${net}</option>`;
         }).join('')
       : '<option value="">— no voices on this device —</option>';
     const styleOpts = sel => CALL_STYLES.map(([v, l]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
@@ -286,7 +289,7 @@ const Caller = {
           <label class="cr-field">Volume <input type="range" min="0" max="1" step="0.05" value="${this.volume}" data-act="dev-volume"></label>
           <button class="cr-btn" data-act="dev-test">Test voice</button>
           ${this._voices.length
-            ? '<div class="cr-note">★ marks the more natural voices. macOS: add Siri-quality voices in System Settings → Accessibility → Spoken Content → Manage Voices; Chrome’s “Google” voices need internet.</div>'
+            ? '<div class="cr-note">★ = more natural. Voices marked “online” need internet — the offline ones are safest on a show network. macOS: add Siri-quality voices in System Settings → Accessibility → Spoken Content → Manage Voices.</div>'
             : '<div class="cr-note cr-warn">No speech voices on this device. On a Raspberry Pi: <code>sudo apt install speech-dispatcher espeak-ng</code>, or use the server readout.</div>'}
         </div>
 
