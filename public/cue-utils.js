@@ -110,6 +110,26 @@ function framesToDisplay(frames) {
   return `${s}s`;
 }
 
+// Show time — how far into the show we are, built from cumulative track
+// durations rather than the venue timecode. Song timecodes are not sequential
+// (each song is jammed to its own TC island), so the base is the sum of the
+// durations of every earlier song in SETLIST (array) order, up to the one now
+// playing (getCurrentSong = the song whose TC we're within). Add the elapsed
+// time inside that song, capped at its duration so a gap or overrun holds rather
+// than races ahead. It counts up as TC runs and re-anchors at each song.
+function getShowTime() {
+  const songs = State.songs || [];
+  const cur = getCurrentSong();
+  if (!cur) return 0;                                   // before the first song
+  const idx = songs.indexOf(cur);
+  let base = 0;
+  for (let i = 0; i < idx; i++) base += parseDuration(songs[i].duration || '');
+  const now = State.tcFrames || parseTC(State.tc || '00:00:00:00');
+  const dur = parseDuration(cur.duration || '');
+  const elapsed = Math.max(0, now - parseTC(cur.timecode));
+  return base + (dur > 0 ? Math.min(elapsed, dur) : elapsed);
+}
+
 // ── Song helpers ──────────────────────────────────────────────────────────────
 
 function getCurrentSong() {

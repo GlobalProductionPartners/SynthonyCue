@@ -95,6 +95,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
   font-family: var(--font-tc); letter-spacing: 0.08em; text-transform: uppercase;
 }
 #tc-source-badge.live { border-color: var(--live); color: var(--live); }
+/* Show time — secondary to the venue TC: smaller, stacked label + value. */
+#show-time { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; }
+#show-time .st-lbl { font-family: var(--font-tc); font-size: 9px; letter-spacing: 0.14em; color: var(--text-3); }
+#show-time-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(15px, 1.8vw, 22px); color: var(--text-3); letter-spacing: 0.02em; transition: color 120ms ease; }
+#show-time-val.running { color: var(--live); }
 .topbar-spacer { flex: 1; }
 #device-name-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
 #device-name-wrap input { width: 120px; font-size: 12px; }
@@ -497,6 +502,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
     <div class="logo">SYNTHONY CUE</div>
     <div id="tc-display" class="stopped">00:00:00:00</div>
     <span id="tc-source-badge">INTERNAL</span>
+    <div id="show-time" title="Show time — elapsed by track duration, re-synced each song">
+      <span class="st-lbl">SHOW</span>
+      <span id="show-time-val">0:00:00</span>
+    </div>
     <div class="tc-controls">
       <button class="btn primary" id="btn-start">▶ START</button>
       <button class="btn" id="btn-stop">■ STOP</button>
@@ -1234,10 +1243,20 @@ function formatTC(frames) {
   return [h,m,s,f].map(n => String(n).padStart(2,'0')).join(':');
 }
 
+function updateShowTime() {
+  const el = document.getElementById('show-time-val');
+  if (!el) return;
+  const t = Math.round(getShowTime() / FR);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  el.textContent = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  el.classList.toggle('running', !!State.tcRunning);
+}
+
 function updateTCDisplay(tc, running) {
   const el = document.getElementById('tc-display');
   el.textContent = tc;
   el.className = running ? 'running' : 'stopped';
+  updateShowTime();
   const badge = document.getElementById('tc-source-badge');
   badge.textContent = (State.tcSource || 'internal').toUpperCase();
   badge.className = running ? 'live' : '';
