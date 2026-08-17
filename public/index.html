@@ -228,14 +228,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 /* Host view — big track name + two configurable cue types */
 /* Host view: Song title (H2) + Cue 1 (H4) form one tight title-group; Cue 2 (H1)
    is the hero below it. Sizes are fitted in renderHostView. */
-.host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: clamp(20px, 4vh, 56px); text-align: center; }
+.host-main { flex: 1; display: flex; flex-direction: column; padding: clamp(20px, 3vh, 40px) clamp(24px, 4vw, 96px); align-items: center; justify-content: center; gap: clamp(20px, 4vh, 56px); text-align: center; }
 .host-titlegroup { flex: 0 0 auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); line-height: 1.02; letter-spacing: -0.02em; width: 100%; overflow: hidden; }
+.host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); line-height: 1.05; letter-spacing: -0.02em; width: 100%; overflow: hidden; white-space: nowrap; }
 .host-cue { width: 100%; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
 .host-cue-1 { flex: 0 0 auto; }
 .host-cue-2 { flex: 0 0 auto; }
 .host-cue-type { font-family: var(--font-tc); font-size: clamp(10px, 1.1vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; }
-.host-cue-text { font-family: var(--font-ui); color: var(--text); line-height: 1.04; letter-spacing: -0.01em; width: 100%; overflow: hidden; }
+.host-cue-text { font-family: var(--font-ui); color: var(--text); line-height: 1.06; letter-spacing: -0.01em; width: 100%; overflow: hidden; white-space: nowrap; }
 .host-cue-1 .host-cue-text { font-weight: 400; color: var(--text-2); }
 .host-cue-2 .host-cue-text { font-weight: 700; }
 .host-cue-text.is-upcoming { color: var(--text-2); }

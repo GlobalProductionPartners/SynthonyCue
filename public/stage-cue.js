@@ -141,12 +141,16 @@ function renderHostView(hslots, prefix = '') {
   const $ = id => document.getElementById(prefix + id);
   const song   = getCurrentSong();
   const curCue = getCurrentCue(song);
+  // These are single-line headings, so fit to WIDTH (widthOnly): fitting a line
+  // against its own height collapses it to the min on large screens because a
+  // tight line-height pushes scrollHeight past clientHeight. The cap is a
+  // fraction of viewport height so the hero stays dominant without shouting.
   const H = window.innerHeight;
   const nameEl = $('host-label');
   if (nameEl) {
     nameEl.textContent = song?.trackName || '—';
     // Song title — H2 (a heading, not the hero).
-    fitText(nameEl, nameEl, 26, Math.round(H * 0.09));
+    fitText(nameEl, nameEl, 28, Math.round(H * 0.11), true);
   }
   for (const slot of ['a', 'b']) {
     const type   = hslots[slot];
@@ -158,8 +162,8 @@ function renderHostView(hslots, prefix = '') {
       txEl.textContent = curTx || nextTx || '—';
       txEl.classList.toggle('is-upcoming', !curTx && !!nextTx);
       // Cue 1 (slot a) is a subtitle (H4, tight under the title); Cue 2 is the hero (H1).
-      const maxFrac = slot === 'a' ? 0.045 : 0.20;
-      fitText(txEl, txEl, slot === 'a' ? 16 : 32, Math.round(H * maxFrac));
+      const maxFrac = slot === 'a' ? 0.055 : 0.28;
+      fitText(txEl, txEl, slot === 'a' ? 18 : 40, Math.round(H * maxFrac), true);
     }
     const tyEl = $('host-type-' + slot);
     if (tyEl) { tyEl.textContent = (type || '—').toUpperCase(); tyEl.style.color = type ? cueTypeColour(type) : ''; }
