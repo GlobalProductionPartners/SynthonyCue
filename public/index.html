@@ -2236,7 +2236,9 @@ const Settings = {
     if (wrap.contains(document.activeElement)) return;   // don't yank controls mid-edit on a structural change
     this._screensSig = sig;
 
-    const viewOpts = [['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['cueread','Cue Readout'],['video','Video'],['videofull','Video — Full Screen']]
+    // Views a display can show. Cue Readout is control/settings only (not a
+    // display view); Stage and windowed Video are retired (Video Full Screen stays).
+    const viewOpts = [['overview','Show Overview'],['conductor','Simple View'],['camera','Single Cue'],['test','Multi Cue'],['waterfall','Waterfall'],['videofull','Video — Full Screen']]
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
 
     wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">

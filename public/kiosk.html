@@ -541,9 +541,6 @@ body.video-clean .video-stage { background: #000; }
     </div>
   </div>
 
-  <!-- CUE READOUT — spoken cue calling (populated by cue-caller.js) -->
-  <div class="view" id="view-cueread"></div>
-
 </div><!-- /app -->
 
 <!-- TC corner (hidden — TC shown in header) -->
@@ -561,14 +558,11 @@ body.video-clean .video-stage { background: #000; }
   </div>
   <div class="menu-section">
     <div class="menu-label">View</div>
+    <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
     <button class="menu-btn active" id="view-btn-conductor" onclick="switchView('conductor')">Simple View</button>
-    <button class="menu-btn" id="view-btn-stage" onclick="switchView('stage')">Stage</button>
     <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Single Cue</button>
     <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Multi Cue</button>
-    <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
     <button class="menu-btn" id="view-btn-waterfall" onclick="switchView('waterfall')">Waterfall</button>
-    <button class="menu-btn" id="view-btn-cueread" onclick="switchView('cueread')">Cue Readout</button>
-    <button class="menu-btn" id="view-btn-video" onclick="switchView('video')">Video</button>
     <button class="menu-btn" id="view-btn-videofull" onclick="switchView('videofull')">Video — Full Screen</button>
   </div>
   <div class="menu-section" id="menu-test-section" style="display:none">
@@ -837,12 +831,15 @@ function renderCurrent() {
   else if (currentView === 'test')   renderTestView();
   else if (currentView === 'overview') Overview.render();
   else if (currentView === 'waterfall') Waterfall.render();
-  else if (currentView === 'cueread') Caller.render();
   else if (currentView === 'video' || currentView === 'videofull') renderVideo();
 }
 
 // ── View switching ────────────────────────────────────────────────────────────
+const KIOSK_VIEWS = ['overview', 'conductor', 'camera', 'test', 'waterfall', 'videofull'];
 function switchView(view) {
+  // Retired views: windowed Video → Full Screen; Stage / Cue Readout → Simple.
+  if (view === 'video') view = 'videofull';
+  if (!KIOSK_VIEWS.includes(view)) view = 'conductor';
   currentView = view;
   localStorage.setItem('kiosk-view', view);
   // 'videofull' is the same view as 'video' with the chrome stripped — they
@@ -860,9 +857,6 @@ function switchView(view) {
   document.getElementById('menu-cam-section').style.display  = view === 'camera' ? '' : 'none';
   document.getElementById('menu-test-section').style.display = view === 'test'   ? '' : 'none';
   if (isVideo) attachVideo(); else detachVideo();
-  // A display Pi shown "Cue Readout" IS the caller — calling follows the view
-  // here (the admin uses a manual master switch instead).
-  if (typeof Caller !== 'undefined') Caller.setEnabled(view === 'cueread');
   renderCurrent();
   sendScreenUpdate();
 }
@@ -1025,8 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('menu-cam-type').value      = cameraType;
   document.getElementById('menu-test-slot-a').value = testSlots.a;
   document.getElementById('menu-test-slot-b').value = testSlots.b;
-  if (typeof Caller !== 'undefined') Caller.init();
-  switchView(currentView);   // ties the caller on/off to whether this view is shown
+  switchView(currentView);
   wsConnect();
 
   // Wall clock — update every second
@@ -1062,7 +1055,6 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script src="/show-overview.js"></script>
 <script src="/waterfall.js"></script>
-<script src="/cue-caller.js"></script>
 <script src="/stage-cue.js"></script>
 </body>
 </html>
