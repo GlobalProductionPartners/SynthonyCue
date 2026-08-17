@@ -124,10 +124,12 @@ function renderHostView(hslots, prefix = '') {
   const $ = id => document.getElementById(prefix + id);
   const song   = getCurrentSong();
   const curCue = getCurrentCue(song);
+  const H = window.innerHeight;
   const nameEl = $('host-label');
   if (nameEl) {
     nameEl.textContent = song?.trackName || '—';
-    fitText(nameEl, nameEl, 40, Math.round(window.innerHeight * 0.22));
+    // Song title — H2 (a heading, not the hero).
+    fitText(nameEl, nameEl, 26, Math.round(H * 0.09));
   }
   for (const slot of ['a', 'b']) {
     const type   = hslots[slot];
@@ -138,13 +140,11 @@ function renderHostView(hslots, prefix = '') {
     if (txEl) {
       txEl.textContent = curTx || nextTx || '—';
       txEl.classList.toggle('is-upcoming', !curTx && !!nextTx);
-      // Cue 1 (slot a) is the secondary line — about half the size of Cue 2.
-      const maxFrac = slot === 'a' ? 0.065 : 0.13;
-      fitText(txEl, txEl, 16, Math.round(window.innerHeight * maxFrac));
+      // Cue 1 (slot a) is a subtitle (H4, tight under the title); Cue 2 is the hero (H1).
+      const maxFrac = slot === 'a' ? 0.045 : 0.20;
+      fitText(txEl, txEl, slot === 'a' ? 16 : 32, Math.round(H * maxFrac));
     }
     const tyEl = $('host-type-' + slot);
     if (tyEl) { tyEl.textContent = (type || '—').toUpperCase(); tyEl.style.color = type ? cueTypeColour(type) : ''; }
   }
-  const tcEl = $('host-tc'); if (tcEl) tcEl.textContent = State.tc;
-  const showEl = $('host-show'); if (showEl) showEl.textContent = formatShowTime(getShowTime());
 }

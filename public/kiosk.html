@@ -112,20 +112,20 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .camera-countdown { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(24px, 4.5vw, 72px); font-weight: 700; color: var(--warn); }
 .camera-tc { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(13px, 1.4vw, 20px); color: var(--text-3); }
 /* Host view — big track name + two configurable cue types */
-.host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 16px; text-align: center; }
-.host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); font-size: clamp(30px, 6.5vw, 104px); line-height: 1.0; letter-spacing: -0.02em; width: 100%; overflow: hidden; flex: 0 0 auto; }
+/* Host view: Song title (H2) + Cue 1 (H4) form one tight title-group; Cue 2 (H1)
+   is the hero below it. Sizes are fitted in renderHostView; keep them ungapped so
+   the title + its cue-1 "description" read as a single unit. */
+.host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: clamp(20px, 4vh, 56px); text-align: center; }
+.host-titlegroup { flex: 0 0 auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); line-height: 1.02; letter-spacing: -0.02em; width: 100%; overflow: hidden; }
 .host-cue { width: 100%; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
-.host-cue-1 { flex: 0.55; }   /* Cue 1: secondary — smaller + regular weight */
-.host-cue-2 { flex: 1; }      /* Cue 2: the hero — bigger + bold */
+.host-cue-1 { flex: 0 0 auto; }
+.host-cue-2 { flex: 0 0 auto; }
 .host-cue-type { font-family: var(--font-tc); font-size: clamp(10px, 1.1vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; }
-.host-cue-text { font-family: var(--font-ui); color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
-.host-cue-1 .host-cue-text { font-weight: 400; }
+.host-cue-text { font-family: var(--font-ui); color: var(--text); line-height: 1.04; letter-spacing: -0.01em; width: 100%; overflow: hidden; }
+.host-cue-1 .host-cue-text { font-weight: 400; color: var(--text-2); }
 .host-cue-2 .host-cue-text { font-weight: 700; }
 .host-cue-text.is-upcoming { color: var(--text-2); }
-.host-footer { flex: 0 0 auto; width: 100%; display: flex; gap: 12px; }
-.host-foot-box { flex: 1; border: 1px solid var(--border); border-radius: var(--r-2); padding: 8px 12px; text-align: center; }
-.host-foot-lbl { font-family: var(--font-tc); font-size: clamp(9px, 1vw, 12px); letter-spacing: 0.16em; color: var(--text-3); }
-.host-foot-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(16px, 2.4vw, 34px); color: var(--text-2); margin-top: 2px; }
 
 /* ── Video ── */
 #view-video { position: relative; }
@@ -188,28 +188,18 @@ body.video-clean .video-stage { background: #000; }
   background: var(--bg); border-bottom: 1px solid var(--border);
   flex-shrink: 0; isolation: isolate; z-index: var(--z-header);
 }
-/* Timecode is the header — no wordmark competing with it. */
-#kiosk-header .kh-tc {
-  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
-  font-size: clamp(22px, 3.6vw, 48px); font-weight: 400;
-  color: var(--text-3); letter-spacing: 0.02em; white-space: nowrap;
-  transition: color 120ms ease;
-}
-#kiosk-header .kh-tc.running { color: var(--accent); }
-#kiosk-header .kh-tc.stopped { color: var(--text-3); }
-/* Show time — stacked label + value, matched to the timecode size. */
-#kiosk-header #kh-show { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.02; }
-#kiosk-header .kh-show-lbl { font-family: var(--font-tc); font-size: clamp(8px, 0.9vw, 11px); letter-spacing: 0.14em; color: var(--text-3); }
-#kiosk-header .kh-show-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(22px, 3.6vw, 48px); font-weight: 400; color: var(--text-3); letter-spacing: 0.02em; white-space: nowrap; transition: color 120ms ease; }
-#kiosk-header .kh-show-val.running { color: var(--live); }
+/* Clocks live in the bottom bar now; the header is just the menu button. */
 .kh-spacer { flex: 1; }
-#kiosk-header #kh-clock-wrap { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
-#kiosk-header .kh-clock-lbl { font-family: var(--font-tc); font-size: clamp(8px, 0.9vw, 11px); letter-spacing: 0.14em; color: var(--text-3); }
-#kiosk-header .kh-clock {
-  font-family: var(--font-tc); font-variant-numeric: tabular-nums;
-  font-size: clamp(13px, 1.4vw, 20px); font-weight: 400;
-  color: var(--text-3); letter-spacing: 0.02em; white-space: nowrap;
-}
+/* Bottom clock bar — TC (blue) · Show (green) · Time of day (yellow), flush. */
+#kiosk-footer { flex-shrink: 0; display: flex; border-top: 1px solid var(--border); }
+body.video-clean #kiosk-footer { display: none; }
+.kf-box { flex: 1; padding: 6px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; }
+.kf-box:last-child { border-right: none; }
+.kf-lbl { font-family: var(--font-tc); font-size: clamp(9px, 1vw, 12px); letter-spacing: 0.16em; color: var(--text-3); }
+.kf-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(18px, 2.8vw, 44px); letter-spacing: 0.02em; white-space: nowrap; }
+#kf-tc { color: var(--accent); }
+#kf-show { color: var(--live); }
+#kf-tod { color: var(--warn); }
 
 /* ── Hamburger (inline in header) ── */
 #hamburger {
@@ -287,10 +277,7 @@ body.video-clean .video-stage { background: #000; }
 
   <!-- Header bar -->
   <div id="kiosk-header">
-    <span class="kh-tc stopped" id="kh-tc">00:00:00:00</span>
-    <div id="kh-show" title="Show time"><span class="kh-show-lbl">SHOW</span><span class="kh-show-val" id="kh-show-val">00:00:00.00</span></div>
     <div class="kh-spacer"></div>
-    <div id="kh-clock-wrap"><span class="kh-clock-lbl">TIME</span><span class="kh-clock" id="kh-clock">--:--:--</span></div>
     <div id="hamburger" onclick="Menu.toggle()">
       <span></span><span></span><span></span>
     </div>
@@ -334,18 +321,15 @@ body.video-clean .video-stage { background: #000; }
   <!-- HOST -->
   <div class="view" id="view-host">
     <div class="host-main">
-      <div class="host-label" id="host-label">—</div>
-      <div class="host-cue host-cue-1">
-        <div class="host-cue-type" id="host-type-a">—</div>
-        <div class="host-cue-text" id="host-text-a">—</div>
+      <div class="host-titlegroup">
+        <div class="host-label" id="host-label">—</div>
+        <div class="host-cue host-cue-1">
+          <div class="host-cue-text" id="host-text-a">—</div>
+        </div>
       </div>
       <div class="host-cue host-cue-2">
         <div class="host-cue-type" id="host-type-b">—</div>
         <div class="host-cue-text" id="host-text-b">—</div>
-      </div>
-      <div class="host-footer">
-        <div class="host-foot-box"><div class="host-foot-lbl">TIMECODE</div><div class="host-foot-val" id="host-tc">--:--:--:--</div></div>
-        <div class="host-foot-box"><div class="host-foot-lbl">SHOW TIME</div><div class="host-foot-val" id="host-show">00:00:00.00</div></div>
       </div>
     </div>
   </div>
@@ -575,6 +559,13 @@ body.video-clean .video-stage { background: #000; }
       </div>
       <div class="ov-cuelist-body" id="ov-cuelist-body"></div>
     </div>
+  </div>
+
+  <!-- Bottom clock bar — shown on every view -->
+  <div id="kiosk-footer">
+    <div class="kf-box"><div class="kf-lbl">TIMECODE</div><div class="kf-val" id="kf-tc">--:--:--:--</div></div>
+    <div class="kf-box"><div class="kf-lbl">SHOW TIME</div><div class="kf-val" id="kf-show">00:00:00.00</div></div>
+    <div class="kf-box"><div class="kf-lbl">TIME OF DAY</div><div class="kf-val" id="kf-tod">--:--:--</div></div>
   </div>
 
 </div><!-- /app -->
@@ -866,16 +857,8 @@ function syncKioskMenuTypes() {
 function renderCurrent() {
   syncKioskMenuTypes();
   document.getElementById('tc-corner').textContent = State.tc;
-  const khTc = document.getElementById('kh-tc');
-  if (khTc) {
-    khTc.textContent = State.tc;
-    khTc.className = 'kh-tc' + (State.tcRunning ? ' running' : ' stopped');
-  }
-  const khShow = document.getElementById('kh-show-val');
-  if (khShow) {
-    khShow.textContent = formatShowTime(getShowTime());
-    khShow.classList.toggle('running', !!State.tcRunning);
-  }
+  const fTc = document.getElementById('kf-tc');   if (fTc)   fTc.textContent   = State.tc;
+  const fShow = document.getElementById('kf-show'); if (fShow) fShow.textContent = formatShowTime(getShowTime());
   if (currentView === 'conductor')   renderConductor();
   else if (currentView === 'camera') renderCamera();
   else if (currentView === 'host')   renderHostView(hostSlots);
@@ -1093,9 +1076,9 @@ document.addEventListener('DOMContentLoaded', () => {
   switchView(currentView);
   wsConnect();
 
-  // Wall clock — update every second
+  // Time of day — update every second (bottom bar)
   function updateClock() {
-    const el = document.getElementById('kh-clock');
+    const el = document.getElementById('kf-tod');
     if (!el) return;
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
