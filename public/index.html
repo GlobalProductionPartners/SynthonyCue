@@ -2246,6 +2246,7 @@ const Settings = {
         <th style="padding:4px 8px">Name</th>
         <th style="padding:4px 8px">View</th>
         <th style="padding:4px 8px">Options</th>
+        <th style="padding:4px 8px"></th>
       </tr></thead>
       <tbody>${screens.map(s => {
         const isMe = s.id === SCREEN_ID;
@@ -2253,7 +2254,8 @@ const Settings = {
         return `<tr style="border-top:1px solid var(--border)${isMe ? ';opacity:0.5' : ''}">
           <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}<span id="sc-age-${s.id}">${this._scAge(s)}</span></td>
           <td style="padding:6px 8px"><select id="sc-view-${s.id}" onchange="Settings.onScreenViewChange('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe ? ' disabled' : ''}>${viewOpts}</select></td>
-          <td style="padding:6px 8px" id="sc-opts-${s.id}">${this._scOptions(view, s.id, isMe)}</td>
+          <td style="padding:6px 8px"><span id="sc-opts-${s.id}">${this._scOptions(view, s.id, isMe)}</span></td>
+          <td style="padding:6px 8px;text-align:right"><button class="btn" style="font-size:11px;padding:4px 12px" onclick="Settings.sendScreenCommand('${s.id}')"${isMe ? ' disabled' : ''}>Send</button></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;

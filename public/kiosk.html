@@ -1007,8 +1007,11 @@ function handleMsg(msg) {
       if (msg.ovCueType && typeof Overview !== 'undefined') Overview.setCueType(msg.ovCueType);
       if (msg.wfCueType && typeof Waterfall !== 'undefined') Waterfall.setCueType(msg.wfCueType);
       if (msg.ovScope && typeof Overview !== 'undefined') Overview.setScope(msg.ovScope);
-      if (msg.slots?.a) setSlotType('a', msg.slots.a);
-      if (msg.slots?.b) setSlotType('b', msg.slots.b);
+      // Multi Cue ('test') has its own slot pair (testSlots); Stage uses slots.
+      // Route the pushed slots to whichever the target view actually renders.
+      { const setSlot = (msg.view || currentView) === 'test' ? setTestSlotType : setSlotType;
+        if (msg.slots?.a) setSlot('a', msg.slots.a);
+        if (msg.slots?.b) setSlot('b', msg.slots.b); }
       if (msg.cameraType) setCameraType(msg.cameraType);
       break;
   }
