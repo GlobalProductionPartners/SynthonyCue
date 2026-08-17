@@ -92,6 +92,15 @@ function formatHMSF(frames) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// Show-time display: HH:MM:SS.FF (frames), a dot before the frames to set it
+// apart from the venue TC (which uses a colon). Used on admin and kiosk.
+function formatShowTime(frames) {
+  frames = Math.max(0, Math.round(frames || 0));
+  const p = n => String(n).padStart(2, '0');
+  const sec = Math.floor(frames / FR);
+  return `${p(Math.floor(sec / 3600))}:${p(Math.floor((sec % 3600) / 60))}:${p(sec % 60)}.${p(frames % FR)}`;
+}
+
 // Frames → clock. Shows H:MM:SS once it passes an hour, else M:SS. Used for the
 // running total show length.
 function formatClock(frames) {

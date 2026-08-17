@@ -1246,9 +1246,7 @@ function formatTC(frames) {
 function updateShowTime() {
   const el = document.getElementById('show-time-val');
   if (!el) return;
-  const t = Math.round(getShowTime() / FR);
-  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
-  el.textContent = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  el.textContent = formatShowTime(getShowTime());
   el.classList.toggle('running', !!State.tcRunning);
 }
 
@@ -2172,6 +2170,51 @@ const Settings = {
     sendScreenUpdate();
   },
 
+  // One <select> in the screens table. Non-view selects push a command on change.
+  _scSel(id, disabled, options) {
+    return `<select id="${id}" onchange="Settings.sendScreenCommand('${id.replace(/^sc-\w+-/, '')}')" ` +
+      `style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${disabled ? ' disabled' : ''}>${options}</select>`;
+  },
+  _scLbl(t) { return `<span style="font-size:10px;color:var(--text-3);margin:0 4px 0 8px">${t}</span>`; },
+
+  // The option controls a given view uses — cue-type pickers are driven by the
+  // show's own columns. Rebuilt live when the view is switched.
+  _scOptions(view, id, dis) {
+    const opts = (pairs) => pairs.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    const typeOpts  = cueTypeOptionsHTML();
+    const ovOpts    = cueTypeOptionsHTML(null, { extra: [['any', 'Auto'], ['all', 'All cues']] });
+    const wfOpts    = cueTypeOptionsHTML(null, { extra: [['any', 'All cues']] });
+    const scopeOpts = opts([['song', 'This Song'], ['all', 'All Songs']]);
+    const sel = (i, o) => this._scSel(i, dis, o), lbl = this._scLbl;
+    switch (view) {
+      case 'stage':
+      case 'test':      return lbl('A') + sel(`sc-slota-${id}`, typeOpts) + lbl('B') + sel(`sc-slotb-${id}`, typeOpts);
+      case 'camera':    return lbl('Type') + sel(`sc-cam-${id}`, typeOpts);
+      case 'overview':  return lbl('Cues') + sel(`sc-ov-${id}`, ovOpts) + lbl('Scope') + sel(`sc-ovs-${id}`, scopeOpts);
+      case 'waterfall': return lbl('Filter') + sel(`sc-wf-${id}`, wfOpts);
+      default:          return '<span style="color:var(--text-3);font-size:12px">—</span>';
+    }
+  },
+
+  // Set a screen's option controls to its reported state (only values that exist
+  // as options, so a stale slug doesn't blank the select).
+  _scReflect(s) {
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null && [...el.options].some(o => o.value === v)) el.value = v; };
+    set(`sc-slota-${s.id}`, resolveCueType(s.slots?.a, 0));
+    set(`sc-slotb-${s.id}`, resolveCueType(s.slots?.b, 1));
+    set(`sc-cam-${s.id}`,   resolveCueType(s.cameraType, 0));
+    set(`sc-ov-${s.id}`,    s.ovCueType || 'any');
+    set(`sc-ovs-${s.id}`,   s.ovScope || 'song');
+    set(`sc-wf-${s.id}`,    s.wfCueType || 'any');
+  },
+
+  _scAge(s) {
+    const sec = s.lastSeen ? Math.round((Date.now() - s.lastSeen) / 1000) : null;
+    if (sec == null) return '';
+    const col = sec < 25 ? 'var(--live)' : sec < 60 ? 'var(--warn)' : 'var(--urgent)';
+    return `<span style="font-family:var(--font-tc);font-size:10px;color:${col};margin-left:6px">${sec}s</span>`;
+  },
+
   renderScreens() {
     const nameInput = document.getElementById('this-screen-name-input');
     const nameDisplay = document.getElementById('this-screen-name-display');
@@ -2180,36 +2223,23 @@ const Settings = {
 
     const wrap = document.getElementById('screens-list-wrap');
     if (!wrap) return;
-    // Heartbeats re-broadcast every few seconds; don't rebuild while a control
-    // in the table is focused, or it would snatch the dropdown mid-selection.
-    if (wrap.contains(document.activeElement)) return;
     const screens = State.screens || [];
-    if (!screens.length) { wrap.innerHTML = '<div style="color:var(--dim);font-size:13px">No screens connected</div>'; return; }
+    if (!screens.length) { wrap.innerHTML = '<div style="color:var(--dim);font-size:13px">No screens connected</div>'; this._screensSig = ''; return; }
 
-    const opts = (pairs) => pairs.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
-    const viewOpts  = opts([['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['cueread','Cue Readout'],['video','Video'],['videofull','Video — Full Screen']]);
-    // Cue-type pickers are driven by the show's own columns.
-    const typeOpts  = cueTypeOptionsHTML();
-    const ovOpts    = cueTypeOptionsHTML(null, { extra: [['any','Auto'],['all','All cues']] });
-    const wfOpts    = cueTypeOptionsHTML(null, { extra: [['any','All cues']] });
-    const scopeOpts = opts([['song','This Song'],['all','All Songs']]);
+    // Rebuild the table ONLY when the set of screens changes. On an unchanged
+    // set the 3s heartbeat would otherwise keep resetting the dropdowns you're
+    // editing (and revert an option you just picked before it lands) — so here
+    // we just refresh the age chips and leave every control alone.
+    const sig = screens.map(s => s.id).join('|');
+    if (sig === this._screensSig && wrap.querySelector('table')) {
+      for (const s of screens) { const a = document.getElementById(`sc-age-${s.id}`); if (a) a.innerHTML = this._scAge(s); }
+      return;
+    }
+    if (wrap.contains(document.activeElement)) return;   // don't yank controls mid-edit on a structural change
+    this._screensSig = sig;
 
-    const sel = (id, disabled, options) =>
-      `<select id="${id}" onchange="Settings.sendScreenCommand('${id.replace(/^sc-\w+-/, '')}')" ` +
-      `style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${disabled?' disabled':''}>${options}</select>`;
-    const lbl = (t) => `<span style="font-size:10px;color:var(--text-3);margin:0 4px 0 8px">${t}</span>`;
-
-    // Only the controls that view actually uses.
-    const optionsFor = (v, id, dis) => {
-      switch (v) {
-        case 'stage': return lbl('A') + sel(`sc-slota-${id}`, dis, typeOpts) + lbl('B') + sel(`sc-slotb-${id}`, dis, typeOpts);
-        case 'test':  return lbl('A') + sel(`sc-slota-${id}`, dis, typeOpts) + lbl('B') + sel(`sc-slotb-${id}`, dis, typeOpts);
-        case 'camera': return lbl('Type') + sel(`sc-cam-${id}`, dis, typeOpts);
-        case 'overview': return lbl('Cues') + sel(`sc-ov-${id}`, dis, ovOpts) + lbl('Scope') + sel(`sc-ovs-${id}`, dis, scopeOpts);
-        case 'waterfall': return lbl('Filter') + sel(`sc-wf-${id}`, dis, wfOpts);
-        default: return '<span style="color:var(--text-3);font-size:12px">—</span>';
-      }
-    };
+    const viewOpts = [['conductor','Simple View'],['stage','Stage'],['camera','Single Cue'],['test','Multi Cue'],['overview','Show Overview'],['waterfall','Waterfall'],['cueread','Cue Readout'],['video','Video'],['videofull','Video — Full Screen']]
+      .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
 
     wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="color:var(--dim);text-align:left">
@@ -2219,28 +2249,33 @@ const Settings = {
       </tr></thead>
       <tbody>${screens.map(s => {
         const isMe = s.id === SCREEN_ID;
-        const sec = s.lastSeen ? Math.round((Date.now() - s.lastSeen) / 1000) : null;
-        const col = sec == null ? '' : sec < 25 ? 'var(--live)' : sec < 60 ? 'var(--warn)' : 'var(--urgent)';
-        const age = sec == null ? '' : `<span style="font-family:var(--font-tc);font-size:10px;color:${col};margin-left:6px">${sec}s</span>`;
+        const view = s.view || 'conductor';
         return `<tr style="border-top:1px solid var(--border)${isMe ? ';opacity:0.5' : ''}">
-          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}${age}</td>
-          <td style="padding:6px 8px">${sel(`sc-view-${s.id}`, isMe, viewOpts)}</td>
-          <td style="padding:6px 8px">${optionsFor(s.view || 'conductor', s.id, isMe)}</td>
+          <td style="padding:6px 8px;font-weight:600">${esc(s.name)}${isMe ? ' (this screen)' : ''}<span id="sc-age-${s.id}">${this._scAge(s)}</span></td>
+          <td style="padding:6px 8px"><select id="sc-view-${s.id}" onchange="Settings.onScreenViewChange('${s.id}')" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text);font-size:12px"${isMe ? ' disabled' : ''}>${viewOpts}</select></td>
+          <td style="padding:6px 8px" id="sc-opts-${s.id}">${this._scOptions(view, s.id, isMe)}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
 
-    // Reflect current values on whatever controls this render produced.
     for (const s of screens) {
-      const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
-      set(`sc-view-${s.id}`,  s.view || 'conductor');
-      set(`sc-slota-${s.id}`, resolveCueType(s.slots?.a, 0));
-      set(`sc-slotb-${s.id}`, resolveCueType(s.slots?.b, 1));
-      set(`sc-cam-${s.id}`,   resolveCueType(s.cameraType, 0));
-      set(`sc-ov-${s.id}`,    s.ovCueType || 'any');
-      set(`sc-ovs-${s.id}`,   s.ovScope || 'song');
-      set(`sc-wf-${s.id}`,    s.wfCueType || 'any');
+      const v = document.getElementById(`sc-view-${s.id}`); if (v) v.value = s.view || 'conductor';
+      this._scReflect(s);
     }
+  },
+
+  // View changed for a screen: swap that row's Options cell to the new view's
+  // controls immediately (don't wait for the screen to report back), seed sane
+  // defaults, then push the command.
+  onScreenViewChange(id) {
+    const view = document.getElementById(`sc-view-${id}`)?.value;
+    const cell = document.getElementById(`sc-opts-${id}`);
+    if (cell && view) {
+      cell.innerHTML = this._scOptions(view, id, false);
+      const scr = (State.screens || []).find(s => s.id === id);
+      if (scr) this._scReflect(scr);
+    }
+    this.sendScreenCommand(id);
   },
 
   sendScreenCommand(targetId) {
