@@ -464,30 +464,52 @@ function renderConsoleView(slots) {
     }
 
     const footCdEl  = document.getElementById(`con-foot-cd-${slot}`);
+    const footLblEl = document.getElementById(`con-foot-label-${slot}`);
     const miniBarEl = document.getElementById(`con-mini-bar-${slot}`);
 
+    // A cue held for a fixed number of seconds gets its own countdown: while it
+    // is up, the footer shows HOLD + the seconds left and the bar drains over
+    // exactly the hold window. "Until next" holds (Infinity) fall through to the
+    // usual T-MINUS-to-next-cue behaviour.
+    const holdRemF = (isLive && liveWindowF !== Infinity) ? Math.max(0, liveWindowF - lastElapsed) : null;
+    const inTimedHold = holdRemF !== null;
+
     // Countdown text
-    if (isLive) {
+    if (inTimedHold) {
+      const remSec = Math.ceil(holdRemF / FR);
+      if (footLblEl) footLblEl.textContent = 'HOLD';
+      if (footCdEl) { footCdEl.textContent = remSec + 's'; footCdEl.classList.toggle('urgent', remSec <= 2); }
+    } else if (isLive) {
       const remSec = isFinite(remToNext) ? Math.floor(remToNext / FR) : Infinity;
+      if (footLblEl) footLblEl.textContent = 'T-MINUS';
       if (footCdEl) { footCdEl.textContent = isFinite(remToNext) ? framesToDisplay(remToNext) : '∞'; footCdEl.classList.toggle('urgent', remSec <= 10); }
     } else if (isPreFire || isFinite(remToNext)) {
       const remSec = Math.floor(remToNext / FR);
+      if (footLblEl) footLblEl.textContent = 'T-MINUS';
       if (footCdEl) { footCdEl.textContent = framesToDisplay(remToNext); footCdEl.classList.toggle('urgent', remSec <= 5); }
     } else {
+      if (footLblEl) footLblEl.textContent = 'T-MINUS';
       if (footCdEl) { footCdEl.textContent = '—'; footCdEl.classList.remove('urgent'); }
     }
 
-    // Progress bar: elapsed since last cue / total gap to next cue
+    // Progress bar: drain the hold window while a timed hold is up, otherwise
+    // show elapsed since last cue over the total gap to the next cue.
     if (miniBarEl) {
-      const lastAbsF = lastFired ? lastFired.absFrames : null;
-      const nextAbsF = nextGlobal ? nextGlobal.absFrames : null;
-      if (lastAbsF !== null && nextAbsF !== null && nextAbsF > lastAbsF) {
-        const pct = Math.min(100, Math.max(0, (nowF - lastAbsF) / (nextAbsF - lastAbsF) * 100));
-        miniBarEl.style.width = pct + '%';
-        miniBarEl.className = 'con-mini-bar' + (isLive ? ' live' : '');
+      if (inTimedHold) {
+        const remSec = Math.ceil(holdRemF / FR);
+        miniBarEl.style.width = Math.min(100, Math.max(0, (holdRemF / liveWindowF) * 100)) + '%';
+        miniBarEl.className = 'con-mini-bar live' + (remSec <= 2 ? ' urgent' : '');
       } else {
-        miniBarEl.style.width = isLive ? '100%' : '0%';
-        miniBarEl.className = 'con-mini-bar' + (isLive ? ' live' : '');
+        const lastAbsF = lastFired ? lastFired.absFrames : null;
+        const nextAbsF = nextGlobal ? nextGlobal.absFrames : null;
+        if (lastAbsF !== null && nextAbsF !== null && nextAbsF > lastAbsF) {
+          const pct = Math.min(100, Math.max(0, (nowF - lastAbsF) / (nextAbsF - lastAbsF) * 100));
+          miniBarEl.style.width = pct + '%';
+          miniBarEl.className = 'con-mini-bar' + (isLive ? ' live' : '');
+        } else {
+          miniBarEl.style.width = isLive ? '100%' : '0%';
+          miniBarEl.className = 'con-mini-bar' + (isLive ? ' live' : '');
+        }
       }
     }
 

@@ -105,15 +105,32 @@ function renderStage(slots, prefix = '') {
       } else { barEl.style.width = '0%'; }
     }
 
+    // The NOW bar counts down the cue-hold window: a timed hold (e.g. 5s) drains
+    // over exactly those seconds, so the bar IS the countdown to the cue clearing.
+    // An "until next" hold has no fixed end, so fall back to the cue's own
+    // duration if it has one, otherwise show a steady full bar.
     const nowBarWrap = $(`slot-${slot}-now-bar-wrap`);
     const nowBar     = $(`slot-${slot}-now-bar`);
+    const holdEl     = $(`slot-${slot}-hold`);
     if (nowBarWrap && nowBar) {
-      if (nowGlobal && lastDurF > 0) {
+      if (nowGlobal && holdWinF !== Infinity && holdWinF > 0) {
+        nowBarWrap.style.display = '';
+        const remF   = Math.max(0, holdWinF - lastElapsed);
+        const remSec = Math.ceil(remF / FR);
+        nowBar.style.width = Math.min(100, Math.max(0, (remF / holdWinF) * 100)) + '%';
+        const urgent = remSec <= 2;
+        nowBar.className = 'stage-cue-progress-bar stage-cue-now-bar' + (urgent ? ' urgent' : '');
+        if (holdEl) { holdEl.textContent = remSec + 's'; holdEl.className = 'stage-now-hold' + (urgent ? ' urgent' : ''); }
+      } else if (nowGlobal && lastDurF > 0) {
         nowBarWrap.style.display = '';
         const pct = Math.min(100, Math.max(0, (lastElapsed / lastDurF) * 100));
         nowBar.style.width = pct + '%';
         nowBar.className = 'stage-cue-progress-bar stage-cue-now-bar' + (lastElapsed > lastDurF * 0.85 ? ' urgent' : '');
-      } else { nowBarWrap.style.display = 'none'; }
+        if (holdEl) holdEl.textContent = '';
+      } else {
+        nowBarWrap.style.display = 'none';
+        if (holdEl) holdEl.textContent = '';
+      }
     }
   }
 }

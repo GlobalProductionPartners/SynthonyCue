@@ -524,6 +524,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
       <button class="btn primary" id="btn-start">▶ START</button>
       <button class="btn" id="btn-stop">■ STOP</button>
       <button class="btn" id="btn-jam">JAM</button>
+      <button class="btn" id="btn-fire-next" title="Fire the next upcoming cue's triggers now">FIRE ▸</button>
       <button class="btn" id="btn-blackout">BLACKOUT</button>
     </div>
     <div class="topbar-spacer"></div>
@@ -633,7 +634,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
             </div>
           </div>
           <div class="stage-cue-now-wrap">
-            <div class="stage-cue-now-label">Now</div>
+            <div class="stage-cue-now-label"><span>Now</span><span class="stage-now-hold" id="slot-a-hold"></span></div>
             <div class="stage-cue-current" id="slot-a-current">—</div>
             <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-a-now-bar-wrap" style="display:none">
               <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-a-now-bar"></div>
@@ -667,7 +668,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
             </div>
           </div>
           <div class="stage-cue-now-wrap">
-            <div class="stage-cue-now-label">Now</div>
+            <div class="stage-cue-now-label"><span>Now</span><span class="stage-now-hold" id="slot-b-hold"></span></div>
             <div class="stage-cue-current" id="slot-b-current">—</div>
             <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-b-now-bar-wrap" style="display:none">
               <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-b-now-bar"></div>
@@ -756,6 +757,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <button class="btn" id="btn-show-load">Load</button>
         <button class="btn" id="btn-show-delete">Delete</button>
         <button class="btn" id="btn-revert">Revert to Saved</button>
+        <a class="btn" href="/api/export/show" download title="Full backup: songs + every setting + logo">Export Show</a>
+        <button class="btn" id="btn-import-show" title="Restore a full show backup (songs + settings + logo)">Import Show</button>
+        <input type="file" id="import-show-input" accept=".json" style="display:none">
         <div class="spacer"></div>
         <span id="editor-total" class="editor-total" title="Total show length — sum of all song durations"></span>
         <a class="btn" href="/logout" style="color:var(--dim)">Logout</a>
@@ -1622,7 +1626,7 @@ const Stage = {
       sel.innerHTML = cueTypeOptionsHTML(v) || '<option value="">— no cue types —</option>';
       sel.value = v;
       const badge = document.getElementById(`slot-${slot}-badge`);
-      if (badge) { badge.textContent = (v || '—').toUpperCase(); badge.className = 'stage-slot-type'; badge.style.color = v ? cueTypeColour(v) : ''; }
+      if (badge) { badge.textContent = (v || '—').toUpperCase(); badge.className = 'stage-slot-type'; badge.style.color = ''; }
     }
   },
 
@@ -2682,6 +2686,24 @@ function switchTab(viewId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// FULL SHOW IMPORT — restores songs + every setting (incl. logo) from a backup
+// produced by "Export Show". Server applies it live and broadcasts the update.
+// ══════════════════════════════════════════════════════════════════════════════
+async function importShow(file) {
+  if (!confirm('Import show backup?\n\nThis REPLACES the current songs and restores all saved settings (cue holds, readout, logo, video…). Unsaved edits will be lost.')) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res  = await fetch('/api/import/show', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok || data.error) { alert('Import failed: ' + (data.error || res.status)); return; }
+    State.localSongs = null;
+    if (window.Editor) Editor.clearDirty();
+    alert(`Imported ${data.songs} song${data.songs !== 1 ? 's' : ''}${data.settings ? ' + settings' : ''}.`);
+  } catch (e) { alert('Import failed: ' + e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // XLSX IMPORT
 // ══════════════════════════════════════════════════════════════════════════════
 async function importXLSX(file) {
@@ -2933,6 +2955,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!blackoutOn && !confirm('Blackout ALL screens?')) return;
     wsSend({ type: 'blackout', on: !blackoutOn });
   });
+  // Global FIRE — fire the next upcoming cue of ANY type across the whole show.
+  document.getElementById('btn-fire-next').addEventListener('click', () => {
+    const next = getNextCueGlobal(null);
+    if (!next) { alert('No upcoming cue to fire.'); return; }
+    const label = Object.values(next.cue.extra || {}).find(Boolean) || next.cue.id;
+    if (!confirm(`Fire next cue now: "${label}"?`)) return;
+    wsSend({ type: 'manual_fire', cueId: next.cue.id });
+  });
   document.getElementById('btn-show-save').addEventListener('click', () => Shows.saveAs());
   document.getElementById('btn-show-load').addEventListener('click', () => Shows.load());
   document.getElementById('btn-show-delete').addEventListener('click', () => Shows.del());
@@ -2977,6 +3007,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('import-file-input').addEventListener('change', e => {
     if (e.target.files[0]) importXLSX(e.target.files[0]);
+  });
+  document.getElementById('btn-import-show').addEventListener('click', () => {
+    document.getElementById('import-show-input').click();
+  });
+  document.getElementById('import-show-input').addEventListener('change', e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (f) importShow(f);
   });
 
   // Settings — always clickable; Settings.save() handles auth gating internally

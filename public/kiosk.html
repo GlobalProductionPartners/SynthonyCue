@@ -171,28 +171,20 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* Full-screen video: picture edge to edge, no header, no cue strip.
    The chrome comes back on mouse move or Escape, otherwise an operator has
    no way out of a kiosk with no keyboard shortcuts. */
-body.video-clean #kiosk-header,
+body.video-clean #hamburger,
+body.video-clean #kiosk-footer,
 body.video-clean .video-overlay { display: none; }
 body.video-clean { cursor: none; }
-body.video-clean.reveal #kiosk-header { display: flex; }
+body.video-clean.reveal #hamburger { display: flex; }
 body.video-clean.reveal { cursor: default; }
 body.video-clean .video-stage { background: #000; }
 
 /* ── Multi Cue (Stage) ── */
 /* Stage view CSS → /stage-cue.css */
 
-/* ── Kiosk header ── */
-#kiosk-header {
-  display: flex; align-items: center; gap: var(--s-4);
-  padding: var(--s-2) var(--s-4);
-  background: var(--bg); border-bottom: 1px solid var(--border);
-  flex-shrink: 0; isolation: isolate; z-index: var(--z-header);
-}
-/* Clocks live in the bottom bar now; the header is just the menu button. */
-.kh-spacer { flex: 1; }
+/* No header bar — the menu button floats and clocks live in the bottom bar. */
 /* Bottom clock bar — TC (blue) · Show (green) · Time of day (yellow), flush. */
 #kiosk-footer { flex-shrink: 0; display: flex; border-top: 1px solid var(--border); }
-body.video-clean #kiosk-footer { display: none; }
 .kf-box { flex: 1; padding: 6px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; }
 .kf-box:last-child { border-right: none; }
 .kf-lbl { font-family: var(--font-tc); font-size: clamp(9px, 1vw, 12px); letter-spacing: 0.16em; color: var(--text-3); }
@@ -201,10 +193,13 @@ body.video-clean #kiosk-footer { display: none; }
 #kf-show { color: var(--live); }
 #kf-tod { color: var(--warn); }
 
-/* ── Hamburger (inline in header) ── */
+/* ── Hamburger (floats top-right over the view) ── */
 #hamburger {
-  flex-shrink: 0; width: 40px; height: 40px; border-radius: var(--r-2);
-  background: transparent; border: 1px solid var(--border);
+  position: fixed; top: var(--s-3); right: var(--s-3);
+  width: 40px; height: 40px; border-radius: var(--r-2);
+  isolation: isolate; z-index: var(--z-header);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  border: 1px solid var(--border); backdrop-filter: blur(4px);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
   cursor: pointer;
   transition: border-color 150ms ease, background-color 150ms ease;
@@ -275,12 +270,9 @@ body.video-clean #kiosk-footer { display: none; }
 <body>
 <div id="app">
 
-  <!-- Header bar -->
-  <div id="kiosk-header">
-    <div class="kh-spacer"></div>
-    <div id="hamburger" onclick="Menu.toggle()">
-      <span></span><span></span><span></span>
-    </div>
+  <!-- Menu button floats top-right over whatever view is showing. -->
+  <div id="hamburger" onclick="Menu.toggle()">
+    <span></span><span></span><span></span>
   </div>
 
   <!-- CONDUCTOR (Stage Display) — default view -->
@@ -405,7 +397,7 @@ body.video-clean #kiosk-footer { display: none; }
           </div>
         </div>
         <div class="stage-cue-now-wrap">
-          <div class="stage-cue-now-label">Now</div>
+          <div class="stage-cue-now-label"><span>Now</span><span class="stage-now-hold" id="slot-a-hold"></span></div>
           <div class="stage-cue-current" id="slot-a-current">—</div>
           <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-a-now-bar-wrap" style="display:none">
             <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-a-now-bar"></div>
@@ -431,7 +423,7 @@ body.video-clean #kiosk-footer { display: none; }
           </div>
         </div>
         <div class="stage-cue-now-wrap">
-          <div class="stage-cue-now-label">Now</div>
+          <div class="stage-cue-now-label"><span>Now</span><span class="stage-now-hold" id="slot-b-hold"></span></div>
           <div class="stage-cue-current" id="slot-b-current">—</div>
           <div class="stage-cue-progress-wrap stage-cue-now-bar-wrap" id="slot-b-now-bar-wrap" style="display:none">
             <div class="stage-cue-progress-bar stage-cue-now-bar" id="slot-b-now-bar"></div>
@@ -480,7 +472,7 @@ body.video-clean #kiosk-footer { display: none; }
         <div class="con-panel-body"><div class="con-cue-text" id="con-cue-a">—</div></div>
         <div class="con-panel-foot">
           <div class="con-foot-row">
-            <span class="con-foot-label">T-MINUS</span>
+            <span class="con-foot-label" id="con-foot-label-a">T-MINUS</span>
             <span class="con-foot-cd" id="con-foot-cd-a">—</span>
           </div>
           <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-a"></div></div>
@@ -502,7 +494,7 @@ body.video-clean #kiosk-footer { display: none; }
         <div class="con-panel-body"><div class="con-cue-text" id="con-cue-b">—</div></div>
         <div class="con-panel-foot">
           <div class="con-foot-row">
-            <span class="con-foot-label">T-MINUS</span>
+            <span class="con-foot-label" id="con-foot-label-b">T-MINUS</span>
             <span class="con-foot-cd" id="con-foot-cd-b">—</span>
           </div>
           <div class="con-mini-bar-wrap"><div class="con-mini-bar" id="con-mini-bar-b"></div></div>
@@ -850,7 +842,7 @@ function syncKioskMenuTypes() {
   for (const id in ids) { const el = document.getElementById(id); if (el) el.value = ids[id]; }
   for (const slot of ['a', 'b']) {
     const badge = document.getElementById(`slot-${slot}-badge`);
-    if (badge) { badge.textContent = (slots[slot] || '—').toUpperCase(); badge.className = 'stage-slot-type'; badge.style.color = slots[slot] ? cueTypeColour(slots[slot]) : ''; }
+    if (badge) { badge.textContent = (slots[slot] || '—').toUpperCase(); badge.className = 'stage-slot-type'; badge.style.color = ''; }
   }
 }
 

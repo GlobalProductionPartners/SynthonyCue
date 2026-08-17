@@ -24,7 +24,9 @@
 .con-panel.live { border-color: var(--live); }
 .con-panel.prefire { border-color: var(--warn); }
 .con-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border); border-radius: var(--r-2) var(--r-2) 0 0; flex-shrink: 0; gap: 6px; }
-.con-panel-type { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+/* Cue name (STAGE CUE …): sized to the Prev cue line and solid white, so the
+   slot identity reads as a heading rather than a faint tag. */
+.con-panel-type { font-size: clamp(11px, 1.6vw, 18px); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
 .con-panel-head select { font-size: 9px; padding: 1px 3px; background: transparent; border: none; color: var(--text-3); margin-left: auto; }
 .con-pill { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-1); border: 1px solid transparent; letter-spacing: 0.08em; min-width: 0; }
 .con-pill.live { color: var(--live); border-color: var(--live); }

@@ -15,7 +15,10 @@ const DATA_DIR    = process.env.SYNTHONY_DATA_DIR || __dirname;
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const SONGS_PATH  = path.join(DATA_DIR, 'data', 'songs.json');
 
-let config = loadJSON(CONFIG_PATH, {
+// Full config schema with defaults. Merged over the saved file so EVERY setting
+// key always exists on `config` — a show save/export then carries all of them
+// (incl. the logo) even for values the operator never touched.
+const CONFIG_DEFAULTS = {
   port: 3001,
   editPassword: 'synthony',
   oscDestinations: {},
@@ -42,7 +45,8 @@ let config = loadJSON(CONFIG_PATH, {
   // default; departments are keyed by cue-type column name. Style per dept:
   // 'sg' standby→go, 'sr' standby→read cue, 'go' go-only, 'ro' read-cue-only.
   readout: { enabled: false, lead: 10, voice: 'en', rate: 175, depts: {} }
-});
+};
+let config = { ...CONFIG_DEFAULTS, ...loadJSON(CONFIG_PATH, {}) };
 
 // Normalised just below, once LEGACY_FIELD_NAMES and normalizeSongs exist
 // (const declarations aren't hoisted, so the call can't precede them).
@@ -462,6 +466,23 @@ function sanitiseConfig(cfg) {
   return safe;
 }
 
+// Restore settings carried by a loaded/imported show. The incoming object is
+// already sanitised (no password/session secret), so merging it can't leak or
+// clobber credentials. `port` stays machine-bound; we refresh the video pipeline
+// if its source changed but leave live TC/network listeners as the box runs them
+// (loading a show must never knock a running rig off its timecode source).
+function applyLoadedSettings(settings) {
+  const { port, ...safe } = settings || {};
+  const prevVideo = config.videoSource;
+  config = { ...config, ...safe };
+  saveJSON(CONFIG_PATH, config);
+  broadcast({ type: 'config_updated', config: sanitiseConfig(config) });
+  if (config.videoSource !== prevVideo) {
+    try { Video.configure(config, broadcastVideoStatus); Video.restart(); broadcast({ type: 'video_reload' }); }
+    catch (e) { console.warn('[Show] video refresh:', e.message); }
+  }
+}
+
 // ── Timecode Engine ───────────────────────────────────────────────────────────
 const TC = (() => {
   const FRAME_RATE = 25;
@@ -802,7 +823,10 @@ function handleClientMessage(ws, msg) {
       if (!verifyEdit(ws, msg)) return;
       const slug = showSlug(msg.name);
       if (!slug) { safeSend(ws, { type: 'error', message: 'Show name required' }); return; }
-      saveJSON(path.join(SHOWS_DIR, slug + '.json'), songs);
+      // Save the WHOLE show: songs + every setting (incl. logo). Secrets
+      // (password, session secret, update token) are stripped by sanitiseConfig
+      // so a show file is safe to copy between machines.
+      saveJSON(path.join(SHOWS_DIR, slug + '.json'), { version: 1, savedAt: new Date().toISOString(), songs, settings: sanitiseConfig(config) });
       flightLog('SHOW-SAVED', slug);
       safeSend(ws, { type: 'show_saved', name: slug });
       break;
@@ -814,9 +838,12 @@ function handleClientMessage(ws, msg) {
       const file = path.join(SHOWS_DIR, slug + '.json');
       if (!slug || !fs.existsSync(file)) { safeSend(ws, { type: 'error', message: 'Show not found' }); return; }
       try {
-        songs = normalizeSongs(JSON.parse(fs.readFileSync(file, 'utf8')));
+        const bundle = readShowBundle(file);
+        songs = normalizeSongs(bundle.songs);
         saveJSON(SONGS_PATH, songs);      // loading a show IS the new live state
         firedOutputs.clear();
+        // Restore the show's settings too (cue-hold, readout, logo, video, …).
+        if (bundle.settings) applyLoadedSettings(bundle.settings);
         flightLog('SHOW-LOADED', slug);
         broadcast({ type: 'songs_updated', songs });
       } catch (e) { safeSend(ws, { type: 'error', message: 'Show file unreadable: ' + e.message }); }
@@ -947,14 +974,22 @@ function showSlug(name) {
   return String(name || '').trim().toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }
+// A show file is either a bare songs array (legacy) or a full bundle
+// { version, songs, settings } — settings carries every non-secret config
+// value (incl. the logo). Read both shapes uniformly.
+function readShowBundle(file) {
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (Array.isArray(parsed)) return { songs: parsed, settings: null };
+  return { songs: parsed.songs || [], settings: parsed.settings || null };
+}
 app.get('/api/shows', (_req, res) => {
   try {
     fs.mkdirSync(SHOWS_DIR, { recursive: true });
     const list = fs.readdirSync(SHOWS_DIR).filter(f => f.endsWith('.json')).map(f => {
       const st = fs.statSync(path.join(SHOWS_DIR, f));
-      let meta = { songs: 0 };
-      try { meta.songs = JSON.parse(fs.readFileSync(path.join(SHOWS_DIR, f), 'utf8')).length; } catch {}
-      return { name: f.slice(0, -5), savedAt: st.mtime.toISOString(), songs: meta.songs };
+      let count = 0;
+      try { count = readShowBundle(path.join(SHOWS_DIR, f)).songs.length; } catch {}
+      return { name: f.slice(0, -5), savedAt: st.mtime.toISOString(), songs: count };
     }).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
     res.json({ shows: list });
   } catch (e) { res.json({ shows: [], error: e.message }); }
@@ -1171,6 +1206,34 @@ app.get('/api/export/xlsx', (_req, res) => {
 app.get('/api/export/json', (_req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="songs.json"');
   res.json(songs);
+});
+
+// Full show backup: songs + every setting (incl. the logo), safe to move
+// between machines — sanitiseConfig strips the password/session secret. This is
+// the same shape a saved show file uses, so it can be dropped into data/shows/
+// and loaded, or re-imported via /api/import/show.
+app.get('/api/export/show', (_req, res) => {
+  res.setHeader('Content-Disposition', 'attachment; filename="synthony-show.json"');
+  res.json({ version: 1, exportedAt: new Date().toISOString(), songs, settings: sanitiseConfig(config) });
+});
+
+// Import a full show backup produced by /api/export/show (or a saved show file):
+// applies songs and restores every setting (incl. logo). Auth-gated — it
+// rewrites the live show and config.
+app.post('/api/import/show', upload.single('file'), (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (!req.file) { res.status(400).json({ error: 'No file' }); return; }
+  try {
+    const parsed = JSON.parse(req.file.buffer.toString('utf8'));
+    const bundle = Array.isArray(parsed) ? { songs: parsed, settings: null } : { songs: parsed.songs || [], settings: parsed.settings || null };
+    songs = normalizeSongs(bundle.songs);
+    saveJSON(SONGS_PATH, songs);
+    firedOutputs.clear();
+    if (bundle.settings) applyLoadedSettings(bundle.settings);
+    flightLog('SHOW-IMPORTED', `${songs.length} songs${bundle.settings ? ' + settings' : ''}`);
+    broadcast({ type: 'songs_updated', songs });
+    res.json({ ok: true, songs: songs.length, settings: !!bundle.settings });
+  } catch (e) { res.status(400).json({ error: 'Bad show file: ' + e.message }); }
 });
 
 // Import Synthony XLSX → songs

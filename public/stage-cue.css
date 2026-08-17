@@ -51,16 +51,15 @@
   flex-shrink: 0;
 }
 
-/* Slot type is an identity label, not a status. Monochrome, separated by
-   text alone — seven coloured chips competed with the cue states that
-   actually need to be noticed. */
+/* Slot type is an identity label, not a status. Solid white and sized to
+   match the Prev cue line — a plain heading, not a coloured chip (seven hues
+   competed with the cue states that actually need to be noticed). */
 .stage-slot-type {
-  font-size: clamp(9px, 0.8vw, 11px); font-weight: 600; letter-spacing: 0.16em;
-  text-transform: uppercase; padding: 2px var(--s-2); border-radius: var(--r-1);
-  border: 1px solid var(--border); color: var(--text-3); white-space: nowrap;
+  font-size: clamp(12px, 1.5vw, 24px); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text); white-space: nowrap;
 }
 .slot-stage, .slot-host, .slot-camera, .slot-conductor, .slot-description {
-  color: var(--text-2); border-color: var(--border);
+  color: var(--text);
 }
 
 /* Type selector — only visible in admin */
@@ -108,7 +107,15 @@
   font-family: var(--font-tc);
   font-size: clamp(9px, 0.8vw, 11px); font-weight: 400; text-transform: uppercase;
   letter-spacing: 0.16em; color: var(--live); margin-bottom: var(--s-1);
+  display: flex; justify-content: space-between; align-items: baseline;
 }
+/* Remaining hold time — counts down while a held cue is on screen. */
+.stage-now-hold {
+  font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--live);
+}
+.stage-now-hold.urgent { color: var(--urgent); }
+.stage-now-hold:empty { display: none; }
 .stage-cue-current {
   font-family: var(--font-ui); font-size: clamp(16px, 2vw, 38px); font-weight: 700;
   color: var(--text); line-height: 1.2;
