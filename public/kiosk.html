@@ -111,6 +111,14 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .camera-next span { color: var(--text-2); }
 .camera-countdown { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(24px, 4.5vw, 72px); font-weight: 700; color: var(--warn); }
 .camera-tc { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(13px, 1.4vw, 20px); color: var(--text-3); }
+/* Host view — big track name + two configurable cue types */
+.host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); font-size: clamp(30px, 6.5vw, 104px); line-height: 1.0; letter-spacing: -0.02em; width: 100%; overflow: hidden; flex: 0 0 auto; }
+.host-cue { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.host-cue-type { font-family: var(--font-tc); font-size: clamp(10px, 1.1vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; }
+.host-cue-text { font-family: var(--font-ui); font-weight: 700; color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
+.host-cue-text.is-upcoming { color: var(--text-2); }
+.host-tc { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(13px, 1.4vw, 20px); color: var(--text-3); flex: 0 0 auto; }
 
 /* ── Video ── */
 #view-video { position: relative; }
@@ -311,6 +319,22 @@ body.video-clean .video-stage { background: #000; }
       <div class="camera-countdown" id="camera-countdown">—</div>
       <div class="camera-next" id="camera-next">Next: <span>—</span></div>
       <div class="camera-tc" id="camera-tc">--:--:--:--</div>
+    </div>
+  </div>
+
+  <!-- HOST -->
+  <div class="view" id="view-host">
+    <div class="host-main">
+      <div class="host-label" id="host-label">—</div>
+      <div class="host-cue">
+        <div class="host-cue-type" id="host-type-a">—</div>
+        <div class="host-cue-text" id="host-text-a">—</div>
+      </div>
+      <div class="host-cue">
+        <div class="host-cue-type" id="host-type-b">—</div>
+        <div class="host-cue-text" id="host-text-b">—</div>
+      </div>
+      <div class="host-tc" id="host-tc">--:--:--:--</div>
     </div>
   </div>
 
@@ -561,9 +585,16 @@ body.video-clean .video-stage { background: #000; }
     <button class="menu-btn" id="view-btn-overview" onclick="switchView('overview')">Show Overview</button>
     <button class="menu-btn active" id="view-btn-conductor" onclick="switchView('conductor')">Simple View</button>
     <button class="menu-btn" id="view-btn-camera" onclick="switchView('camera')">Single Cue</button>
+    <button class="menu-btn" id="view-btn-host" onclick="switchView('host')">Host</button>
     <button class="menu-btn" id="view-btn-test" onclick="switchView('test')">Multi Cue</button>
     <button class="menu-btn" id="view-btn-waterfall" onclick="switchView('waterfall')">Waterfall</button>
     <button class="menu-btn" id="view-btn-videofull" onclick="switchView('videofull')">Video — Full Screen</button>
+  </div>
+  <div class="menu-section" id="menu-host-section" style="display:none">
+    <div class="menu-label">Cue 1 Type</div>
+    <select class="menu-select" id="menu-host-a" onchange="setHostSlotType('a', this.value)"></select>
+    <div class="menu-label" style="margin-top:6px">Cue 2 Type</div>
+    <select class="menu-select" id="menu-host-b" onchange="setHostSlotType('b', this.value)"></select>
   </div>
   <div class="menu-section" id="menu-test-section" style="display:none">
     <div class="menu-label">Panel A Type</div>
@@ -644,6 +675,7 @@ const VIEW_PARAM = new URLSearchParams(location.search).get('view');
 let currentView  = VIEW_PARAM || localStorage.getItem('kiosk-view') || 'conductor';
 const slots      = { a: localStorage.getItem('kiosk-slot-a') || 'stage', b: localStorage.getItem('kiosk-slot-b') || 'host' };
 let cameraType   = localStorage.getItem('kiosk-cam-type') || 'camera';
+const hostSlots  = { a: localStorage.getItem('kiosk-host-a') || null, b: localStorage.getItem('kiosk-host-b') || null };
 
 /* getField → /stage-cue.js */
 
@@ -797,8 +829,11 @@ function syncKioskMenuTypes() {
   cameraType = resolveCueType(cameraType, 0);
   testSlots.a = resolveCueType(testSlots.a, 0);
   testSlots.b = resolveCueType(testSlots.b, 1);
+  hostSlots.a = resolveCueType(hostSlots.a, 0);
+  hostSlots.b = resolveCueType(hostSlots.b, 1);
   const ids = { 'menu-slot-a': slots.a, 'menu-slot-b': slots.b, 'menu-cam-type': cameraType,
-                'menu-test-slot-a': testSlots.a, 'menu-test-slot-b': testSlots.b };
+                'menu-test-slot-a': testSlots.a, 'menu-test-slot-b': testSlots.b,
+                'menu-host-a': hostSlots.a, 'menu-host-b': hostSlots.b };
   const sig = customCueTypes().join('|');
   if (sig !== _kioskTypeSig) {
     _kioskTypeSig = sig;
@@ -827,6 +862,7 @@ function renderCurrent() {
   }
   if (currentView === 'conductor')   renderConductor();
   else if (currentView === 'camera') renderCamera();
+  else if (currentView === 'host')   renderHostView(hostSlots);
   else if (currentView === 'stage')  renderStage(slots);
   else if (currentView === 'test')   renderTestView();
   else if (currentView === 'overview') Overview.render();
@@ -835,7 +871,7 @@ function renderCurrent() {
 }
 
 // ── View switching ────────────────────────────────────────────────────────────
-const KIOSK_VIEWS = ['overview', 'conductor', 'camera', 'test', 'waterfall', 'videofull'];
+const KIOSK_VIEWS = ['overview', 'conductor', 'camera', 'host', 'test', 'waterfall', 'videofull'];
 function switchView(view) {
   // Retired views: windowed Video → Full Screen; Stage / Cue Readout → Simple.
   if (view === 'video') view = 'videofull';
@@ -855,6 +891,7 @@ function switchView(view) {
   if (btn) btn.classList.add('active');
   document.getElementById('menu-slot-section').style.display = view === 'stage'  ? '' : 'none';
   document.getElementById('menu-cam-section').style.display  = view === 'camera' ? '' : 'none';
+  document.getElementById('menu-host-section').style.display = view === 'host'   ? '' : 'none';
   document.getElementById('menu-test-section').style.display = view === 'test'   ? '' : 'none';
   if (isVideo) attachVideo(); else detachVideo();
   renderCurrent();
@@ -864,6 +901,13 @@ function switchView(view) {
 function setTestSlotType(slot, type) {
   testSlots[slot] = type;
   localStorage.setItem(`kiosk-con-slot-${slot}`, type);
+  renderCurrent();
+  sendScreenUpdate();
+}
+
+function setHostSlotType(slot, type) {
+  hostSlots[slot] = type;
+  localStorage.setItem(`kiosk-host-${slot}`, type);
   renderCurrent();
   sendScreenUpdate();
 }
@@ -938,7 +982,7 @@ function sendScreenHello() {
 setInterval(() => { try { sendScreenUpdate(); } catch {} }, 10000);
 
 function sendScreenUpdate() {
-  wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType,
+  wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, hostSlots, cameraType,
            ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any',
            wfCueType: (typeof Waterfall !== 'undefined' && Waterfall._cueType) || 'any',
            ovScope: (typeof Overview !== 'undefined' && Overview._cueScope) || 'song' });
@@ -1006,6 +1050,8 @@ function handleMsg(msg) {
       { const setSlot = (msg.view || currentView) === 'test' ? setTestSlotType : setSlotType;
         if (msg.slots?.a) setSlot('a', msg.slots.a);
         if (msg.slots?.b) setSlot('b', msg.slots.b); }
+      if (msg.hostSlots?.a) setHostSlotType('a', msg.hostSlots.a);
+      if (msg.hostSlots?.b) setHostSlotType('b', msg.hostSlots.b);
       if (msg.cameraType) setCameraType(msg.cameraType);
       break;
   }

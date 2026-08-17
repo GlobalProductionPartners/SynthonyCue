@@ -911,7 +911,7 @@ function handleClientMessage(ws, msg) {
     }
 
     case 'screen_hello': {
-      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, lastSeen: Date.now() });
+      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, lastSeen: Date.now() });
       flightLog('SCREEN-CONNECTED', `${msg.name} (${msg.id})`);
       broadcastScreensList();
       break;
@@ -919,7 +919,7 @@ function handleClientMessage(ws, msg) {
 
     case 'screen_update': {
       const s = screens.get(msg.id);
-      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, lastSeen: Date.now() }); broadcastScreensList(); }
+      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, lastSeen: Date.now() }); broadcastScreensList(); }
       break;
     }
 
@@ -928,7 +928,7 @@ function handleClientMessage(ws, msg) {
       const target = screens.get(msg.targetId);
       console.log(`[Screen] Command → ${msg.targetId} (${target ? 'found, state=' + target.ws.readyState : 'NOT FOUND'}) view=${msg.view}`);
       console.log(`[Screen] Known screens: ${[...screens.keys()].join(', ') || 'none'}`);
-      if (target?.ws?.readyState === 1) safeSend(target.ws, { type: 'screen_command', view: msg.view, slots: msg.slots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope });
+      if (target?.ws?.readyState === 1) safeSend(target.ws, { type: 'screen_command', view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope });
       break;
     }
 

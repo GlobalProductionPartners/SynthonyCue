@@ -225,6 +225,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 .camera-tc {
   font-family: var(--font-tc); font-size: clamp(14px, 2vw, 20px); color: var(--dim);
 }
+/* Host view — big track name + two configurable cue types */
+.host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); font-size: clamp(30px, 6.5vw, 104px); line-height: 1.0; letter-spacing: -0.02em; width: 100%; overflow: hidden; flex: 0 0 auto; }
+.host-cue { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.host-cue-type { font-family: var(--font-tc); font-size: clamp(10px, 1.1vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; }
+.host-cue-text { font-family: var(--font-ui); font-weight: 700; color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
+.host-cue-text.is-upcoming { color: var(--text-2); }
+.host-tc { font-family: var(--font-tc); font-size: clamp(14px, 2vw, 20px); color: var(--dim); flex: 0 0 auto; }
 
 /* ════════════════════════════════════════════════════════════════════════════ */
 /* CONDUCTOR VIEW                                                               */
@@ -528,6 +536,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
     <button class="tab" data-view="waterfall">Waterfall</button>
     <button class="tab" data-view="conductor">Simple View</button>
     <button class="tab" data-view="camera">Single Cue</button>
+    <button class="tab" data-view="host">Host</button>
     <button class="tab" data-view="stage">Multi Cue</button>
     <button class="tab" data-view="cueread">Cue Readout</button>
     <button class="tab" data-view="editor">Cue Editor</button>
@@ -681,6 +690,20 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <div class="camera-countdown" id="camera-countdown">—</div>
         <div class="camera-next" id="camera-next">Next: <span>—</span></div>
         <div class="camera-tc" id="camera-tc">--:--:--:--</div>
+      </div>
+    </div>
+
+    <!-- HOST -->
+    <div class="view" id="view-host">
+      <div style="position:absolute;top:12px;right:16px;z-index:10;display:flex;gap:8px">
+        <select id="host-type-sel-a" onchange="Host.setType('a',this.value)" style="background:var(--bg2);color:var(--dim);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:13px"></select>
+        <select id="host-type-sel-b" onchange="Host.setType('b',this.value)" style="background:var(--bg2);color:var(--dim);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:13px"></select>
+      </div>
+      <div class="host-main">
+        <div class="host-label" id="host-label">—</div>
+        <div class="host-cue"><div class="host-cue-type" id="host-type-a">—</div><div class="host-cue-text" id="host-text-a">—</div></div>
+        <div class="host-cue"><div class="host-cue-type" id="host-type-b">—</div><div class="host-cue-text" id="host-text-b">—</div></div>
+        <div class="host-tc" id="host-tc">--:--:--:--</div>
       </div>
     </div>
 
@@ -1086,12 +1109,12 @@ const SCREEN_ID = sessionStorage.getItem('screen-id') || (() => {
 let SCREEN_NAME = localStorage.getItem('screen-name') || 'Screen';
 
 function sendScreenHello() {
-  wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, cameraType: Camera.type });
+  wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, hostSlots: Host.slots, cameraType: Camera.type });
 }
 setInterval(() => { try { sendScreenUpdate(); } catch {} }, 10000);
 
 function sendScreenUpdate() {
-  wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, cameraType: Camera.type });
+  wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: Views.current, slots: Stage.slots, hostSlots: Host.slots, cameraType: Camera.type });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1320,6 +1343,7 @@ const Views = {
     switch(viewId) {
       case 'stage':      Stage.render(); break;
       case 'camera':     Camera.render(); break;
+      case 'host':       Host.render(); break;
       case 'conductor':  Conductor.render(); break;
       case 'editor':     Editor.render(); break;
       case 'settings':   Settings.render(); break;
@@ -1630,6 +1654,31 @@ const Camera = {
     const sel = document.getElementById('camera-type');
     if (sel && sel.value !== type) sel.value = type;
   }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// HOST — Single Cue with a big track name and a second configurable cue type
+// ══════════════════════════════════════════════════════════════════════════════
+const Host = {
+  slots: { a: localStorage.getItem('host-type-a') || null, b: localStorage.getItem('host-type-b') || null },
+
+  syncTypes() {
+    for (const slot of ['a', 'b']) {
+      const sel = document.getElementById(`host-type-sel-${slot}`);
+      const v = resolveCueType(this.slots[slot], slot === 'b' ? 1 : 0);
+      this.slots[slot] = v;
+      if (sel) { sel.innerHTML = cueTypeOptionsHTML(v) || '<option value="">—</option>'; sel.value = v; }
+    }
+  },
+
+  setType(slot, type) {
+    this.slots[slot] = type;
+    localStorage.setItem(`host-type-${slot}`, type);
+    this.render();
+    sendScreenUpdate();
+  },
+
+  render() { this.syncTypes(); renderHostView(this.slots); }
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2188,6 +2237,7 @@ const Settings = {
       case 'stage':
       case 'test':      return lbl('A') + sel(`sc-slota-${id}`, typeOpts) + lbl('B') + sel(`sc-slotb-${id}`, typeOpts);
       case 'camera':    return lbl('Type') + sel(`sc-cam-${id}`, typeOpts);
+      case 'host':      return lbl('Cue 1') + sel(`sc-hosta-${id}`, typeOpts) + lbl('Cue 2') + sel(`sc-hostb-${id}`, typeOpts);
       case 'overview':  return lbl('Cues') + sel(`sc-ov-${id}`, ovOpts) + lbl('Scope') + sel(`sc-ovs-${id}`, scopeOpts);
       case 'waterfall': return lbl('Filter') + sel(`sc-wf-${id}`, wfOpts);
       default:          return '<span style="color:var(--text-3);font-size:12px">—</span>';
@@ -2200,6 +2250,8 @@ const Settings = {
     const set = (id, v) => { const el = document.getElementById(id); if (el && v != null && [...el.options].some(o => o.value === v)) el.value = v; };
     set(`sc-slota-${s.id}`, resolveCueType(s.slots?.a, 0));
     set(`sc-slotb-${s.id}`, resolveCueType(s.slots?.b, 1));
+    set(`sc-hosta-${s.id}`, resolveCueType(s.hostSlots?.a, 0));
+    set(`sc-hostb-${s.id}`, resolveCueType(s.hostSlots?.b, 1));
     set(`sc-cam-${s.id}`,   resolveCueType(s.cameraType, 0));
     set(`sc-ov-${s.id}`,    s.ovCueType || 'any');
     set(`sc-ovs-${s.id}`,   s.ovScope || 'song');
@@ -2238,7 +2290,7 @@ const Settings = {
 
     // Views a display can show. Cue Readout is control/settings only (not a
     // display view); Stage and windowed Video are retired (Video Full Screen stays).
-    const viewOpts = [['overview','Show Overview'],['conductor','Simple View'],['camera','Single Cue'],['test','Multi Cue'],['waterfall','Waterfall'],['videofull','Video — Full Screen']]
+    const viewOpts = [['overview','Show Overview'],['conductor','Simple View'],['camera','Single Cue'],['host','Host'],['test','Multi Cue'],['waterfall','Waterfall'],['videofull','Video — Full Screen']]
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
 
     wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -2285,10 +2337,12 @@ const Settings = {
     const slotA    = document.getElementById(`sc-slota-${targetId}`)?.value;
     const slotB    = document.getElementById(`sc-slotb-${targetId}`)?.value;
     const camType  = document.getElementById(`sc-cam-${targetId}`)?.value;
+    const hostA    = document.getElementById(`sc-hosta-${targetId}`)?.value;
+    const hostB    = document.getElementById(`sc-hostb-${targetId}`)?.value;
     const ovType   = document.getElementById(`sc-ov-${targetId}`)?.value;
     const ovScope  = document.getElementById(`sc-ovs-${targetId}`)?.value;
     const wfType   = document.getElementById(`sc-wf-${targetId}`)?.value;
-    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, cameraType: camType, ovCueType: ovType, wfCueType: wfType, ovScope });
+    wsSend({ type: 'screen_command', targetId, view, slots: { a: slotA, b: slotB }, hostSlots: { a: hostA, b: hostB }, cameraType: camType, ovCueType: ovType, wfCueType: wfType, ovScope });
   },
 
   onSourceChange(src, sendToServer) {
@@ -2710,7 +2764,7 @@ function applyURLParams() {
   const map = {
     dashboard: 'dashboard',
     stage: 'stage', 'stage-manager': 'stage',
-    camera: 'camera', conductor: 'conductor',
+    camera: 'camera', host: 'host', conductor: 'conductor',
     overview: 'overview', waterfall: 'waterfall', cueread: 'cueread',
     editor: 'editor', settings: 'settings'
   };

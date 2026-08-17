@@ -117,3 +117,31 @@ function renderStage(slots, prefix = '') {
     }
   }
 }
+
+// Host view — a big track name plus two configurable cue types (Single Cue with
+// a second cue). Shared by admin and kiosk via the element id prefix.
+function renderHostView(hslots, prefix = '') {
+  const $ = id => document.getElementById(prefix + id);
+  const song   = getCurrentSong();
+  const curCue = getCurrentCue(song);
+  const nameEl = $('host-label');
+  if (nameEl) {
+    nameEl.textContent = song?.trackName || '—';
+    fitText(nameEl, nameEl, 40, Math.round(window.innerHeight * 0.22));
+  }
+  for (const slot of ['a', 'b']) {
+    const type   = hslots[slot];
+    const nextG  = getNextCueGlobal(type);
+    const curTx  = getField(curCue, type);
+    const nextTx = getField(nextG?.cue, type);
+    const txEl = $('host-text-' + slot);
+    if (txEl) {
+      txEl.textContent = curTx || nextTx || '—';
+      txEl.classList.toggle('is-upcoming', !curTx && !!nextTx);
+      fitText(txEl, txEl, 22, Math.round(window.innerHeight * 0.13));
+    }
+    const tyEl = $('host-type-' + slot);
+    if (tyEl) { tyEl.textContent = (type || '—').toUpperCase(); tyEl.style.color = type ? cueTypeColour(type) : ''; }
+  }
+  const tcEl = $('host-tc'); if (tcEl) tcEl.textContent = State.tc;
+}
