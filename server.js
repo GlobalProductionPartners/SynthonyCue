@@ -22,7 +22,11 @@ let config = loadJSON(CONFIG_PATH, {
   artnetDestinations: {},
   tcSource: 'internal',
   artnetInterface: 'all',
+  // Cue hold: how long a fired cue stays on screen. cueHoldMode/cueHoldSeconds
+  // are the default; cueHold overrides it per cue-type — { type: {mode,seconds} }.
   cueHoldMode: 'timed',
+  cueHoldSeconds: 5,
+  cueHold: {},
   // Video source — anything ffmpeg can open. The Zowietek encoder's
   // secondary (720p) stream is the intended input; the 4K main stream costs
   // far more to decode for no gain on a cue display.

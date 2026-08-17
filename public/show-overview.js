@@ -127,15 +127,13 @@ const Overview = {
     const typeSelEl = document.getElementById('ov-cue-type-sel');
     if (typeSelEl && typeSelEl.value !== cueType) typeSelEl.value = cueType;
 
-    // ── Determine isLive per hold mode ────────────────────────────────────────
-    const holdMode = State.config?.cueHoldMode || 'timed';
-    let isLive = !!lastFired && sameSong;
-    if (isLive && holdMode === 'timed') {
-      const HOLD_F      = 5 * FR;
-      const lastElapsed = nowF - lastFired.absFrames;
+    // ── Determine isLive per cue-type hold ─────────────────────────────────────
+    let isLive = !!lastFired;
+    if (isLive) {
       const lastDurF    = lastFired?.cue?.duration ? parseDuration(lastFired.cue.duration) : 0;
-      const liveWindowF = lastDurF > 0 ? lastDurF : HOLD_F;
-      if (lastElapsed >= liveWindowF) isLive = false;
+      const win         = cueHoldWindow(cueType, lastDurF);   // 'any'/'all' → default hold
+      if (win === Infinity) isLive = true;                    // hold until next cue (across songs)
+      else isLive = (nowF - lastFired.absFrames) < win && sameSong;
     }
 
     // ── Column 1: Prev / Current / Next ───────────────────────────────────────

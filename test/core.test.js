@@ -156,6 +156,26 @@ test('show time: a track firing early catches up to the plan at the next track t
   assert.equal(st('01:01:30:00'), 120);   // B's top → snaps forward to A's full planned 2:00 (truth check)
 });
 
+// ── Cue hold (per cue-type live window) ──────────────────────────────────────
+test('cueHoldWindow: per-type override, else default; until-next → Infinity', () => {
+  sandbox.State.config = {
+    cueHoldMode: 'timed', cueHoldSeconds: 5,
+    cueHold: {
+      'CAMERA CUE': { mode: 'until-next', seconds: 0 },
+      'STAGE CUE':  { mode: 'timed', seconds: 12 },
+    },
+  };
+  assert.equal(sandbox.cueHoldWindow('CAMERA CUE', 999), Infinity);        // until next cue
+  assert.equal(sandbox.cueHoldWindow('STAGE CUE', 999), 12 * 25);          // fixed 12s (ignores cue duration)
+  assert.equal(sandbox.cueHoldWindow('HOST CUE', 0), 5 * 25);             // default timed 5s
+  assert.equal(sandbox.cueHoldWindow('HOST CUE', 3 * 25), 5 * 25);        // default seconds win over cue dur
+
+  // default with seconds 0 falls back to the cue's own duration, then 5s
+  sandbox.State.config = { cueHoldMode: 'timed', cueHoldSeconds: 0, cueHold: {} };
+  assert.equal(sandbox.cueHoldWindow('X', 7 * 25), 7 * 25);
+  assert.equal(sandbox.cueHoldWindow('X', 0), 5 * 25);
+});
+
 // ── Cue Readout: standby/go event generation (shared with server checkCueFires) ─
 function readoutSetup(depts, lead = 10) {
   sandbox.State.songs = [

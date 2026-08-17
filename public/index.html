@@ -920,14 +920,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
           <button class="btn primary" id="btn-save-config">Save Settings</button>
         </div>
         <div class="panel">
-          <div class="sec panel-sec"><span class="sep">//</span> CUE BEHAVIOUR</div>
+          <div class="sec panel-sec"><span class="sep">//</span> CUE HOLD</div>
           <div class="form-group">
-            <label class="form-label">Cue Hold Mode</label>
-            <select class="form-input" id="cfg-cue-hold-mode" onchange="Settings.previewHoldMode(this.value)">
-              <option value="timed">Timed</option>
-              <option value="until-next">Until Next Cue</option>
-            </select>
-            <div id="cfg-hold-mode-desc" style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5"></div>
+            <label class="form-label">How long a fired cue stays on screen — per cue type</label>
+            <div id="cue-hold-list"></div>
+            <div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5">“Until next cue” keeps it up until the next cue of that type. “Hold for…” clears it after the set seconds (or the cue’s own duration if left at 0).</div>
           </div>
           <button class="btn primary" id="btn-save-config-cue">Apply</button>
         </div>
@@ -2019,6 +2016,7 @@ const Settings = {
     this.renderOSCDests();
     this.renderArtNetDests();
     this.renderScreens();
+    this.renderCueHold();
   },
 
   // ── Video source ─────────────────────────────────────────────────────────
@@ -2458,24 +2456,62 @@ const Settings = {
       ltcDevice:          document.getElementById('cfg-ltc-device').value || '',
       ltcChannel:         parseInt(document.getElementById('cfg-ltc-channel').value) || 1,
       port:               parseInt(document.getElementById('cfg-port').value),
-      cueHoldMode:        document.getElementById('cfg-cue-hold-mode').value,
       oscDestinations:    State.config.oscDestinations    || {},
       artnetDestinations: State.config.artnetDestinations || {},
     };
+    // Cue hold: the '_default' row sets the global default; every other row is a
+    // per-type override.
+    const cueHold = {};
+    document.querySelectorAll('#cue-hold-list .hold-row').forEach(rowEl => {
+      const modeEl = rowEl.querySelector('.hold-mode'), secEl = rowEl.querySelector('.hold-secs');
+      const key = modeEl.dataset.key, mode = modeEl.value, seconds = Math.max(0, parseInt(secEl.value) || 0);
+      if (key === '_default') { cfg.cueHoldMode = mode; cfg.cueHoldSeconds = seconds; }
+      else cueHold[key] = { mode, seconds };
+    });
+    cfg.cueHold = cueHold;
     const pw = document.getElementById('cfg-password').value;
     if (pw) cfg.editPassword = pw;
     wsSend({ type: 'save_config', config: cfg });
     wsSend({ type: 'tc_source',   source: cfg.tcSource });
   },
 
-  previewHoldMode(val) {
-    const desc = document.getElementById('cfg-hold-mode-desc');
-    if (!desc) return;
-    if (val === 'until-next') {
-      desc.textContent = 'Cue stays on screen until the next timecode fires, no matter how much time passes.';
-    } else {
-      desc.textContent = 'Cue clears after its set duration, or after 5 seconds if no duration is set.';
+  // One hold row per cue type (plus a default row), rebuilt from the show's types.
+  renderCueHold() {
+    const wrap = document.getElementById('cue-hold-list');
+    if (!wrap) return;
+    const cfg = State.config || {};
+    const per = cfg.cueHold || {};
+    const defMode = cfg.cueHoldMode || 'timed';
+    const defSecs = cfg.cueHoldSeconds != null ? cfg.cueHoldSeconds : 5;
+    const row = (key, label, colour, mode, secs) => {
+      const timed = mode !== 'until-next';
+      return `<div class="hold-row" style="margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:13px">
+          ${colour ? `<span style="width:9px;height:9px;border-radius:50%;background:${colour};flex:0 0 auto"></span>` : ''}
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(label)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select class="form-input hold-mode" data-key="${esc(key)}" onchange="Settings._holdModeChange(this)" style="flex:1;min-width:0;font-size:12px">
+            <option value="timed"${timed ? ' selected' : ''}>Hold for…</option>
+            <option value="until-next"${timed ? '' : ' selected'}>Until next cue</option>
+          </select>
+          <input class="form-input hold-secs" data-key="${esc(key)}" type="number" min="0" value="${secs}" title="seconds (0 = use the cue's own duration)" style="width:64px;flex:0 0 auto;font-size:12px${timed ? '' : ';opacity:0.4'}"${timed ? '' : ' disabled'}>
+          <span style="font-size:11px;color:var(--dim);flex:0 0 auto">s</span>
+        </div>
+      </div>`;
+    };
+    let html = row('_default', 'Default (all other types)', '', defMode, defSecs);
+    for (const t of (typeof customCueTypes === 'function' ? customCueTypes() : [])) {
+      const h = per[t] || {};
+      html += row(t, t, cueTypeColour(t), h.mode || defMode, h.seconds != null ? h.seconds : defSecs);
     }
+    wrap.innerHTML = html;
+  },
+  _holdModeChange(sel) {
+    const secs = sel.parentElement.querySelector('.hold-secs');
+    const timed = sel.value !== 'until-next';
+    secs.disabled = !timed;
+    secs.style.opacity = timed ? '' : '0.4';
   }
 };
 
@@ -2483,8 +2519,7 @@ function applyConfigToUI() {
   const src = State.config.tcSource || 'internal';
   document.getElementById('cfg-tc-source').value    = src;
   document.getElementById('cfg-port').value         = State.config.port || 3000;
-  document.getElementById('cfg-cue-hold-mode').value = State.config.cueHoldMode || 'timed';
-  Settings.previewHoldMode(State.config.cueHoldMode || 'timed');
+  Settings.renderCueHold();
   Settings.onSourceChange(src);
   Settings.renderOSCDests();
   Settings.renderArtNetDests();

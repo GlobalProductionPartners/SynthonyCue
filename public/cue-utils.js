@@ -119,6 +119,25 @@ function framesToDisplay(frames) {
   return `${s}s`;
 }
 
+// ── Cue hold ──────────────────────────────────────────────────────────────────
+// How long a fired cue stays on screen as LIVE, chosen per cue type. A type can
+// hold "until the next cue" (Infinity) or for a fixed number of seconds; types
+// without their own setting fall back to the global default.
+function cueHoldFor(type) {
+  const per = State.config && State.config.cueHold && State.config.cueHold[type];
+  if (per && per.mode) return { mode: per.mode, seconds: +per.seconds || 0 };
+  return { mode: (State.config && State.config.cueHoldMode) || 'timed',
+           seconds: +(State.config && State.config.cueHoldSeconds) || 0 };
+}
+// Live-window in frames. cueDurF (the cue's own duration) is the fallback for a
+// 'timed' hold with no explicit seconds.
+function cueHoldWindow(type, cueDurF) {
+  const h = cueHoldFor(type);
+  if (h.mode === 'until-next') return Infinity;
+  if (h.seconds > 0) return h.seconds * FR;
+  return cueDurF > 0 ? cueDurF : 5 * FR;
+}
+
 // Show time — how far into the show we are, built from cumulative track
 // durations rather than the venue timecode. Song timecodes are not sequential
 // (each song is jammed to its own TC island), so the base is the sum of the
@@ -399,8 +418,6 @@ function renderConsoleView(slots) {
   }
 
   const PRE_FIRE_F = 5 * FR;
-  const HOLD_F     = 5 * FR;
-  const holdMode   = State.config?.cueHoldMode || 'timed';
   const labelMap = { stage: 'STAGE CUE', host: 'HOST CUE', camera: 'CAMERA', conductor: 'CONDUCTOR', description: 'DESCRIPTION' };
 
   for (const slot of ['a', 'b']) {
@@ -409,9 +426,10 @@ function renderConsoleView(slots) {
     const lastFired   = getPrevCueGlobal(type);
     const lastElapsed = lastFired ? nowF - lastFired.absFrames : 0;
     const lastDurF    = lastFired?.cue?.duration ? parseDuration(lastFired.cue.duration) : 0;
-    const liveWindowF = holdMode === 'until-next' ? Infinity : (lastDurF > 0 ? lastDurF : HOLD_F);
+    const liveWindowF = cueHoldWindow(type, lastDurF);   // per cue-type hold
     const sameSong    = !song || !lastFired || lastFired.song === song;
-    const isLive      = !!lastFired && lastElapsed < liveWindowF && sameSong;
+    // 'until next' (Infinity) persists across songs; a timed hold clears within its song.
+    const isLive      = !!lastFired && (liveWindowF === Infinity ? true : (lastElapsed < liveWindowF && sameSong));
     const remToNext   = nextGlobal ? durationCountdown(nextGlobal) : Infinity;
     const isPreFire   = !isLive && !!nextGlobal && isFinite(remToNext) && remToNext <= PRE_FIRE_F;
 

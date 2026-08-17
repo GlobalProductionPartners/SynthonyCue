@@ -69,9 +69,10 @@ function renderStage(slots, prefix = '') {
     const beforeLast = getPrevCueGlobal(type, 1);
     const lastDurF   = lastFired?.cue?.duration ? parseDuration(lastFired.cue.duration) : 0;
     const lastElapsed = lastFired ? nowF - lastFired.absFrames : 0;
-    const expired    = lastDurF > 0 ? lastElapsed > lastDurF
-                     : lastFired ? (song ? lastFired.song !== song : lastElapsed > 300 * FR)
-                     : false;
+    // Per cue-type hold: 'until next' never expires by time; a timed hold clears
+    // after its window (explicit seconds, else the cue's duration, else 5s).
+    const holdWinF   = cueHoldWindow(type, lastDurF);
+    const expired    = !lastFired ? false : holdWinF === Infinity ? false : lastElapsed >= holdWinF;
     const nowGlobal  = expired ? null : lastFired;
     const prevGlobal = expired ? lastFired : beforeLast;
     const remFrames  = nextGlobal ? durationCountdown(nextGlobal) : Infinity;
