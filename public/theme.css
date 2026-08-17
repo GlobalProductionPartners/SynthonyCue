@@ -182,6 +182,13 @@ body.is-blackout::after {
   background: #000; z-index: var(--z-blackout);
 }
 body.is-blackout { cursor: none; }
+/* Optional subtle logo over the blackout (src set from config.logo). */
+#blackout-logo { display: none; }
+body.is-blackout #blackout-logo {
+  display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  max-width: 35vw; max-height: 35vh; opacity: 0.35; filter: grayscale(1);
+  z-index: calc(var(--z-blackout) + 1); object-fit: contain; pointer-events: none;
+}
 
 /* ── Focus ────────────────────────────────────────────────────────────────
    One visible focus treatment everywhere. Never removed without a

@@ -22,6 +22,8 @@ let config = loadJSON(CONFIG_PATH, {
   artnetDestinations: {},
   tcSource: 'internal',
   artnetInterface: 'all',
+  // Subtle logo shown (dimmed) on blacked-out displays; a data: URL or ''.
+  logo: '',
   // Cue hold: how long a fired cue stays on screen. cueHoldMode/cueHoldSeconds
   // are the default; cueHold overrides it per cue-type — { type: {mode,seconds} }.
   cueHoldMode: 'timed',

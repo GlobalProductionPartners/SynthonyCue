@@ -114,11 +114,18 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* Host view — big track name + two configurable cue types */
 .host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 16px; text-align: center; }
 .host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); font-size: clamp(30px, 6.5vw, 104px); line-height: 1.0; letter-spacing: -0.02em; width: 100%; overflow: hidden; flex: 0 0 auto; }
-.host-cue { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.host-cue { width: 100%; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.host-cue-1 { flex: 0.55; }   /* Cue 1: secondary — smaller + regular weight */
+.host-cue-2 { flex: 1; }      /* Cue 2: the hero — bigger + bold */
 .host-cue-type { font-family: var(--font-tc); font-size: clamp(10px, 1.1vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; }
-.host-cue-text { font-family: var(--font-ui); font-weight: 700; color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
+.host-cue-text { font-family: var(--font-ui); color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
+.host-cue-1 .host-cue-text { font-weight: 400; }
+.host-cue-2 .host-cue-text { font-weight: 700; }
 .host-cue-text.is-upcoming { color: var(--text-2); }
-.host-tc { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(13px, 1.4vw, 20px); color: var(--text-3); flex: 0 0 auto; }
+.host-footer { flex: 0 0 auto; width: 100%; display: flex; gap: 12px; }
+.host-foot-box { flex: 1; border: 1px solid var(--border); border-radius: var(--r-2); padding: 8px 12px; text-align: center; }
+.host-foot-lbl { font-family: var(--font-tc); font-size: clamp(9px, 1vw, 12px); letter-spacing: 0.16em; color: var(--text-3); }
+.host-foot-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(16px, 2.4vw, 34px); color: var(--text-2); margin-top: 2px; }
 
 /* ── Video ── */
 #view-video { position: relative; }
@@ -196,6 +203,8 @@ body.video-clean .video-stage { background: #000; }
 #kiosk-header .kh-show-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(22px, 3.6vw, 48px); font-weight: 400; color: var(--text-3); letter-spacing: 0.02em; white-space: nowrap; transition: color 120ms ease; }
 #kiosk-header .kh-show-val.running { color: var(--live); }
 .kh-spacer { flex: 1; }
+#kiosk-header #kh-clock-wrap { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+#kiosk-header .kh-clock-lbl { font-family: var(--font-tc); font-size: clamp(8px, 0.9vw, 11px); letter-spacing: 0.14em; color: var(--text-3); }
 #kiosk-header .kh-clock {
   font-family: var(--font-tc); font-variant-numeric: tabular-nums;
   font-size: clamp(13px, 1.4vw, 20px); font-weight: 400;
@@ -281,7 +290,7 @@ body.video-clean .video-stage { background: #000; }
     <span class="kh-tc stopped" id="kh-tc">00:00:00:00</span>
     <div id="kh-show" title="Show time"><span class="kh-show-lbl">SHOW</span><span class="kh-show-val" id="kh-show-val">00:00:00.00</span></div>
     <div class="kh-spacer"></div>
-    <span class="kh-clock" id="kh-clock">--:--:--</span>
+    <div id="kh-clock-wrap"><span class="kh-clock-lbl">TIME</span><span class="kh-clock" id="kh-clock">--:--:--</span></div>
     <div id="hamburger" onclick="Menu.toggle()">
       <span></span><span></span><span></span>
     </div>
@@ -326,15 +335,18 @@ body.video-clean .video-stage { background: #000; }
   <div class="view" id="view-host">
     <div class="host-main">
       <div class="host-label" id="host-label">—</div>
-      <div class="host-cue">
+      <div class="host-cue host-cue-1">
         <div class="host-cue-type" id="host-type-a">—</div>
         <div class="host-cue-text" id="host-text-a">—</div>
       </div>
-      <div class="host-cue">
+      <div class="host-cue host-cue-2">
         <div class="host-cue-type" id="host-type-b">—</div>
         <div class="host-cue-text" id="host-text-b">—</div>
       </div>
-      <div class="host-tc" id="host-tc">--:--:--:--</div>
+      <div class="host-footer">
+        <div class="host-foot-box"><div class="host-foot-lbl">TIMECODE</div><div class="host-foot-val" id="host-tc">--:--:--:--</div></div>
+        <div class="host-foot-box"><div class="host-foot-lbl">SHOW TIME</div><div class="host-foot-val" id="host-show">00:00:00.00</div></div>
+      </div>
     </div>
   </div>
 
@@ -566,6 +578,10 @@ body.video-clean .video-stage { background: #000; }
   </div>
 
 </div><!-- /app -->
+
+<!-- Subtle logo shown on a blacked-out screen (src set from config) -->
+<img id="blackout-logo" alt="">
+
 
 <!-- TC corner (hidden — TC shown in header) -->
 <div id="tc-corner" style="display:none"></div>
@@ -988,6 +1004,13 @@ function sendScreenUpdate() {
            ovScope: (typeof Overview !== 'undefined' && Overview._cueScope) || 'song' });
 }
 
+function updateBlackoutLogo() {
+  const img = document.getElementById('blackout-logo');
+  if (!img) return;
+  const logo = State.config && State.config.logo;
+  if (logo) img.src = logo; else img.removeAttribute('src');
+}
+
 function handleMsg(msg) {
   switch (msg.type) {
     case 'init':
@@ -999,11 +1022,13 @@ function handleMsg(msg) {
       State.tcFrames  = 0;
       if (currentView === 'video' || currentView === 'videofull') attachVideo();
       document.body.classList.toggle('is-blackout', !!msg.blackout);
+      updateBlackoutLogo();
       renderCurrent();
       break;
     case 'config_updated': {
       const prevSource = State.config?.videoSource;
       State.config = msg.config || {};
+      updateBlackoutLogo();
       // Reconnect only when the source actually changed — a config save for
       // anything else must not interrupt a live picture.
       if ((currentView === 'video' || currentView === 'videofull') && State.config.videoSource !== prevSource) {

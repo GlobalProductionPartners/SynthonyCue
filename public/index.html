@@ -228,11 +228,18 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
 /* Host view — big track name + two configurable cue types */
 .host-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 16px; text-align: center; }
 .host-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); font-size: clamp(30px, 6.5vw, 104px); line-height: 1.0; letter-spacing: -0.02em; width: 100%; overflow: hidden; flex: 0 0 auto; }
-.host-cue { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.host-cue { width: 100%; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.host-cue-1 { flex: 0.55; }
+.host-cue-2 { flex: 1; }
 .host-cue-type { font-family: var(--font-tc); font-size: clamp(10px, 1.1vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; }
-.host-cue-text { font-family: var(--font-ui); font-weight: 700; color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
+.host-cue-text { font-family: var(--font-ui); color: var(--text); line-height: 1.04; letter-spacing: -0.01em; flex: 1; min-height: 0; overflow: hidden; width: 100%; display: flex; align-items: center; justify-content: center; }
+.host-cue-1 .host-cue-text { font-weight: 400; }
+.host-cue-2 .host-cue-text { font-weight: 700; }
 .host-cue-text.is-upcoming { color: var(--text-2); }
-.host-tc { font-family: var(--font-tc); font-size: clamp(14px, 2vw, 20px); color: var(--dim); flex: 0 0 auto; }
+.host-footer { flex: 0 0 auto; width: 100%; display: flex; gap: 12px; }
+.host-foot-box { flex: 1; border: 1px solid var(--border); border-radius: var(--r-2); padding: 8px 12px; text-align: center; }
+.host-foot-lbl { font-family: var(--font-tc); font-size: clamp(9px, 1vw, 12px); letter-spacing: 0.16em; color: var(--text-3); }
+.host-foot-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(16px, 2.4vw, 34px); color: var(--text-2); margin-top: 2px; }
 
 /* ════════════════════════════════════════════════════════════════════════════ */
 /* CONDUCTOR VIEW                                                               */
@@ -701,9 +708,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
       </div>
       <div class="host-main">
         <div class="host-label" id="host-label">—</div>
-        <div class="host-cue"><div class="host-cue-type" id="host-type-a">—</div><div class="host-cue-text" id="host-text-a">—</div></div>
-        <div class="host-cue"><div class="host-cue-type" id="host-type-b">—</div><div class="host-cue-text" id="host-text-b">—</div></div>
-        <div class="host-tc" id="host-tc">--:--:--:--</div>
+        <div class="host-cue host-cue-1"><div class="host-cue-type" id="host-type-a">—</div><div class="host-cue-text" id="host-text-a">—</div></div>
+        <div class="host-cue host-cue-2"><div class="host-cue-type" id="host-type-b">—</div><div class="host-cue-text" id="host-text-b">—</div></div>
+        <div class="host-footer">
+          <div class="host-foot-box"><div class="host-foot-lbl">TIMECODE</div><div class="host-foot-val" id="host-tc">--:--:--:--</div></div>
+          <div class="host-foot-box"><div class="host-foot-lbl">SHOW TIME</div><div class="host-foot-val" id="host-show">00:00:00.00</div></div>
+        </div>
       </div>
     </div>
 
@@ -950,6 +960,21 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
             <div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5">“Until next cue” keeps it up until the next cue of that type. “Hold for…” clears it after the set seconds (or the cue’s own duration if left at 0).</div>
           </div>
           <button class="btn primary" id="btn-save-config-cue">Apply</button>
+        </div>
+        <div class="panel">
+          <div class="sec panel-sec"><span class="sep">//</span> BLACKOUT LOGO</div>
+          <div class="form-group">
+            <label class="form-label">Shown dimmed on blacked-out screens (PNG/SVG, kept small)</label>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+              <div id="logo-preview" style="width:96px;height:64px;border:1px solid var(--border);border-radius:6px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto">
+                <img id="logo-preview-img" alt="" style="max-width:100%;max-height:100%;opacity:0.35;filter:grayscale(1);display:none">
+                <span id="logo-preview-none" style="font-size:10px;color:var(--text-3)">none</span>
+              </div>
+              <input type="file" id="logo-file-input" accept="image/*" style="display:none">
+              <button class="btn" id="btn-logo-choose">Choose Logo…</button>
+              <button class="btn" id="btn-logo-remove">Remove</button>
+            </div>
+          </div>
         </div>
         <div class="panel">
           <div class="sec panel-sec"><span class="sep">//</span> OSC DESTINATIONS</div>
@@ -2066,6 +2091,7 @@ const Settings = {
     this.renderArtNetDests();
     this.renderScreens();
     this.renderCueHold();
+    this.renderLogo();
   },
 
   // ── Video source ─────────────────────────────────────────────────────────
@@ -2568,6 +2594,45 @@ const Settings = {
     const timed = sel.value !== 'until-next';
     secs.disabled = !timed;
     secs.style.opacity = timed ? '' : '0.4';
+  },
+
+  // ── Blackout logo ──────────────────────────────────────────────────────────
+  renderLogo() {
+    const logo = State.config?.logo || '';
+    const img = document.getElementById('logo-preview-img');
+    const none = document.getElementById('logo-preview-none');
+    if (!img || !none) return;
+    if (logo) { img.src = logo; img.style.display = ''; none.style.display = 'none'; }
+    else { img.removeAttribute('src'); img.style.display = 'none'; none.style.display = ''; }
+  },
+  setLogo(dataUrl) {
+    if (State.config) State.config.logo = dataUrl;
+    wsSend({ type: 'save_config', config: { logo: dataUrl } });
+    this.renderLogo();
+  },
+  onLogoFile(file) {
+    if (!file) return;
+    // SVG stays as-is (small, vector); raster is downscaled to keep the config
+    // payload (which is broadcast to every screen) small.
+    if (file.type === 'image/svg+xml') {
+      const r = new FileReader();
+      r.onload = () => this.setLogo(r.result);
+      r.readAsDataURL(file);
+      return;
+    }
+    const r = new FileReader();
+    r.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const max = 512, scale = Math.min(1, max / Math.max(im.width, im.height));
+        const w = Math.round(im.width * scale), h = Math.round(im.height * scale);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(im, 0, 0, w, h);
+        this.setLogo(c.toDataURL('image/png'));
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(file);
   }
 };
 
@@ -2576,6 +2641,7 @@ function applyConfigToUI() {
   document.getElementById('cfg-tc-source').value    = src;
   document.getElementById('cfg-port').value         = State.config.port || 3000;
   Settings.renderCueHold();
+  Settings.renderLogo();
   Settings.onSourceChange(src);
   Settings.renderOSCDests();
   Settings.renderArtNetDests();
@@ -2919,6 +2985,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Settings — always clickable; Settings.save() handles auth gating internally
   document.getElementById('btn-save-config').addEventListener('click', () => Settings.save());
   document.getElementById('btn-save-config-cue').addEventListener('click', () => Settings.save());
+  document.getElementById('btn-logo-choose').addEventListener('click', () => document.getElementById('logo-file-input').click());
+  document.getElementById('logo-file-input').addEventListener('change', e => { if (e.target.files[0]) Settings.onLogoFile(e.target.files[0]); e.target.value=''; });
+  document.getElementById('btn-logo-remove').addEventListener('click', () => Settings.setLogo(''));
   document.getElementById('btn-apply-video').addEventListener('click', () => Settings.applyVideo());
   document.getElementById('btn-test-video').addEventListener('click', () => Settings.applyTestPattern());
   document.getElementById('btn-preview-video').addEventListener('click', () => Settings.refreshVideoPreview());
