@@ -671,11 +671,12 @@ def run(role):
         print(f"synthony-oled: no OLED panel ({exc}); exiting cleanly")
         return
     label = "SERVER" if role == "server" else "SCREEN"
-    name = server_name() if role == "server" else screen_name()
+    who = server_name if role == "server" else screen_name
+    HOLD = 4.0   # seconds each screen is held before the next
     try:
-        show_pair(device, label, name, 0)   # draw it once…
         while True:
-            time.sleep(3600)                 # …and just hold it (SIGTERM ends us)
+            show_pair(device, label, who(), HOLD)                    # name
+            show_pair(device, "IP", local_ip() or "no network", HOLD)  # ip address
     except KeyboardInterrupt:
         pass
     finally:
