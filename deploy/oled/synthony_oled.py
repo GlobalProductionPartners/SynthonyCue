@@ -55,10 +55,6 @@ READY_POLL_SECONDS = 1.0
 BOOT_TIMEOUT = 120.0  # show the rotation anyway rather than hang on booting
 
 IDENTITY_SECONDS = 2.5
-# A static confirmation screen held in the rotation, so it's obvious at a glance
-# that THIS agent is the one driving the panel. Two centred lines, no scrolling.
-CONFIRM_LINES = ("ANDREW", "IT'S WORKING")
-CONFIRM_SECONDS = 3.0
 BANNER_SECONDS = 2.5
 FLASH_SECONDS = 1.8
 FLASH_GAP = 0.15  # brief blank between panels, which is what makes it flash
@@ -424,25 +420,6 @@ def show_identity(device, lines, seconds):
     time.sleep(seconds)
 
 
-def show_static(device, lines, seconds):
-    """Two (or more) centred lines held still — no scroll. Interruptible."""
-    frame = Image.new("1", (WIDTH, HEIGHT))
-    draw = ImageDraw.Draw(frame)
-
-    font = fit_font(max(lines, key=len), IDENTITY_SIZES, WIDTH - 4)
-    heights = [measure(font, line)[1] for line in lines]
-    block = sum(heights) + IDENTITY_LEADING * (len(lines) - 1)
-    y = (HEIGHT - block) // 2
-
-    for line, height in zip(lines, heights):
-        w, _, ox, oy = measure(font, line)
-        draw.text(((WIDTH - w) // 2 - ox, y - oy), line, font=font, fill=255)
-        y += height + IDENTITY_LEADING
-
-    device.display(frame)
-    dwell(seconds)
-
-
 def show_banner(device, text, seconds):
     font = load_font(BANNER_SIZE)
     w, h, ox, oy = measure(font, text)
@@ -607,20 +584,16 @@ def sysinfo_columns(device):
 
 
 def panels(device, role):
-    """The rotation, as callables so each reads fresh values as it runs.
-
-    A static confirmation screen leads every cycle.
-    """
-    confirm = (lambda: show_static(device, CONFIRM_LINES, CONFIRM_SECONDS),)
+    """The full status rotation, as callables so each reads fresh values."""
     if role == "server":
-        return confirm + (
+        return (
             lambda: show_banner(device, "ONLINE", BANNER_SECONDS),
             lambda: flash(device, "SERVER", server_name()),
             lambda: flash(device, "SYSIP:", local_ip() or "no network"),
             lambda: flash_columns(device, screens_columns()),
             lambda: sysinfo_columns(device),
         )
-    return confirm + (
+    return (
         lambda: show_banner(
             device, "ONLINE" if cue_state()["link"] else "SEARCHING",
             BANNER_SECONDS,
@@ -675,8 +648,8 @@ def run_dump(role, out_dir):
     Seeds cue state so the SERVER's screen count and a CLIENT's name have
     something to show without a live server.
     """
-    global FLASH_SECONDS, BANNER_SECONDS, FLASH_GAP, CONFIRM_SECONDS
-    FLASH_SECONDS = BANNER_SECONDS = FLASH_GAP = CONFIRM_SECONDS = 0  # no dwell in a dump
+    global FLASH_SECONDS, BANNER_SECONDS, FLASH_GAP
+    FLASH_SECONDS = BANNER_SECONDS = FLASH_GAP = 0  # no dwell in a dump
     with _cue_lock:
         _cue.update(screens=3, running=True, link=True,
                     screen_name="Stage Manager")
@@ -688,19 +661,21 @@ def run_dump(role, out_dir):
 
 
 def run(role):
-    # Deliberately minimal: show the one confirmation screen and hold it. The
-    # full status rotation (ONLINE / IP / screens / CPU-RAM-TEMP) still lives in
-    # panels() above — swap the body back to re-enable it.
+    # Deliberately minimal: show this Pi's name and hold it. The full status
+    # rotation (ONLINE / IP / screens / CPU-RAM-TEMP) still lives in panels()
+    # above — swap the body back to re-enable it.
     signal.signal(signal.SIGTERM, _terminate)
     try:
         device = open_panel()
     except Exception as exc:  # no panel wired / I2C disabled → nothing to drive
         print(f"synthony-oled: no OLED panel ({exc}); exiting cleanly")
         return
+    label = "SERVER" if role == "server" else "SCREEN"
+    name = server_name() if role == "server" else screen_name()
     try:
-        show_static(device, CONFIRM_LINES, 0)   # draw it once…
+        show_pair(device, label, name, 0)   # draw it once…
         while True:
-            time.sleep(3600)                     # …and just hold it (SIGTERM ends us)
+            time.sleep(3600)                 # …and just hold it (SIGTERM ends us)
     except KeyboardInterrupt:
         pass
     finally:
