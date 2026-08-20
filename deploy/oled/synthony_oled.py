@@ -153,11 +153,6 @@ def _cue_on_message(ws, raw):
     tc messages arrive 25-30 times a second and the panel redraws on its own
     schedule, so this only ever updates state.
     """
-    # The server broadcasts the running timecode 25-30 times a second. The panel
-    # shows none of it, so skip those frames before the (comparatively costly)
-    # JSON parse — otherwise the render loop stutters under the constant churn.
-    if "screens_list" not in raw and "tc_transport" not in raw:
-        return
     try:
         message = json.loads(raw)
     except (TypeError, ValueError):
@@ -184,6 +179,8 @@ def _cue_on_message(ws, raw):
                     break
         elif kind == "tc_transport":
             _cue["running"] = message.get("running", False)
+            _cue["tc"] = message.get("tc", _cue["tc"])
+        elif kind == "tc":
             _cue["tc"] = message.get("tc", _cue["tc"])
 
 
@@ -522,6 +519,18 @@ def scroll_message(device, text, seconds, size=BOOT_SIZE):
             time.sleep(FRAME_DELAY)
 
 
+def show_tc(device, seconds):
+    """Live timecode for its slot — redraw only when the value actually changes."""
+    end = time.monotonic() + seconds
+    last = None
+    while time.monotonic() < end:
+        tc = cue_state()["tc"]
+        if tc != last:
+            show_pair(device, "TC", tc, 0)
+            last = tc
+        time.sleep(0.03)
+
+
 def show_booting(device, role):
     """Scroll a boot/search message until the system is ready."""
     message = "SERVER booting" if role == "server" else "searching for server"
@@ -694,6 +703,7 @@ def run(role):
             ), 0); hold()
             screens = cue_state()["screens"]                                # screens connected
             show_pair(device, "SCREENS", "--" if screens is None else str(screens), 0); hold()
+            show_tc(device, HOLD)                                            # current timecode (live)
     except KeyboardInterrupt:
         pass
     finally:
