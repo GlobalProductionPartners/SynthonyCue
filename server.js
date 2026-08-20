@@ -426,6 +426,23 @@ function broadcastScreensList() {
   broadcast({ type: 'screens_list', screens: screensList() });
 }
 
+// "Clients" = display Pis that are actually up and running — they POST telemetry
+// via the stats agent (a browser tab or the server itself never does), so the
+// fresh remoteStats entries are the real count. A Pi that misses three reports
+// (~30s) is treated as gone. This is what the front-panel OLED shows.
+const CLIENT_FRESH_MS = 30000;
+function liveClientCount() {
+  const cutoff = Date.now() - CLIENT_FRESH_MS;
+  let n = 0;
+  for (const r of remoteStats.values()) if (r.at >= cutoff) n++;
+  return n;
+}
+let _lastClientCount = -1;
+function broadcastClients(force = false) {
+  const n = liveClientCount();
+  if (force || n !== _lastClientCount) { _lastClientCount = n; broadcast({ type: 'clients', count: n }); }
+}
+
 wss.on('connection', (ws, req) => {
   clients.add(ws);
   // Remember the peer's LAN IP so a display Pi's OLED can find its own screen
@@ -439,6 +456,7 @@ wss.on('connection', (ws, req) => {
   // the displays were already running saw an empty list until one of them
   // joined or dropped. Send the current list to every new client.
   safeSend(ws, { type: 'screens_list', screens: screensList() });
+  safeSend(ws, { type: 'clients', count: liveClientCount() });
 
   ws.on('message', (raw) => {
     try { handleClientMessage(ws, JSON.parse(raw)); } catch {}
@@ -1043,11 +1061,14 @@ app.post('/api/system/report', (req, res) => {
     uptimeSec: num(b.uptimeSec),
     at: Date.now()
   });
+  broadcastClients();   // a fresh report may change the live client count
   const cmds = pendingHostCommands.get(host) || [];
   pendingHostCommands.delete(host);
   if (cmds.length) flightLog('AGENT-COMMAND', `${host} <- ${cmds.join(',')}`);
   res.json({ ok: true, commands: cmds });
 });
+// Re-evaluate periodically so a Pi that stops reporting drops out of the count.
+setInterval(() => broadcastClients(), 10000).unref?.();
 
 // Admin: reboot a machine (queued for its stats agent) or reload a screen's
 // browser (immediate, via the screen socket). action: 'reboot' | 'reload'.

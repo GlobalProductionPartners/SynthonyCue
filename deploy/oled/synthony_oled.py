@@ -117,7 +117,8 @@ def fit_font(text, sizes, max_width):
 _alert = threading.Event()
 _cue_lock = threading.Lock()
 _cue = {
-    "screens": None,     # count, or None when the link is down
+    "screens": None,     # browser/screen entries, or None when the link is down
+    "clients": None,     # display Pis actually up + reporting (server-computed)
     "running": False,
     "tc": "--:--:--:--",
     "alert": None,
@@ -182,6 +183,8 @@ def _cue_on_message(ws, raw):
             _cue["tc"] = message.get("tc", _cue["tc"])
         elif kind == "tc":
             _cue["tc"] = message.get("tc", _cue["tc"])
+        elif kind == "clients":
+            _cue["clients"] = message.get("count")
 
 
 def _cue_on_open(ws):
@@ -194,6 +197,7 @@ def _cue_disconnected(*args):
         if _cue["screens"] is not None:
             _raise_alert("CUE LINK DOWN")
         _cue["screens"] = None
+        _cue["clients"] = None
         _cue["running"] = False
         _cue["link"] = False
 
@@ -737,8 +741,8 @@ def run(role):
                 ("RAM", f"{ram_percent():.0f}%"),
                 ("TEMP", temperature_text()),
             ), 0); hold()
-            screens = cue_state()["screens"]                                # screens connected
-            show_pair(device, "SCREENS", "--" if screens is None else str(screens), 0); hold()
+            clients = cue_state()["clients"]                                # display Pis up
+            show_pair(device, "CLIENTS", "--" if clients is None else str(clients), 0); hold()
             show_tc(device, HOLD)                                            # current timecode (live)
     except KeyboardInterrupt:
         pass
