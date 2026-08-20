@@ -740,8 +740,24 @@ def run(role):
     for url in cue_urls(role):
         start_cue_client(url)
         break
-    label = "SERVER" if role == "server" else "SCREEN"
-    who = server_name if role == "server" else screen_name
+    if role == "client":
+        # A display Pi shows only ONLINE / OFFLINE — up when its link to the cue
+        # server is live (so it's receiving the show data), OFFLINE when it isn't.
+        last = None
+        try:
+            while True:
+                state = "ONLINE" if cue_state()["link"] else "OFFLINE"
+                if state != last:
+                    show_banner(device, state, 0)
+                    last = state
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            device.clear()
+        return
+
+    # Server: the full status rotation.
     HOLD = 4.0   # seconds each screen is held before the next
 
     def hold():
@@ -751,7 +767,7 @@ def run(role):
 
     try:
         while True:
-            show_pair(device, label, who(), 0); hold()                     # name
+            show_pair(device, "SERVER", server_name(), 0); hold()           # name
             show_pair(device, "IP", local_ip() or "no network", 0); hold()  # ip address
             show_columns(device, (                                          # server stats
                 ("CPU", f"{cpu_percent(0.2):.0f}%"),
