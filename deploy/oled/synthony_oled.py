@@ -519,16 +519,52 @@ def scroll_message(device, text, seconds, size=BOOT_SIZE):
             time.sleep(FRAME_DELAY)
 
 
-def show_tc(device, seconds):
-    """Live timecode for its slot — redraw only when the value actually changes."""
+_TC_FONT = None
+
+
+def _tc_font():
+    # The timecode string is a fixed width, so fit the value font once instead
+    # of re-measuring it on every tick.
+    global _TC_FONT
+    if _TC_FONT is None:
+        _TC_FONT = fit_font("00:00:00:00", VALUE_SIZES, WIDTH)
+    return _TC_FONT
+
+
+def show_tc(device, seconds, fps=12):
+    """Live timecode for its slot.
+
+    Redraws on a fixed cadence (not on message arrival — those land unevenly and
+    read as stutter) and only when the value actually changed, using a cached
+    font. Smooth and cheap.
+    """
+    label_font = load_font(LABEL_SIZE)
+    value_font = _tc_font()
+    lw, _, lox, loy = measure(label_font, "TC")
+    lx = (WIDTH - lw) // 2 - lox
+
     end = time.monotonic() + seconds
+    period = 1.0 / fps
+    nxt = time.monotonic()
     last = None
     while time.monotonic() < end:
         tc = cue_state()["tc"]
         if tc != last:
-            show_pair(device, "TC", tc, 0)
+            frame = Image.new("1", (WIDTH, HEIGHT))
+            draw = ImageDraw.Draw(frame)
+            draw.text((lx, -loy), "TC", font=label_font, fill=255)
+            vw, vh, vox, voy = measure(value_font, tc)
+            draw.text(((WIDTH - vw) // 2 - vox,
+                       LABEL_BAND + (HEIGHT - LABEL_BAND - vh) // 2 - voy),
+                      tc, font=value_font, fill=255)
+            device.display(frame)
             last = tc
-        time.sleep(0.03)
+        nxt += period
+        delay = nxt - time.monotonic()
+        if delay > 0:
+            time.sleep(delay)
+        else:                       # fell behind — resync rather than sprint
+            nxt = time.monotonic()
 
 
 def show_booting(device, role):
