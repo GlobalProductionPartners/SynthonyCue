@@ -688,23 +688,19 @@ def run_dump(role, out_dir):
 
 
 def run(role):
+    # Deliberately minimal: show the one confirmation screen and hold it. The
+    # full status rotation (ONLINE / IP / screens / CPU-RAM-TEMP) still lives in
+    # panels() above — swap the body back to re-enable it.
     signal.signal(signal.SIGTERM, _terminate)
-    for url in cue_urls(role):
-        start_cue_client(url)
-        break  # the worker itself reconnects; one URL is enough to start
     try:
         device = open_panel()
     except Exception as exc:  # no panel wired / I2C disabled → nothing to drive
         print(f"synthony-oled: no OLED panel ({exc}); exiting cleanly")
         return
     try:
-        show_identity(device, ("SYNTHONY", role.upper()), IDENTITY_SECONDS)
-        show_booting(device, role)
+        show_static(device, CONFIRM_LINES, 0)   # draw it once…
         while True:
-            for panel in panels(device, role):
-                panel()
-                if _alert.is_set():
-                    show_alert(device)
+            time.sleep(3600)                     # …and just hold it (SIGTERM ends us)
     except KeyboardInterrupt:
         pass
     finally:
