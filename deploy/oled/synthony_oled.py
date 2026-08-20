@@ -55,12 +55,10 @@ READY_POLL_SECONDS = 1.0
 BOOT_TIMEOUT = 120.0  # show the rotation anyway rather than hang on booting
 
 IDENTITY_SECONDS = 2.5
-# Confirmation marker: scrolled at the top of the rotation for the first few
-# cycles after every start, so you can eyeball that THIS agent is live (the old
-# hand-rolled one never showed it), then it bows out to keep the panel clean.
-STARTUP_BANNER = "SYNTHONY OLED - THE NEW ONE"
-MARK_SECONDS = 5.0
-MARK_CYCLES = 6
+# A static confirmation screen held in the rotation, so it's obvious at a glance
+# that THIS agent is the one driving the panel. Two centred lines, no scrolling.
+CONFIRM_LINES = ("ANDREW", "IT'S WORKING")
+CONFIRM_SECONDS = 3.0
 BANNER_SECONDS = 2.5
 FLASH_SECONDS = 1.8
 FLASH_GAP = 0.15  # brief blank between panels, which is what makes it flash
@@ -426,6 +424,25 @@ def show_identity(device, lines, seconds):
     time.sleep(seconds)
 
 
+def show_static(device, lines, seconds):
+    """Two (or more) centred lines held still — no scroll. Interruptible."""
+    frame = Image.new("1", (WIDTH, HEIGHT))
+    draw = ImageDraw.Draw(frame)
+
+    font = fit_font(max(lines, key=len), IDENTITY_SIZES, WIDTH - 4)
+    heights = [measure(font, line)[1] for line in lines]
+    block = sum(heights) + IDENTITY_LEADING * (len(lines) - 1)
+    y = (HEIGHT - block) // 2
+
+    for line, height in zip(lines, heights):
+        w, _, ox, oy = measure(font, line)
+        draw.text(((WIDTH - w) // 2 - ox, y - oy), line, font=font, fill=255)
+        y += height + IDENTITY_LEADING
+
+    device.display(frame)
+    dwell(seconds)
+
+
 def show_banner(device, text, seconds):
     font = load_font(BANNER_SIZE)
     w, h, ox, oy = measure(font, text)
@@ -589,33 +606,29 @@ def sysinfo_columns(device):
     ))
 
 
-def panels(device, role, show_marker=False):
+def panels(device, role):
     """The rotation, as callables so each reads fresh values as it runs.
 
-    show_marker prepends the "new build" confirmation scroll — the caller only
-    asks for it during the first few cycles after a start.
+    A static confirmation screen leads every cycle.
     """
+    confirm = (lambda: show_static(device, CONFIRM_LINES, CONFIRM_SECONDS),)
     if role == "server":
-        rotation = (
+        return confirm + (
             lambda: show_banner(device, "ONLINE", BANNER_SECONDS),
             lambda: flash(device, "SERVER", server_name()),
             lambda: flash(device, "SYSIP:", local_ip() or "no network"),
             lambda: flash_columns(device, screens_columns()),
             lambda: sysinfo_columns(device),
         )
-    else:
-        rotation = (
-            lambda: show_banner(
-                device, "ONLINE" if cue_state()["link"] else "SEARCHING",
-                BANNER_SECONDS,
-            ),
-            lambda: flash(device, "SCREEN", screen_name()),
-            lambda: flash(device, "SYSIP:", local_ip() or "no network"),
-            lambda: sysinfo_columns(device),
-        )
-    if show_marker:
-        rotation = (lambda: scroll_message(device, STARTUP_BANNER, MARK_SECONDS),) + rotation
-    return rotation
+    return confirm + (
+        lambda: show_banner(
+            device, "ONLINE" if cue_state()["link"] else "SEARCHING",
+            BANNER_SECONDS,
+        ),
+        lambda: flash(device, "SCREEN", screen_name()),
+        lambda: flash(device, "SYSIP:", local_ip() or "no network"),
+        lambda: sysinfo_columns(device),
+    )
 
 
 # --- devices ----------------------------------------------------------------
@@ -662,8 +675,8 @@ def run_dump(role, out_dir):
     Seeds cue state so the SERVER's screen count and a CLIENT's name have
     something to show without a live server.
     """
-    global FLASH_SECONDS, BANNER_SECONDS, FLASH_GAP
-    FLASH_SECONDS = BANNER_SECONDS = FLASH_GAP = 0  # no dwell in a dump
+    global FLASH_SECONDS, BANNER_SECONDS, FLASH_GAP, CONFIRM_SECONDS
+    FLASH_SECONDS = BANNER_SECONDS = FLASH_GAP = CONFIRM_SECONDS = 0  # no dwell in a dump
     with _cue_lock:
         _cue.update(screens=3, running=True, link=True,
                     screen_name="Stage Manager")
@@ -687,13 +700,11 @@ def run(role):
     try:
         show_identity(device, ("SYNTHONY", role.upper()), IDENTITY_SECONDS)
         show_booting(device, role)
-        cycle = 0
         while True:
-            for panel in panels(device, role, show_marker=cycle < MARK_CYCLES):
+            for panel in panels(device, role):
                 panel()
                 if _alert.is_set():
                     show_alert(device)
-            cycle += 1
     except KeyboardInterrupt:
         pass
     finally:
