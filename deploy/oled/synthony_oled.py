@@ -657,11 +657,28 @@ def panels(device, role):
 
 
 def open_panel():
-    """The real SSD1306, or None if no panel is wired / I2C is off."""
+    """The real SSD1306. Raises if no panel is wired / I2C isn't ready."""
     from luma.core.interface.serial import i2c
     from luma.oled.device import ssd1306
     return ssd1306(i2c(port=I2C_PORT, address=I2C_ADDRESS),
                    width=WIDTH, height=HEIGHT)
+
+
+def open_panel_retry(attempts=45, delay=2):
+    """Open the panel, retrying for a while.
+
+    At cold boot the I2C bus/kernel modules can lag the service start, and the
+    first open then fails — the old code gave up and left the panel dark until a
+    manual restart. Keep trying (~90s) so a wired panel always comes up.
+    """
+    last = None
+    for _ in range(attempts):
+        try:
+            return open_panel()
+        except Exception as exc:
+            last = exc
+            time.sleep(delay)
+    raise last if last else RuntimeError("no panel")
 
 
 class DumpDevice:
@@ -715,10 +732,10 @@ def run(role):
     # above — swap the body back to re-enable it.
     signal.signal(signal.SIGTERM, _terminate)
     try:
-        device = open_panel()
-    except Exception as exc:  # no panel wired / I2C disabled → nothing to drive
-        print(f"synthony-oled: no OLED panel ({exc}); exiting cleanly")
-        return
+        device = open_panel_retry()   # tolerate a slow I2C bus at cold boot
+    except Exception as exc:  # genuinely no panel wired / I2C off after retries
+        print(f"synthony-oled: no OLED panel after retries ({exc}); exiting")
+        raise SystemExit(1)   # non-zero so systemd (Restart=on-failure) retries
     # The connected-screens count comes from the server over the cue link.
     for url in cue_urls(role):
         start_cue_client(url)
