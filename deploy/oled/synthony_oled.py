@@ -670,6 +670,10 @@ def run(role):
     except Exception as exc:  # no panel wired / I2C disabled → nothing to drive
         print(f"synthony-oled: no OLED panel ({exc}); exiting cleanly")
         return
+    # The connected-screens count comes from the server over the cue link.
+    for url in cue_urls(role):
+        start_cue_client(url)
+        break
     label = "SERVER" if role == "server" else "SCREEN"
     who = server_name if role == "server" else screen_name
     HOLD = 4.0   # seconds each screen is held before the next
@@ -682,6 +686,8 @@ def run(role):
                 ("RAM", f"{ram_percent():.0f}%"),
                 ("TEMP", temperature_text()),
             ), HOLD)
+            screens = cue_state()["screens"]                         # screens connected
+            show_pair(device, "SCREENS", "--" if screens is None else str(screens), HOLD)
     except KeyboardInterrupt:
         pass
     finally:
