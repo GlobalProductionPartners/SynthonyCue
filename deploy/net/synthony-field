@@ -1,0 +1,46 @@
+#!/bin/bash
+# synthony-field on|off|status  — server Pi only.
+#
+# Manually switch this Pi between a normal office DHCP client and a self-hosted
+# FIELD network where it serves DHCP itself (eth0 = 10.10.10.1/24) for a rig
+# with no DHCP of its own. Deliberately MANUAL: it only ever serves DHCP when
+# you run `on`, so it can never turn into a rogue DHCP server on a network that
+# already has one. Run `off` (or reboot) to go back to a DHCP client.
+#
+#   sudo synthony-field on       # become the rig's DHCP server (10.10.10.1)
+#   sudo synthony-field off      # back to office/DHCP-client
+#   synthony-field status        # show current mode
+
+set -uo pipefail
+
+ETH="${SYNTHONY_ETH:-eth0}"
+FIELD_CON="synthony-field-eth"     # NM "shared": static 10.10.10.1 + DHCP server
+
+need_root() { [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"; }
+
+case "${1:-status}" in
+  on)
+    need_root "$@"
+    echo "FIELD mode: $ETH -> 10.10.10.1, serving DHCP to the rig."
+    nmcli con up "$FIELD_CON" || { echo "failed to start field connection" >&2; exit 1; }
+    ;;
+  off)
+    need_root "$@"
+    echo "OFFICE mode: $ETH -> DHCP client."
+    nmcli con down "$FIELD_CON" >/dev/null 2>&1 || true
+    # Reactivate whatever autoconnect DHCP connection eth0 normally uses.
+    nmcli device connect "$ETH" >/dev/null 2>&1 || true
+    ;;
+  status)
+    ip -brief addr show "$ETH"
+    if nmcli -t -f NAME,DEVICE,ACTIVE con show | grep -q "^${FIELD_CON}:${ETH}:yes"; then
+      echo "mode: FIELD (serving DHCP as 10.10.10.1)"
+    else
+      echo "mode: office / DHCP client"
+    fi
+    ;;
+  *)
+    echo "usage: synthony-field on|off|status" >&2
+    exit 1
+    ;;
+esac
