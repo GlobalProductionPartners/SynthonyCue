@@ -677,17 +677,23 @@ def run(role):
     label = "SERVER" if role == "server" else "SCREEN"
     who = server_name if role == "server" else screen_name
     HOLD = 4.0   # seconds each screen is held before the next
+
+    def hold():
+        # A plain, even dwell. (show_* draw with seconds=0 so their own
+        # alert-aware wait returns at once and can't race the rotation.)
+        time.sleep(HOLD)
+
     try:
         while True:
-            show_pair(device, label, who(), HOLD)                    # name
-            show_pair(device, "IP", local_ip() or "no network", HOLD)  # ip address
-            show_columns(device, (                                   # server stats
-                ("CPU", f"{cpu_percent():.0f}%"),
+            show_pair(device, label, who(), 0); hold()                     # name
+            show_pair(device, "IP", local_ip() or "no network", 0); hold()  # ip address
+            show_columns(device, (                                          # server stats
+                ("CPU", f"{cpu_percent(0.2):.0f}%"),
                 ("RAM", f"{ram_percent():.0f}%"),
                 ("TEMP", temperature_text()),
-            ), HOLD)
-            screens = cue_state()["screens"]                         # screens connected
-            show_pair(device, "SCREENS", "--" if screens is None else str(screens), HOLD)
+            ), 0); hold()
+            screens = cue_state()["screens"]                                # screens connected
+            show_pair(device, "SCREENS", "--" if screens is None else str(screens), 0); hold()
     except KeyboardInterrupt:
         pass
     finally:
