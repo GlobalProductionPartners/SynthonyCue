@@ -126,6 +126,49 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-cue
 sudo systemctl restart synthony-cue
 
+# ── Field network: DHCP fallback + Wi-Fi AP (server role only) ───────────────
+# No DHCP in the field. If none is present this Pi becomes the rig's own
+# network: eth0 serves DHCP (NetworkManager "shared", 10.10.10.1/24) and wlan0
+# runs a Wi-Fi AP (10.10.11.1/24). Passive whenever real DHCP exists — the
+# watcher only serves after an active probe proves the wire has no DHCP server.
+say "Setting up field network (DHCP fallback + Wi-Fi AP)"
+AP_SSID="${SYNTHONY_AP_SSID:-SynthonyCue}"
+AP_PSK="${SYNTHONY_AP_PSK:-synthony-field}"
+# NM "shared" needs its dnsmasq backend; nmap gives us the pre-serve DHCP probe.
+sudo apt-get install -y dnsmasq-base nmap \
+  || warn "dnsmasq-base/nmap unavailable — field network fallback may not work"
+
+# Define the two fallback connections but DO NOT autoconnect them — the watcher
+# brings them up only when it proves there is no DHCP on the wire. Recreate
+# idempotently so re-running the installer applies any changes.
+sudo nmcli con delete synthony-field-eth >/dev/null 2>&1 || true
+sudo nmcli con add type ethernet ifname eth0 con-name synthony-field-eth \
+  ipv4.method shared ipv4.addresses 10.10.10.1/24 \
+  connection.autoconnect no >/dev/null 2>&1 || warn "could not create eth0 field connection"
+
+sudo nmcli con delete synthony-ap >/dev/null 2>&1 || true
+sudo nmcli con add type wifi ifname wlan0 con-name synthony-ap ssid "$AP_SSID" \
+  802-11-wireless.mode ap 802-11-wireless.band bg \
+  ipv4.method shared ipv4.addresses 10.10.11.1/24 \
+  wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$AP_PSK" \
+  connection.autoconnect no >/dev/null 2>&1 \
+  || warn "could not create Wi-Fi AP connection (check wlan0 and 'raspi-config nonint do_wifi_country')"
+
+# Reflect mDNS across the two field subnets so discovery works from either side.
+if [ -f /etc/avahi/avahi-daemon.conf ]; then
+  sudo sed -i 's/^#\?enable-reflector=.*/enable-reflector=yes/' /etc/avahi/avahi-daemon.conf
+  grep -q '^enable-reflector=yes' /etc/avahi/avahi-daemon.conf \
+    || sudo sed -i '/^\[reflector\]/a enable-reflector=yes' /etc/avahi/avahi-daemon.conf
+  sudo systemctl restart avahi-daemon 2>/dev/null || true
+fi
+
+chmod +x "$DIR/deploy/net/synthony-net.sh"
+sed -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/net/synthony-net.service" | sudo tee /etc/systemd/system/synthony-net.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable synthony-net
+sudo systemctl restart synthony-net
+
 else
   # Client role: this Pi must NOT run a server — the kiosk checks localhost
   # first, so a stray local server would hijack the display away from the

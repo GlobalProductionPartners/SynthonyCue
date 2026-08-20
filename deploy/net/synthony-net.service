@@ -1,0 +1,18 @@
+# Synthony Cue — DHCP fallback / self-hosted rig network (server role only).
+# Installed by install-pi.sh. Passive on a network that has DHCP; only serves
+# DHCP + a Wi-Fi AP when an active probe proves there is no DHCP server present.
+
+[Unit]
+Description=Synthony Cue field network (DHCP fallback + Wi-Fi AP)
+After=NetworkManager.service network-online.target
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash __DIR__/deploy/net/synthony-net.sh
+Restart=always
+RestartSec=10
+SyslogIdentifier=synthony-net
+
+[Install]
+WantedBy=multi-user.target
