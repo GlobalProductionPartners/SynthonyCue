@@ -55,6 +55,10 @@ READY_POLL_SECONDS = 1.0
 BOOT_TIMEOUT = 120.0  # show the rotation anyway rather than hang on booting
 
 IDENTITY_SECONDS = 2.5
+# A one-off marker scrolled at startup so you can eyeball which agent is live
+# (the old hand-rolled one never showed this). Harmless; trim or drop any time.
+STARTUP_BANNER = "SYNTHONY OLED - THE NEW ONE"
+STARTUP_BANNER_SECONDS = 6.0
 BANNER_SECONDS = 2.5
 FLASH_SECONDS = 1.8
 FLASH_GAP = 0.15  # brief blank between panels, which is what makes it flash
@@ -504,6 +508,18 @@ def scroll_strip(text, font):
     return strip, span
 
 
+def scroll_message(device, text, seconds, size=BOOT_SIZE):
+    """Scroll a message across the panel for a fixed number of seconds."""
+    strip, span = scroll_strip(text, load_font(size))
+    start = time.monotonic()
+    offset = 0
+    while time.monotonic() - start < seconds:
+        device.display(strip.crop((offset, 0, offset + WIDTH, HEIGHT)))
+        offset = (offset + SCROLL_STEP) % span
+        if FRAME_DELAY:
+            time.sleep(FRAME_DELAY)
+
+
 def show_booting(device, role):
     """Scroll a boot/search message until the system is ready."""
     message = "SERVER booting" if role == "server" else "searching for server"
@@ -654,6 +670,7 @@ def run(role):
         return
     try:
         show_identity(device, ("SYNTHONY", role.upper()), IDENTITY_SECONDS)
+        scroll_message(device, STARTUP_BANNER, STARTUP_BANNER_SECONDS)
         show_booting(device, role)
         while True:
             for panel in panels(device, role):
