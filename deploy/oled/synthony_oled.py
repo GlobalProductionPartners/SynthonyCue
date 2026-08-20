@@ -677,6 +677,11 @@ def run(role):
         while True:
             show_pair(device, label, who(), HOLD)                    # name
             show_pair(device, "IP", local_ip() or "no network", HOLD)  # ip address
+            show_columns(device, (                                   # server stats
+                ("CPU", f"{cpu_percent():.0f}%"),
+                ("RAM", f"{ram_percent():.0f}%"),
+                ("TEMP", temperature_text()),
+            ), HOLD)
     except KeyboardInterrupt:
         pass
     finally:
