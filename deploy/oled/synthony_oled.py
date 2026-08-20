@@ -72,7 +72,10 @@ ALERT_OFF = 0.2
 
 SCROLL_STEP = 1     # pixels per frame; 1 is the smoothest the panel can do
 SCROLL_GAP = 32
-FRAME_DELAY = 0.0   # 0 runs as fast as the I2C bus allows
+# A steady per-frame pace, not "as fast as possible". At 0 the scroll speed rode
+# on however fast the I2C bus and a busy CPU happened to be that instant, which
+# reads as jitter; a fixed ~50 px/s cadence keeps the motion even.
+FRAME_DELAY = 0.02
 
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 BANNER_SIZE = 24
@@ -156,6 +159,11 @@ def _cue_on_message(ws, raw):
     tc messages arrive 25-30 times a second and the panel redraws on its own
     schedule, so this only ever updates state.
     """
+    # The server broadcasts the running timecode 25-30 times a second. The panel
+    # shows none of it, so skip those frames before the (comparatively costly)
+    # JSON parse — otherwise the render loop stutters under the constant churn.
+    if "screens_list" not in raw and "tc_transport" not in raw:
+        return
     try:
         message = json.loads(raw)
     except (TypeError, ValueError):
@@ -182,8 +190,6 @@ def _cue_on_message(ws, raw):
                     break
         elif kind == "tc_transport":
             _cue["running"] = message.get("running", False)
-            _cue["tc"] = message.get("tc", _cue["tc"])
-        elif kind == "tc":
             _cue["tc"] = message.get("tc", _cue["tc"])
 
 
