@@ -1,0 +1,18 @@
+# Synthony Cue — automatic field-network decision at boot (server role only).
+# Runs ONCE (oneshot): stays a DHCP client if office DHCP is present, otherwise
+# serves the field network. Never re-evaluates while running, so it cannot flip
+# a live connection mid-session. To switch office<->field, reboot.
+
+[Unit]
+Description=Synthony Cue field-network boot decision (DHCP fallback)
+After=NetworkManager.service network.target
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash __DIR__/deploy/net/synthony-net-boot.sh
+RemainAfterExit=yes
+SyslogIdentifier=synthony-net-boot
+
+[Install]
+WantedBy=multi-user.target

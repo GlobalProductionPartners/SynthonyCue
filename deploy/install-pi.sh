@@ -126,27 +126,35 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-cue
 sudo systemctl restart synthony-cue
 
-# ── Field network: MANUAL toggle (server role only) ─────────────────────────
-# In the field (no DHCP) this Pi can serve DHCP itself on eth0 (NetworkManager
+# ── Field network: automatic DHCP fallback, decided once at boot (server) ────
+# In the field (no DHCP) this Pi serves DHCP itself on eth0 (NetworkManager
 # "shared", 10.10.10.1/24) for the whole switch — a bridged Wi-Fi AP's clients
-# land here too. This is DELIBERATELY MANUAL (`sudo synthony-field on|off`): it
-# only ever serves DHCP when explicitly enabled, so it can never become a rogue
-# DHCP server on a network that already has one. (An earlier auto-fallback was
-# removed after it mis-fired on a live LAN.)
-say "Setting up field network (manual: 'synthony-field on|off')"
-# NM "shared" needs its dnsmasq backend for the DHCP server.
-sudo apt-get install -y dnsmasq-base || warn "dnsmasq-base unavailable — field mode may not serve DHCP"
+# land here too. The decision is made ONCE at boot: if an office DHCP lease
+# arrives it stays a client; if not (and a probe confirms no DHCP server), it
+# serves the field network. It never re-checks while running, so it can't flip
+# a live connection mid-session. `sudo synthony-field on|off` overrides by hand.
+say "Setting up field network (automatic DHCP fallback at boot)"
+# NM "shared" needs its dnsmasq backend; nmap gives the pre-serve DHCP probe.
+sudo apt-get install -y dnsmasq-base nmap \
+  || warn "dnsmasq-base/nmap unavailable — field fallback may not work"
 
-# Define the field connection, autoconnect OFF so it is never activated on its
-# own. Recreate idempotently so re-running the installer applies any changes.
+# Define the field connection, autoconnect OFF so NM never activates it on its
+# own — only the boot decision or the manual toggle bring it up. Idempotent.
 sudo nmcli con delete synthony-field-eth >/dev/null 2>&1 || true
 sudo nmcli con add type ethernet ifname eth0 con-name synthony-field-eth \
   ipv4.method shared ipv4.addresses 10.10.10.1/24 \
   connection.autoconnect no >/dev/null 2>&1 || warn "could not create eth0 field connection"
 
-# Install the toggle command on PATH.
+# Manual override command on PATH.
 chmod +x "$DIR/deploy/net/synthony-field"
 sudo ln -sf "$DIR/deploy/net/synthony-field" /usr/local/bin/synthony-field
+
+# Boot-time decision (oneshot — never re-evaluates while running).
+chmod +x "$DIR/deploy/net/synthony-net-boot.sh"
+sed -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/net/synthony-net-boot.service" | sudo tee /etc/systemd/system/synthony-net-boot.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable synthony-net-boot
 
 else
   # Client role: this Pi must NOT run a server — the kiosk checks localhost
