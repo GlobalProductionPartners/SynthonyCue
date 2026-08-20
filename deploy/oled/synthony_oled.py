@@ -55,10 +55,12 @@ READY_POLL_SECONDS = 1.0
 BOOT_TIMEOUT = 120.0  # show the rotation anyway rather than hang on booting
 
 IDENTITY_SECONDS = 2.5
-# A one-off marker scrolled at startup so you can eyeball which agent is live
-# (the old hand-rolled one never showed this). Harmless; trim or drop any time.
+# Confirmation marker: scrolled at the top of the rotation for the first few
+# cycles after every start, so you can eyeball that THIS agent is live (the old
+# hand-rolled one never showed it), then it bows out to keep the panel clean.
 STARTUP_BANNER = "SYNTHONY OLED - THE NEW ONE"
-STARTUP_BANNER_SECONDS = 6.0
+MARK_SECONDS = 5.0
+MARK_CYCLES = 6
 BANNER_SECONDS = 2.5
 FLASH_SECONDS = 1.8
 FLASH_GAP = 0.15  # brief blank between panels, which is what makes it flash
@@ -581,25 +583,33 @@ def sysinfo_columns(device):
     ))
 
 
-def panels(device, role):
-    """The rotation, as callables so each reads fresh values as it runs."""
+def panels(device, role, show_marker=False):
+    """The rotation, as callables so each reads fresh values as it runs.
+
+    show_marker prepends the "new build" confirmation scroll — the caller only
+    asks for it during the first few cycles after a start.
+    """
     if role == "server":
-        return (
+        rotation = (
             lambda: show_banner(device, "ONLINE", BANNER_SECONDS),
             lambda: flash(device, "SERVER", server_name()),
             lambda: flash(device, "SYSIP:", local_ip() or "no network"),
             lambda: flash_columns(device, screens_columns()),
             lambda: sysinfo_columns(device),
         )
-    return (
-        lambda: show_banner(
-            device, "ONLINE" if cue_state()["link"] else "SEARCHING",
-            BANNER_SECONDS,
-        ),
-        lambda: flash(device, "SCREEN", screen_name()),
-        lambda: flash(device, "SYSIP:", local_ip() or "no network"),
-        lambda: sysinfo_columns(device),
-    )
+    else:
+        rotation = (
+            lambda: show_banner(
+                device, "ONLINE" if cue_state()["link"] else "SEARCHING",
+                BANNER_SECONDS,
+            ),
+            lambda: flash(device, "SCREEN", screen_name()),
+            lambda: flash(device, "SYSIP:", local_ip() or "no network"),
+            lambda: sysinfo_columns(device),
+        )
+    if show_marker:
+        rotation = (lambda: scroll_message(device, STARTUP_BANNER, MARK_SECONDS),) + rotation
+    return rotation
 
 
 # --- devices ----------------------------------------------------------------
@@ -670,13 +680,14 @@ def run(role):
         return
     try:
         show_identity(device, ("SYNTHONY", role.upper()), IDENTITY_SECONDS)
-        scroll_message(device, STARTUP_BANNER, STARTUP_BANNER_SECONDS)
         show_booting(device, role)
+        cycle = 0
         while True:
-            for panel in panels(device, role):
+            for panel in panels(device, role, show_marker=cycle < MARK_CYCLES):
                 panel()
                 if _alert.is_set():
                     show_alert(device)
+            cycle += 1
     except KeyboardInterrupt:
         pass
     finally:
