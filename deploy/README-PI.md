@@ -245,6 +245,23 @@ exponentially (1s to 30s) rather than hammering a dead encoder.
 Another Art-Net app on the Pi may hold it. Broadcast reaches every listener so
 sharing is usually fine, but unicast timecode goes to only one of them.
 
+**OLED front panel blank**
+The optional 0.91" 128x32 SSD1306 panel (I2C, address `0x3C`) is driven by
+`synthony-oled.service`. It auto-detects role — the server shows its name +
+connected screens, a client shows its screen name + online/searching — and
+exits cleanly if no panel is wired. Check it:
+
+```bash
+systemctl status synthony-oled
+journalctl -u synthony-oled -n 30
+python3 deploy/oled/synthony_oled.py --dump /tmp/oled --role server   # render to PNGs
+```
+
+Confirm I2C is on (`sudo raspi-config nonint do_i2c 0`) and the panel shows on
+`i2cdetect -y 1` at `3c`. The service is installed by `install-pi.sh`, so
+**re-run the installer** after updating to pick it up (OTA delivers the script
+but not new system services).
+
 ---
 
 ## 9. Timecode sources
@@ -270,6 +287,7 @@ video/stream.js              encoder stream -> MJPEG relay
 deploy/install-pi.sh         installer
 deploy/synthony-kiosk.sh     fullscreen browser launcher
 deploy/synthony-cue.service  systemd unit
+deploy/oled/synthony_oled.py front-panel OLED status agent (both roles)
 ```
 
 Server port `3001` (web) and `6454/udp` (Art-Net). Video is pulled outbound
