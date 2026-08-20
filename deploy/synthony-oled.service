@@ -1,0 +1,20 @@
+# Synthony Cue — front-panel OLED status display (both roles).
+# Installed by install-pi.sh. Auto-detects server vs client. Exits cleanly on a
+# Pi with no OLED wired, so Restart=on-failure keeps those panels quiet.
+
+[Unit]
+Description=Synthony Cue OLED status display
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+ExecStart=/usr/bin/python3 __DIR__/deploy/oled/synthony_oled.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+SyslogIdentifier=synthony-oled
+
+[Install]
+WantedBy=multi-user.target

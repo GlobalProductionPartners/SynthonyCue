@@ -72,6 +72,15 @@ else
 fi
 sudo apt-get install -y chromium-browser 2>/dev/null || sudo apt-get install -y chromium
 
+# Front-panel OLED status display (both roles). Harmless on a Pi with no panel —
+# the agent exits cleanly when it can't open the I2C device. Needs luma.oled +
+# Pillow to draw and websocket-client for the live cue link.
+say "Installing OLED status-panel dependencies"
+sudo apt-get install -y i2c-tools python3-luma.oled python3-pil python3-websocket \
+  || warn "OLED deps unavailable — front-panel status display will be limited/disabled"
+# Enable the I2C bus the panel hangs off. No-op if it's already on.
+sudo raspi-config nonint do_i2c 0 2>/dev/null || true
+
 # ── Server-only: Node.js, app deps, data dir, server service ─────────────────
 if [ "$MODE" = "server" ]; then
 
@@ -136,6 +145,18 @@ sed -e "s|__USER__|$RUN_USER|g" -e "s|__DIR__|$DIR|g" \
 sudo systemctl daemon-reload
 sudo systemctl enable synthony-stats
 sudo systemctl restart synthony-stats
+
+# ── Front-panel OLED status display (both roles) ────────────────────────────
+say "Installing OLED status display"
+# Retire the hand-rolled predecessor if it's still around — two processes on one
+# I2C panel just fight over it.
+sudo systemctl disable --now oled-status.service 2>/dev/null || true
+chmod +x "$DIR/deploy/oled/synthony_oled.py"
+sed -e "s|__USER__|$RUN_USER|g" -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/synthony-oled.service" | sudo tee /etc/systemd/system/synthony-oled.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable synthony-oled
+sudo systemctl restart synthony-oled
 
 # ── Allow the app to reboot this Pi (reboot only, nothing else) ──────────────
 say "Granting reboot permission (reboot only)"

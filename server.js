@@ -415,6 +415,7 @@ const screens = new Map(); // screenId → { ws, name, view, slots, cameraType }
 function screensList() {
   return Array.from(screens.values()).map(s => ({
     id: s.id, name: s.name, view: s.view, slots: s.slots, cameraType: s.cameraType,
+    ip: s.ip || null,   // lets a display Pi's OLED match its own screen entry
     ovCueType: s.ovCueType || 'any',
     wfCueType: s.wfCueType || 'any',
     ovScope: s.ovScope || 'song',
@@ -427,6 +428,10 @@ function broadcastScreensList() {
 
 wss.on('connection', (ws, req) => {
   clients.add(ws);
+  // Remember the peer's LAN IP so a display Pi's OLED can find its own screen
+  // entry (it matches this against its local addresses). Strip the IPv6-mapped
+  // prefix Node hands back for IPv4 peers.
+  ws._remoteIp = String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
   // Auto-auth WebSocket connections that carry a valid session cookie
   if (isAuthedReq(req)) authedClients.set(ws, true);
   safeSend(ws, { type: 'init', songs, config: sanitiseConfig(config), tc: TC.state(), blackout });
@@ -940,7 +945,7 @@ function handleClientMessage(ws, msg) {
     }
 
     case 'screen_hello': {
-      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, lastSeen: Date.now() });
+      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, ip: ws._remoteIp, lastSeen: Date.now() });
       flightLog('SCREEN-CONNECTED', `${msg.name} (${msg.id})`);
       broadcastScreensList();
       break;
@@ -948,7 +953,7 @@ function handleClientMessage(ws, msg) {
 
     case 'screen_update': {
       const s = screens.get(msg.id);
-      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, lastSeen: Date.now() }); broadcastScreensList(); }
+      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, ip: ws._remoteIp || s.ip, lastSeen: Date.now() }); broadcastScreensList(); }
       break;
     }
 
