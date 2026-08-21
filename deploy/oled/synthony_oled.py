@@ -202,25 +202,33 @@ def _cue_disconnected(*args):
         _cue["link"] = False
 
 
-def _cue_worker(url):
+def _cue_worker(role):
+    # Re-resolve the server on every attempt (not once at startup) so the link
+    # follows it across IP changes — e.g. office->field, when the server moves
+    # to 10.10.10.1 and the client gets a fresh lease. While connected,
+    # run_forever blocks, so discovery only runs when the link is down.
     while True:
-        try:
-            websocket.WebSocketApp(
-                url,
-                on_open=_cue_on_open,
-                on_message=_cue_on_message,
-                on_close=_cue_disconnected,
-                on_error=_cue_disconnected,
-            ).run_forever()
-        except Exception:
+        url = (cue_urls(role) or [None])[0]
+        if url:
+            try:
+                websocket.WebSocketApp(
+                    url,
+                    on_open=_cue_on_open,
+                    on_message=_cue_on_message,
+                    on_close=_cue_disconnected,
+                    on_error=_cue_disconnected,
+                ).run_forever()
+            except Exception:
+                _cue_disconnected()
+        else:
             _cue_disconnected()
         time.sleep(3)
 
 
-def start_cue_client(url):
-    if websocket is None or not url:
+def start_cue_client(role):
+    if websocket is None:
         return
-    threading.Thread(target=_cue_worker, args=(url,), daemon=True).start()
+    threading.Thread(target=_cue_worker, args=(role,), daemon=True).start()
 
 
 def cue_state():
@@ -736,10 +744,9 @@ def run(role):
     except Exception as exc:  # genuinely no panel wired / I2C off after retries
         print(f"synthony-oled: no OLED panel after retries ({exc}); exiting")
         raise SystemExit(1)   # non-zero so systemd (Restart=on-failure) retries
-    # The connected-screens count comes from the server over the cue link.
-    for url in cue_urls(role):
-        start_cue_client(url)
-        break
+    # The cue link (server data) — reconnects and re-discovers the server on its
+    # own, so ONLINE/OFFLINE and the counts stay live across restarts and IP moves.
+    start_cue_client(role)
     if role == "client":
         # A display Pi shows only ONLINE / OFFLINE — up when its link to the cue
         # server is live (so it's receiving the show data), OFFLINE when it isn't.
