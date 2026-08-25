@@ -156,6 +156,16 @@ sed -e "s|__DIR__|$DIR|g" \
 sudo systemctl daemon-reload
 sudo systemctl enable synthony-net-boot
 
+# ── Legacy synthony.local alias (server role) ───────────────────────────────
+# Keep http://synthony.local reachable after the Beacon hostname rename.
+say "Publishing legacy synthony.local mDNS alias"
+chmod +x "$DIR/deploy/synthony-alias.sh"
+sed -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/synthony-alias.service" | sudo tee /etc/systemd/system/synthony-alias.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable synthony-alias
+sudo systemctl restart synthony-alias
+
 else
   # Client role: this Pi must NOT run a server — the kiosk checks localhost
   # first, so a stray local server would hijack the display away from the

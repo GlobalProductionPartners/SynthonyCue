@@ -1,0 +1,16 @@
+# Synthony Cue — legacy "synthony.local" mDNS alias (server role only).
+# Keeps http://synthony.local/ reachable after the Beacon hostname rename.
+
+[Unit]
+Description=Synthony Cue legacy synthony.local mDNS alias
+After=avahi-daemon.service network-online.target
+Wants=avahi-daemon.service network-online.target
+
+[Service]
+ExecStart=/bin/bash __DIR__/deploy/synthony-alias.sh
+Restart=always
+RestartSec=10
+SyslogIdentifier=synthony-alias
+
+[Install]
+WantedBy=multi-user.target
