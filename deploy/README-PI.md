@@ -101,9 +101,12 @@ Advanced → Wayland → X11. Under Wayland only the first display gets a window
 (logged in `~/.synthony-kiosk.log`).
 
 **No port needed.** The server also listens on port 80, so `http://<pi-ip>/`
-and `http://<hostname>.local/` work as-is. Give the Pi a memorable hostname
-(`sudo raspi-config` → System → Hostname, e.g. `synthony`) and the admin is
-just `http://synthony.local/admin`. The `:3001` form keeps working too.
+and `http://<hostname>.local/` work as-is. Give the server Pi a memorable
+hostname (`sudo raspi-config` → System → Hostname, e.g. `GPP-Beaconserver-01`;
+remotes `GPP-Beaconremote-01`, `-02`, …) and the admin is at
+`http://<that-hostname>.local/admin`. The hostname is cosmetic — displays find
+the server by mDNS service (`_synthony._tcp`), never by name, so you can rename
+Pis freely.
 
 Exit the fullscreen display with **Alt+F4**. It returns on next login.
 

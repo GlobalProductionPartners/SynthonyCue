@@ -290,19 +290,14 @@ def discover_server_ws():
 
 
 def cue_urls(role):
-    """Ordered websocket URLs to try; the first that connects wins and sticks."""
+    """Websocket URL(s) to try. The server is local; a client finds the server
+    by mDNS SERVICE (_synthony._tcp), never by hostname — so renaming the Pis
+    doesn't matter. When discovery finds nothing we return empty and the worker
+    just retries (it re-discovers every cycle)."""
     if role == "server":
         return ["ws://127.0.0.1:3001/", "ws://127.0.0.1/"]
     found = discover_server_ws()
-    urls = [found] if found else []
-    urls += ["ws://synthony.local:3001/", "ws://synthony.local/"]
-    # de-dupe, keep order
-    seen, out = set(), []
-    for u in urls:
-        if u and u not in seen:
-            seen.add(u)
-            out.append(u)
-    return out
+    return [found] if found else []
 
 
 # --- system readings --------------------------------------------------------
