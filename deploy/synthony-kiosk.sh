@@ -94,6 +94,10 @@ for pos in "${MONITORS[@]}"; do
   profile="${HOME}/.config/synthony-kiosk-${n}"
   prefs="$profile/Default/Preferences"
   [ -f "$prefs" ] && sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/g' "$prefs" 2>/dev/null || true
+  # Drop stale singleton locks: Chromium refuses to start if the lock encodes a
+  # different hostname (e.g. after a rename) or a dead PID. Nothing else holds
+  # this profile — each display gets its own — so clearing it is safe.
+  rm -f "$profile"/Singleton* 2>/dev/null || true
 
   echo "display $n at $pos → $name"
   "$BROWSER" \
