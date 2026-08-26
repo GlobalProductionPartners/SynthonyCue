@@ -64,6 +64,27 @@ for i in $(seq 1 60); do
   sleep 2
 done
 
+# ── 1b. BEACONDISPLAY: force both HDMI outputs on, extended side-by-side ──────
+# A BEACONDISPLAY Pi drives two HDMI screens; enable every HDMI output and lay
+# them left-to-right so each gets its own fullscreen kiosk below. (X11 only —
+# beacondisplay-setup.sh puts these Pis on X11 + forces the outputs in cmdline.)
+case "$HOSTNAME_SHORT" in
+  *[Bb]eacon[Dd]isplay*)
+    if command -v xrandr >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
+      prev=""
+      for out in $(xrandr 2>/dev/null | awk '/^HDMI/{print $1}'); do
+        if [ -z "$prev" ]; then
+          xrandr --output "$out" --auto --primary 2>/dev/null || true
+        else
+          xrandr --output "$out" --auto --right-of "$prev" 2>/dev/null || true
+        fi
+        prev="$out"
+      done
+      [ -n "$prev" ] && echo "BEACONDISPLAY: extended HDMI outputs" && sleep 1
+    fi
+    ;;
+esac
+
 # ── 2. Detect displays ───────────────────────────────────────────────────────
 # X11: xrandr gives per-monitor geometry, so each window can be placed.
 # Wayland (Pi OS default): windows can't be positioned by the app, so only

@@ -221,6 +221,17 @@ sed -e "s|__DIR__|$DIR|g" \
     "$DIR/deploy/synthony-kiosk.desktop" > "$RUN_HOME/.config/autostart/synthony-kiosk.desktop"
 chown -R "$RUN_USER":"$RUN_USER" "$RUN_HOME/.config/autostart" 2>/dev/null || true
 
+# ── BEACONDISPLAY: dual-HDMI + X11 (by hostname, either role) ────────────────
+# A Pi named GPP-BEACONDISPLAY-* drives two HDMI screens fullscreen: force both
+# outputs and switch to X11. Needs a reboot afterwards.
+case "$(hostname)" in
+  *[Bb]eacon[Dd]isplay*)
+    say "BEACONDISPLAY detected — forcing 2x HDMI + X11 (reboot required)"
+    chmod +x "$DIR/deploy/beacondisplay-setup.sh"
+    bash "$DIR/deploy/beacondisplay-setup.sh" || warn "beacondisplay-setup had a problem — check HDMI/X11 by hand"
+    ;;
+esac
+
 # ── Verify ────────────────────────────────────────────────────────────────────
 if [ "$MODE" = "server" ]; then
   say "Waiting for the server"
