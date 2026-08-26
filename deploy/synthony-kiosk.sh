@@ -68,8 +68,8 @@ done
 # A BEACONDISPLAY Pi drives two HDMI screens; enable every HDMI output and lay
 # them left-to-right so each gets its own fullscreen kiosk below. (X11 only —
 # beacondisplay-setup.sh puts these Pis on X11 + forces the outputs in cmdline.)
-case "$HOSTNAME_SHORT" in
-  *[Bb]eacon[Dd]isplay*)
+case "$(printf '%s' "$HOSTNAME_SHORT" | tr '[:upper:]' '[:lower:]')" in
+  *beacondisplay*)
     if command -v xrandr >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
       prev=""
       for out in $(xrandr 2>/dev/null | awk '/^HDMI/{print $1}'); do
