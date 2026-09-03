@@ -198,6 +198,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-oled
 sudo systemctl restart synthony-oled
 
+# ── Quieter enclosure fan curve (both roles; no-op if fan trips aren't ours) ─
+say "Installing quieter fan curve"
+chmod +x "$DIR/deploy/synthony-fan.sh"
+sed -e "s|__DIR__|$DIR|g" \
+    "$DIR/deploy/synthony-fan.service" | sudo tee /etc/systemd/system/synthony-fan.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable synthony-fan
+sudo systemctl restart synthony-fan   # applies immediately, no reboot needed
+
 # ── Allow the app to reboot this Pi (reboot only, nothing else) ──────────────
 say "Granting reboot permission (reboot only)"
 echo "$RUN_USER ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot" \

@@ -1,0 +1,16 @@
+# Synthony Cue — quieter enclosure fan curve (Beacon Pi 4 remotes).
+# Raises the fan trip points at boot so the fan stays quiet until genuinely hot.
+# Trip-point writes don't survive a reboot, hence this oneshot re-applies them.
+
+[Unit]
+Description=Synthony Cue quieter fan curve
+After=sysinit.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash __DIR__/deploy/synthony-fan.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
