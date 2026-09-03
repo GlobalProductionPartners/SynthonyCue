@@ -61,6 +61,32 @@ if [ "$MODE" = "server" ]; then
   # if it's missing the server readout just stays silent (browser readout still works).
   sudo apt-get install -y espeak-ng \
     || warn "espeak-ng unavailable — server-side Cue Readout disabled (browser readout unaffected)"
+  # Route the default ALSA device to a USB audio device if one is attached, so the
+  # espeak-ng cue readout plays out the USB output (patched into comms) instead of
+  # HDMI/onboard. Referenced by card NAME, not index, so a reshuffle across reboots
+  # is fine. No USB audio device → leave the default untouched.
+  usb_card=$(aplay -l 2>/dev/null | sed -nE 's/^card [0-9]+: ([^ ]+) \[.*[Uu][Ss][Bb].*/\1/p' | head -1)
+  if [ -n "$usb_card" ]; then
+    say "Routing default audio to USB device '$usb_card' for cue readout"
+    sudo tee /etc/asound.conf >/dev/null <<EOF
+# Synthony Cue — default audio → USB device, so the headless server readout
+# (espeak-ng, no desktop audio session) plays out the USB output, not HDMI.
+pcm.!default {
+    type plug
+    slave.pcm {
+        type hw
+        card "$usb_card"
+        device 0
+    }
+}
+ctl.!default {
+    type hw
+    card "$usb_card"
+}
+EOF
+  else
+    echo "No USB audio device detected — leaving default audio unchanged (readout would use HDMI/onboard)."
+  fi
 else
   # A client is just a browser + discovery + the bash stats agent.
   sudo apt-get install -y curl ca-certificates avahi-utils
