@@ -17,10 +17,13 @@ exec >>"$LOG" 2>&1
 find_server() {
   if [ -n "${SYNTHONY_URL:-}" ]; then echo "$SYNTHONY_URL"; return 0; fi
   if curl -sf -o /dev/null --max-time 2 "http://localhost:3001/"; then echo "http://localhost:3001/"; return 0; fi
-  command -v avahi-browse >/dev/null 2>&1 || return 1
-  local hit
-  hit=$(avahi-browse -rtp _synthony._tcp 2>/dev/null | awk -F';' '$1=="=" && $3=="IPv4" {print $8":"$9; exit}')
-  [ -n "$hit" ] && { echo "http://$hit/"; return 0; }
+  if command -v avahi-browse >/dev/null 2>&1; then
+    local hit
+    hit=$(avahi-browse -rtp _synthony._tcp 2>/dev/null | awk -F';' '$1=="=" && $3=="IPv4" {print $8":"$9; exit}')
+    [ -n "$hit" ] && { echo "http://$hit/"; return 0; }
+  fi
+  # Field-mode fallback: the server is always 10.10.10.1 on our own network.
+  if curl -sf -o /dev/null --max-time 2 "http://10.10.10.1:3001/"; then echo "http://10.10.10.1:3001/"; return 0; fi
   return 1
 }
 

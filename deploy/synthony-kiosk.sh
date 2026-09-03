@@ -48,6 +48,11 @@ find_server() {
     hit=$(avahi-browse -rtp _synthony._tcp 2>/dev/null | awk -F';' '$1=="=" && $3=="IPv4" {print $8":"$9; exit}')
     if [ -n "$hit" ]; then echo "http://$hit/"; return 0; fi
   fi
+  # Field-mode fallback: the server is always 10.10.10.1 on our own network.
+  # Only used if mDNS found nothing; it simply won't answer in office mode.
+  if curl -sf -o /dev/null --max-time 2 "http://10.10.10.1:3001/"; then
+    echo "http://10.10.10.1:3001/"; return 0
+  fi
   return 1
 }
 

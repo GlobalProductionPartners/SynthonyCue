@@ -289,15 +289,22 @@ def discover_server_ws():
     return None
 
 
+FIELD_SERVER_WS = "ws://10.10.10.1:3001/"  # server's fixed IP in field (no-DHCP) mode
+
+
 def cue_urls(role):
     """Websocket URL(s) to try. The server is local; a client finds the server
     by mDNS SERVICE (_synthony._tcp), never by hostname — so renaming the Pis
-    doesn't matter. When discovery finds nothing we return empty and the worker
-    just retries (it re-discovers every cycle)."""
+    doesn't matter. In field mode the server is always 10.10.10.1, so we always
+    append that as a fallback: it's tried only if mDNS finds nothing (or the
+    found server fails), and it simply won't connect in office mode. The worker
+    re-discovers every cycle, so discovery recovers on its own."""
     if role == "server":
         return ["ws://127.0.0.1:3001/", "ws://127.0.0.1/"]
     found = discover_server_ws()
-    return [found] if found else []
+    urls = [found] if found else []
+    urls.append(FIELD_SERVER_WS)  # field fallback — fixed 10.10.10.1
+    return urls
 
 
 # --- system readings --------------------------------------------------------
