@@ -1462,7 +1462,17 @@ try {
     throw new Error('not the installed service — mDNS advertising skipped (set SYNTHONY_ADVERTISE=1 to force)');
   }
   const { Bonjour } = require('bonjour-service');
-  _bonjour = new Bonjour();
+  // CRITICAL: pass an error callback. bonjour-service's mDNS responder throws
+  // asynchronously on multicast send failures (e.g. ENETUNREACH on 224.0.0.251
+  // when the active interface has no multicast route — happens on our field
+  // "shared" network before/while it settles). Its DEFAULT handler is
+  // `throw err`, which is an UNCAUGHT exception that crashes the whole show
+  // server — we saw it crash-loop ~200x in the field. Swallow+log instead:
+  // discovery is best-effort (clients also fall back to the fixed field IP),
+  // and a multicast hiccup must NEVER take the server down mid-show.
+  _bonjour = new Bonjour({}, (err) => {
+    console.log(`[mDNS] responder error (ignored, discovery is best-effort): ${(err && err.code) || err}`);
+  });
   const svcName = `Synthony Cue (${require('os').hostname().replace(/\.local$/i, '')})`;
   _bonjour.publish({ name: svcName, type: 'synthony', port: Number(PORT) });
   console.log(`[mDNS] advertising "${svcName}" as _synthony._tcp on :${PORT}`);
@@ -1472,6 +1482,19 @@ try {
 } catch (e) {
   console.log(`[mDNS] advertising unavailable: ${e.message}`);
 }
+
+// Last-resort safety net for the show server: a transient network-send failure
+// from a background socket (mDNS/dgram multicast on a flapping interface) must
+// never crash the process. Swallow ONLY those specific socket error codes and
+// re-throw anything else, so genuine bugs still surface loudly.
+const BENIGN_NET_ERRNOS = new Set(['ENETUNREACH', 'EHOSTUNREACH', 'ENETDOWN', 'EADDRNOTAVAIL', 'EADDRINUSE']);
+process.on('uncaughtException', (err) => {
+  if (err && BENIGN_NET_ERRNOS.has(err.code)) {
+    console.log(`[net] ignored transient socket error ${err.code} (${err.syscall || 'send'}) — server stays up`);
+    return;
+  }
+  throw err;
+});
 
 // Port-80 convenience listener: browsers assume :80 when no port is typed, so
 // operators can reach the app as plain http://<host>/ . Same express app, and
