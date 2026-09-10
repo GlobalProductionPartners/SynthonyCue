@@ -1314,6 +1314,16 @@ function parseSynthonySheet(rows) {
   // 9:CAMERA CUES/KEY MOMENTS  10:LASERS,FIRE,PYRO
 
   function parseTCStr(s) {
+    // Excel stores a time as a fraction of a 24h day (0.5 = 12:00:00). A sheet
+    // exported "as values" hands us the text "HH:MM:SS:FF"; a live/formatted
+    // sheet hands us that raw number instead (the cell only *displays* as a
+    // timecode). Accept both so either kind of file imports — otherwise every
+    // numeric timecode fails the split and the whole sheet is skipped.
+    if (typeof s === 'number') {
+      if (!isFinite(s)) return null;
+      const frac = s - Math.floor(s);      // time-of-day (also tolerates date-time serials)
+      return frac * 86400;                 // → seconds since 00:00:00
+    }
     const str = String(s || '').trim();
     if (!str) return null;
     const parts = str.split(':').map(Number);
@@ -1324,7 +1334,15 @@ function parseSynthonySheet(rows) {
   }
 
   function parseDurStr(s) {
-    // "HH:MM:SS:FF" → "mm:ss" for storage; returns '' if zero/empty
+    // "HH:MM:SS:FF" → "mm:ss" for storage; returns '' if zero/empty. Same dual
+    // source as parseTCStr: a live sheet stores the duration as an Excel
+    // day-fraction number, a values export stores the "HH:MM:SS" text.
+    if (typeof s === 'number') {
+      if (!isFinite(s)) return '';
+      const totalSec = Math.round((s - Math.floor(s)) * 86400);
+      if (totalSec === 0) return '';
+      return Math.floor(totalSec / 60) + ':' + String(totalSec % 60).padStart(2, '0');
+    }
     const str = String(s || '').trim();
     if (!str) return '';
     const parts = str.split(':').map(Number);
