@@ -10,3 +10,12 @@ Screenshot*.png
 *.xlsx
 logs/
 config.json.*
+
+# Signing certs & secrets — never commit (private keys / credentials)
+*.p12
+*.cer
+*.pem
+*.certSigningRequest
+*.mobileprovision
+.env
+.env.*
