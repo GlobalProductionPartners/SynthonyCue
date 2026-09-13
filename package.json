@@ -48,6 +48,7 @@
       "public/**/*"
     ],
     "afterSign": "build/notarize.js",
+    "afterAllArtifactBuild": "build/notarize-dmg.js",
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
