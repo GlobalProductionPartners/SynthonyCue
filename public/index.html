@@ -583,7 +583,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
           <div class="status-row"><span><span class="status-dot" id="dot-artnet"></span>ArtNet</span><span class="val" id="status-artnet">—</span></div>
         </div>
         <div class="panel" style="grid-column: 1 / -1">
-          <div class="sec panel-sec"><span class="sep">//</span> SYSTEM <span class="sep">/</span> RESOURCES</div>
+          <div class="sec panel-sec" style="display:flex;justify-content:space-between;align-items:center">
+            <span><span class="sep">//</span> SYSTEM <span class="sep">/</span> RESOURCES</span>
+            <button class="row-btn del" onclick="Shutdown.start()" title="Power off every beacon, then the server once they're all confirmed off">⏻ Shutdown All</button>
+          </div>
           <div id="sys-resources"><div style="color:var(--text-3);font-size:12px">Waiting for first sample…</div></div>
         </div>
         <div class="panel" style="grid-column: 1 / -1;">
@@ -1086,6 +1089,15 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
   </div>
 </div>
 
+<!-- SHUTDOWN ALL MODAL -->
+<div class="modal-overlay hidden" id="shutdown-modal">
+  <div class="modal" style="min-width:360px;max-width:480px;width:90vw">
+    <h2>⏻ Shutdown All</h2>
+    <div id="shutdown-body" style="margin:12px 0;font-size:13px;line-height:1.5"></div>
+    <div id="shutdown-foot" style="display:flex;gap:8px;justify-content:flex-end"></div>
+  </div>
+</div>
+
 <!-- IMPORT CUE-TYPE PICKER -->
 <div class="modal-overlay hidden" id="import-select-modal">
   <div class="modal" style="max-width:460px;width:90vw">
@@ -1250,6 +1262,10 @@ function handleServerMessage(msg) {
 
     case 'output_log':
       addLogEntry(msg.entry);
+      break;
+
+    case 'shutdown_status':
+      Shutdown.onStatus(msg);
       break;
 
     case 'ltc_level':
@@ -1539,6 +1555,52 @@ const SysRes = {
 };
 setInterval(() => SysRes.poll(), 5000);
 setTimeout(() => SysRes.poll(), 1500);
+
+// ── Shutdown All ──────────────────────────────────────────────────────────────
+// Powers off every beacon, then the server once they're all verified off. Live
+// progress arrives as 'shutdown_status' WS broadcasts (handled below).
+const Shutdown = {
+  async start() {
+    if (!confirm('Shut down the ENTIRE rig?\n\nEvery beacon (remotes + displays) powers off, then the SERVER powers itself off — but only once every beacon is confirmed off. Use this to pack down, not during a show.')) return;
+    if (!confirm('Final confirm — power everything off now?')) return;
+    const r = await fetch('/api/system/shutdown-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(r => r.json()).catch(() => null);
+    if (!r || !r.ok) { alert('Could not start shutdown.'); return; }
+    this._open();
+    this.onStatus({ phase: 'shutting_down', pending: r.commanded || [], total: (r.commanded || []).length, elapsedMs: 0 });
+  },
+  _open() { const ov = document.getElementById('shutdown-modal'); if (ov) ov.classList.remove('hidden'); },
+  hide()  { const ov = document.getElementById('shutdown-modal'); if (ov) ov.classList.add('hidden'); },
+  onStatus(msg) {
+    const ov = document.getElementById('shutdown-modal'); if (!ov) return;
+    // Surface the modal even if this admin didn't start it (another operator did,
+    // or the page was reloaded mid-shutdown) — but never for idle/cancelled noise.
+    const active = ['shutting_down', 'all_off', 'server_off', 'forced', 'timeout'].includes(msg.phase);
+    if (active) ov.classList.remove('hidden');
+    if (ov.classList.contains('hidden')) return;
+    const body = document.getElementById('shutdown-body');
+    const foot = document.getElementById('shutdown-foot');
+    const pending = msg.pending || [];
+    const secs = Math.round((msg.elapsedMs || 0) / 1000);
+    const list = pending.map(h => `<li>${esc(h)}</li>`).join('');
+    if (msg.phase === 'server_off' || msg.phase === 'forced') {
+      body.innerHTML = `<p style="color:var(--amber)"><b>All beacons off. The server is powering down now.</b></p><p style="font-size:12px;color:var(--text-3)">This page goes offline in a few seconds.</p>`;
+      foot.innerHTML = '';
+    } else if (msg.phase === 'cancelled') {
+      body.innerHTML = `<p>Shutdown cancelled — the server stays up.</p><p style="font-size:12px;color:var(--text-3)">Any beacon already told to power off has done so; switch it back on to recover it.</p>`;
+      foot.innerHTML = `<button class="btn" onclick="Shutdown.hide()">Close</button>`;
+    } else if (msg.phase === 'timeout') {
+      body.innerHTML = `<p style="color:var(--red)">Still waiting on ${pending.length} beacon(s) after ${secs}s:</p><ul style="margin:6px 0;padding-left:18px">${list}</ul><p style="font-size:12px;color:var(--text-3)">The server will <b>not</b> power off while these keep reporting. Fix them, or choose below.</p>`;
+      foot.innerHTML = `<button class="btn" style="background:var(--red)" onclick="Shutdown.force()">Force server off</button><button class="btn" onclick="Shutdown.cancel()">Cancel</button>`;
+    } else { // shutting_down / all_off
+      body.innerHTML = pending.length
+        ? `<p>Powering off beacons… <b>${pending.length}</b> still on <span style="color:var(--text-3)">(${secs}s)</span>:</p><ul style="margin:6px 0;padding-left:18px">${list}</ul><p style="font-size:12px;color:var(--text-3)">The server powers itself off once every beacon is confirmed off.</p>`
+        : `<p>All beacons confirmed off — powering the server down…</p>`;
+      foot.innerHTML = `<button class="btn" onclick="Shutdown.cancel()">Cancel</button>`;
+    }
+  },
+  async force() { if (!confirm('Force the server to power off now, even though beacon(s) are still reporting?')) return; await fetch('/api/system/shutdown-all/force', { method: 'POST' }).catch(() => {}); },
+  async cancel() { await fetch('/api/system/shutdown-all/cancel', { method: 'POST' }).catch(() => {}); }
+};
 
 // ── Blackout ─────────────────────────────────────────────────────────────────
 let blackoutOn = false;

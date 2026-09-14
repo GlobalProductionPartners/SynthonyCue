@@ -1112,6 +1112,93 @@ app.post('/api/system/restart', (req, res) => {
   res.json({ ok: true, action, queued: host });
 });
 
+// ── Shutdown All ──────────────────────────────────────────────────────────────
+// Power off every beacon (remotes + displays), then — ONLY once the server has
+// verified they've all gone dark — power off the server itself. A beacon proves
+// it's off by going silent: its stats agent runs the poweroff and never POSTs
+// telemetry again, so the server watches remoteStats go stale. It reports live
+// progress to the admin and holds its own shutdown while anything is still
+// alive; past a timeout it stops and waits for the admin (force / cancel) rather
+// than ever stranding a running beacon or killing the show without confirmation.
+let shutdownAll = null;                       // null | { startedAt, commanded:Set, phase, clearCount, timer }
+const SHUTDOWN_BEACON_STALE_MS = 25000;       // no telemetry this long → beacon is off
+const SHUTDOWN_TIMEOUT_MS = 4 * 60 * 1000;    // past this, hold and hand it to the admin
+const SHUTDOWN_SERVER_GRACE_MS = 4000;        // let the "all off" broadcast land before we go dark
+
+function aliveBeacons() {
+  const cutoff = Date.now() - SHUTDOWN_BEACON_STALE_MS;
+  const live = [];
+  for (const r of remoteStats.values()) if (r.at >= cutoff) live.push(r.host);
+  return live.sort();
+}
+function broadcastShutdown(extra = {}) {
+  broadcast({ type: 'shutdown_status', phase: shutdownAll ? shutdownAll.phase : 'idle',
+    pending: aliveBeacons(), total: shutdownAll ? shutdownAll.commanded.size : 0,
+    elapsedMs: shutdownAll ? Date.now() - shutdownAll.startedAt : 0, ...extra });
+}
+function serverPowerOff() {
+  flightLog('SHUTDOWN-SELF', 'all beacons verified off');
+  broadcast({ type: 'shutdown_status', phase: 'server_off', pending: [],
+    total: shutdownAll ? shutdownAll.commanded.size : 0 });
+  const { execFile } = require('child_process');
+  setTimeout(() => execFile('sudo', ['-n', 'poweroff'], () => {}), SHUTDOWN_SERVER_GRACE_MS);
+}
+function shutdownTick() {
+  if (!shutdownAll) return;
+  // Also command any beacon that's alive but not yet told (e.g. one that came
+  // back after we started) so nothing is left running.
+  for (const host of aliveBeacons()) {
+    if (!shutdownAll.commanded.has(host)) { pendingHostCommands.set(host, ['shutdown']); shutdownAll.commanded.add(host); }
+  }
+  const pending = aliveBeacons();
+  broadcastShutdown();
+  if (pending.length === 0) {
+    // Require two clean ticks so a single missed report can't fake "all off".
+    if (++shutdownAll.clearCount >= 2) {
+      shutdownAll.phase = 'all_off';
+      clearInterval(shutdownAll.timer);
+      serverPowerOff();
+    }
+  } else {
+    shutdownAll.clearCount = 0;
+    if (Date.now() - shutdownAll.startedAt > SHUTDOWN_TIMEOUT_MS && shutdownAll.phase !== 'timeout') {
+      shutdownAll.phase = 'timeout';   // hold — the admin decides (force / cancel)
+      broadcastShutdown();
+    }
+  }
+}
+// Start: shut down every beacon, then the server once they're all confirmed off.
+app.post('/api/system/shutdown-all', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (shutdownAll) { res.json({ ok: true, already: true, phase: shutdownAll.phase }); return; }
+  const commanded = new Set();
+  for (const host of aliveBeacons()) { pendingHostCommands.set(host, ['shutdown']); commanded.add(host); }
+  shutdownAll = { startedAt: Date.now(), commanded, phase: 'shutting_down', clearCount: 0, timer: null };
+  flightLog('SHUTDOWN-ALL', `commanded ${commanded.size} beacon(s)`);
+  shutdownAll.timer = setInterval(shutdownTick, 3000);
+  broadcastShutdown();
+  res.json({ ok: true, commanded: Array.from(commanded) });
+});
+// Stop waiting and power the server off now (explicit admin choice at the timeout).
+app.post('/api/system/shutdown-all/force', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (shutdownAll && shutdownAll.timer) clearInterval(shutdownAll.timer);
+  shutdownAll = shutdownAll || { startedAt: Date.now(), commanded: new Set(), phase: 'forced' };
+  shutdownAll.phase = 'forced';
+  res.json({ ok: true, forced: true });
+  serverPowerOff();
+});
+// Abort: keep the server up. Beacons already told to shut down can't be recalled.
+app.post('/api/system/shutdown-all/cancel', (req, res) => {
+  if (!isAuthedReq(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (shutdownAll && shutdownAll.timer) clearInterval(shutdownAll.timer);
+  const had = !!shutdownAll;
+  shutdownAll = null;
+  flightLog('SHUTDOWN-ALL-CANCEL');
+  broadcast({ type: 'shutdown_status', phase: 'cancelled', pending: aliveBeacons(), total: 0 });
+  res.json({ ok: true, cancelled: had });
+});
+
 // ── OTA endpoints ─────────────────────────────────────────────────────────────
 const updateUpload = multer({
   storage: multer.memoryStorage(),

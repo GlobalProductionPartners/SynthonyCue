@@ -58,7 +58,8 @@ while true; do
 
   # The server queues admin actions (e.g. reboot) in the report response.
   case "$RESP" in
-    *'"reboot"'*) echo "$(date +%T) reboot commanded by admin"; sudo -n reboot ;;
+    *'"reboot"'*)   echo "$(date +%T) reboot commanded by admin";   sudo -n reboot ;;
+    *'"shutdown"'*) echo "$(date +%T) shutdown commanded by admin"; sudo -n poweroff ;;
   esac
 
   sleep 10

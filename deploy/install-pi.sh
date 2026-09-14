@@ -233,9 +233,12 @@ sudo systemctl daemon-reload
 sudo systemctl enable synthony-fan
 sudo systemctl restart synthony-fan   # applies immediately, no reboot needed
 
-# ── Allow the app to reboot this Pi (reboot only, nothing else) ──────────────
-say "Granting reboot permission (reboot only)"
-echo "$RUN_USER ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot" \
+# ── Allow the app to reboot / power off this Pi (nothing else) ───────────────
+# reboot: per-machine restart from the admin. poweroff: the "Shutdown All"
+# command (beacons power off on the server's command; the server powers itself
+# off last, once every beacon is verified off).
+say "Granting reboot + poweroff permission"
+echo "$RUN_USER ALL=(ALL) NOPASSWD: /sbin/reboot, /usr/sbin/reboot, /sbin/poweroff, /usr/sbin/poweroff" \
   | sudo tee /etc/sudoers.d/synthony-reboot >/dev/null
 sudo chmod 440 /etc/sudoers.d/synthony-reboot
 
