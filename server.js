@@ -1413,11 +1413,22 @@ function parseSynthonySheet(rows) {
     }
     const str = String(s || '').trim();
     if (!str) return null;
-    const parts = str.split(':').map(Number);
-    if (parts.length !== 4 || parts.some(isNaN)) return null;
-    const [h, m, sec, f] = parts;
-    if (h > 23) return null;
-    return h * 3600 + m * 60 + sec + f / FR;
+    // Two text spellings appear in exports:
+    //   HH:MM:SS:FF  — frames (0..FR-1) after a colon
+    //   HH:MM:SS.ss  — sub-second after a DOT (decimal seconds, e.g. "05:41:17.97")
+    // and plain HH:MM:SS. Split on ':' and read the last field accordingly.
+    const parts = str.split(':');
+    if (parts.length === 4) {
+      const [h, m, sec, f] = parts.map(Number);
+      if ([h, m, sec, f].some(Number.isNaN) || h > 23) return null;
+      return h * 3600 + m * 60 + sec + f / FR;
+    }
+    if (parts.length === 3) {
+      const h = Number(parts[0]), m = Number(parts[1]), sec = Number(parts[2]);   // "17.97" → 17.97s
+      if ([h, m, sec].some(Number.isNaN) || h > 23) return null;
+      return h * 3600 + m * 60 + sec;      // toTC() rounds decimal seconds to frames
+    }
+    return null;
   }
 
   function parseDurStr(s) {
