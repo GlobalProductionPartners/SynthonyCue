@@ -203,10 +203,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
   flex: 1; display: flex; flex-direction: column; padding: 24px;
   align-items: center; justify-content: center; gap: 20px; text-align: center;
 }
-.camera-label {
-  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;
-  color: var(--purple); padding: 4px 16px; border: 1px solid var(--purple); border-radius: 12px;
-}
+/* Track title — matches the Host view's title (.host-label). */
+.camera-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); line-height: 1.05; letter-spacing: -0.02em; width: 100%; overflow: hidden; white-space: nowrap; }
 .camera-cue-text.is-upcoming { color: var(--text-2); }
 .camera-cue-text {
   font-family: var(--font-ui); font-weight: 800; color: var(--text);
@@ -864,6 +862,27 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
               <option value="30">30 fps (NTSC)</option>
               <option value="24">24 fps (Film)</option>
             </select>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="sec panel-sec"><span class="sep">//</span> TIME OF DAY</div>
+          <div class="form-group">
+            <label class="form-label" for="cfg-tod-tz">Clock timezone (all displays)</label>
+            <select class="form-input" id="cfg-tod-tz" onchange="Settings.applyTimezone(this.value)">
+              <option value="">Display local time</option>
+              <option value="Pacific/Auckland">Auckland (NZ)</option>
+              <option value="Australia/Sydney">Sydney</option>
+              <option value="Europe/London">London (UK)</option>
+              <option value="Europe/Paris">Central Europe (Paris / Berlin / Amsterdam)</option>
+              <option value="Europe/Athens">Eastern Europe (Athens / Helsinki)</option>
+              <option value="America/New_York">New York (US Eastern)</option>
+              <option value="America/Chicago">Chicago (US Central)</option>
+              <option value="America/Los_Angeles">Los Angeles (US Pacific)</option>
+              <option value="Asia/Dubai">Dubai</option>
+              <option value="Asia/Singapore">Singapore</option>
+              <option value="UTC">UTC</option>
+            </select>
+            <div style="font-size:11px;color:var(--dim);margin-top:4px">Sets the Time-of-Day clock on every display. "Display local time" uses each Pi's own clock.</div>
           </div>
         </div>
         <div class="panel">
@@ -1726,11 +1745,13 @@ const Camera = {
   render() {
     const type   = this.syncTypes();
     const song   = getCurrentSong();
-    const curCue = getCurrentCue(song);
+    const heldCue = getHeldCue(type);   // hold-aware, matches the display + stage/multi views
     const nextG  = getNextCueGlobal(type);
-    document.getElementById('camera-label').textContent     = song?.trackName || '—';
+    const _nameEl = document.getElementById('camera-label');
+    _nameEl.textContent = song?.trackName || '—';
+    fitText(_nameEl, _nameEl, 19, Math.round(window.innerHeight * 0.073), true);   // title like Host
     const _camCue  = document.getElementById('camera-cue');
-    const _curTxt  = getField(curCue, type);
+    const _curTxt  = getField(heldCue?.cue, type);
     const _nxtTxt  = getField(nextG?.cue, type);
     _camCue.textContent = _curTxt || _nxtTxt || '—';
     _camCue.classList.toggle('is-upcoming', !_curTxt && !!_nxtTxt);
@@ -2161,11 +2182,17 @@ const Settings = {
   renderVideo() {
     const c = State.config || {};
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('cfg-tod-tz',        c.todTimezone  || '');
     set('cfg-video-source',  c.videoSource  || '');
     set('cfg-video-width',   c.videoWidth   || 1280);
     set('cfg-video-fps',     c.videoFps     || 15);
     set('cfg-video-quality', c.videoQuality || 6);
     const t = document.getElementById('cfg-video-transport'); if (t) t.value = c.videoTransport || 'tcp';
+  },
+
+  // Time-of-day clock timezone (applies to every display). '' = local time.
+  applyTimezone(tz) {
+    wsSend({ type: 'save_config', config: { todTimezone: tz || '' } });
   },
 
   applyVideo(sourceOverride) {

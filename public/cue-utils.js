@@ -235,6 +235,22 @@ function getPrevCueGlobal(type, skip = 0) {
   return candidates[candidates.length - 1 - skip] || null;
 }
 
+// Hold-aware "live" cue for a type: the last fired cue of that type, held only
+// while its per-type cue-hold window is still open — so Single-Cue and Host
+// match the stage / multi views instead of just showing the last cue by time.
+// 'until next' (Infinity) holds until the next cue of the type; a timed hold
+// clears after its window (explicit seconds, else the cue's duration, else 5s).
+// Returns { song, cue, absFrames } or null.
+function getHeldCue(type) {
+  const lastFired = getPrevCueGlobal(type);
+  if (!lastFired) return null;
+  const durF = lastFired.cue && lastFired.cue.duration ? parseDuration(lastFired.cue.duration) : 0;
+  const holdWinF = cueHoldWindow(type, durF);
+  if (holdWinF === Infinity) return lastFired;          // hold until the next cue
+  const now = State.tcFrames || parseTC(State.tc);
+  return (now - lastFired.absFrames) >= holdWinF ? null : lastFired;
+}
+
 // Next cue across ALL songs. skip=0 → next, skip=1 → one after that.
 // Uses song-array order for future songs so non-sequential timecodes work correctly.
 function getNextCueGlobal(type, skip = 0) {

@@ -140,7 +140,6 @@ function renderStage(slots, prefix = '') {
 function renderHostView(hslots, prefix = '') {
   const $ = id => document.getElementById(prefix + id);
   const song   = getCurrentSong();
-  const curCue = getCurrentCue(song);
   // These are single-line headings, so fit to WIDTH (widthOnly): fitting a line
   // against its own height collapses it to the min on large screens because a
   // tight line-height pushes scrollHeight past clientHeight. The cap is a
@@ -155,7 +154,7 @@ function renderHostView(hslots, prefix = '') {
   for (const slot of ['a', 'b']) {
     const type   = hslots[slot];
     const nextG  = getNextCueGlobal(type);
-    const curTx  = getField(curCue, type);
+    const curTx  = getField(getHeldCue(type)?.cue, type);   // hold-aware, per type
     const nextTx = getField(nextG?.cue, type);
     const txEl = $('host-text-' + slot);
     if (txEl) {

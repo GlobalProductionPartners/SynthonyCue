@@ -95,11 +95,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* ── Camera ── */
 #view-camera { align-items: stretch; justify-content: stretch; }
 .camera-main { flex: 1; display: flex; flex-direction: column; padding: 24px; align-items: center; justify-content: center; gap: 20px; text-align: center; }
-.camera-label {
-  font-size: clamp(11px, 1vw, 14px); font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.18em; color: var(--text-3);
-  padding: var(--s-1) var(--s-3); border: 1px solid var(--border); border-radius: var(--r-2);
-}
+/* Track title — matches the Host view's title (.host-label). */
+.camera-label { font-family: var(--font-ui); font-weight: 800; color: var(--text); line-height: 1.05; letter-spacing: -0.02em; width: 100%; overflow: hidden; white-space: nowrap; }
 .camera-cue-text.is-upcoming { color: var(--text-2); }
 .camera-cue-text {
   font-family: var(--font-ui); font-weight: 800; color: var(--text);
@@ -728,13 +725,17 @@ function renderConductor() {
 
 function renderCamera() {
   const song   = getCurrentSong();
-  const curCue = getCurrentCue(song);
+  const heldCue = getHeldCue(cameraType);   // hold-aware, like the stage/multi views
   const nextG  = getNextCueGlobal(cameraType);
-  document.getElementById('camera-label').textContent  = song?.trackName || '—';
+  // Track title — fitted the same way as the Host view's title (H2), not the
+  // old small uppercase badge.
+  const nameEl = document.getElementById('camera-label');
+  nameEl.textContent = song?.trackName || '—';
+  fitText(nameEl, nameEl, 19, Math.round(window.innerHeight * 0.073), true);
   // With no live cue, the upcoming one is the only information on this screen
   // — promote it into the hero rather than leaving a dash in a void.
   const camCue   = document.getElementById('camera-cue');
-  const curText  = getField(curCue, cameraType);
+  const curText  = getField(heldCue?.cue, cameraType);
   const nextText = getField(nextG?.cue, cameraType);
   camCue.textContent = curText || nextText || '—';
   camCue.classList.toggle('is-upcoming', !curText && !!nextText);
@@ -1072,6 +1073,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateClock() {
     const el = document.getElementById('kf-tod');
     if (!el) return;
+    // A configured timezone (IANA name, e.g. "Europe/London") wins; otherwise
+    // fall back to the display Pi's own local clock. An invalid tz never breaks
+    // the clock — it just reverts to local.
+    const tz = State.config && State.config.todTimezone;
+    if (tz) {
+      try { el.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }); return; }
+      catch (e) { /* bad tz → local */ }
+    }
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');

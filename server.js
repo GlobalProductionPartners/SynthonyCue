@@ -32,6 +32,10 @@ const CONFIG_DEFAULTS = {
   cueHoldMode: 'timed',
   cueHoldSeconds: 5,
   cueHold: {},
+  // Time-of-day clock on the displays: an IANA timezone name, e.g.
+  // "Pacific/Auckland" or "Europe/London". '' = each display uses its own
+  // local clock.
+  todTimezone: '',
   // Video source — anything ffmpeg can open. The Zowietek encoder's
   // secondary (720p) stream is the intended input; the 4K main stream costs
   // far more to decode for no gain on a cue display.
