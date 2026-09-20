@@ -40,12 +40,12 @@ say "Target: ${TARGET}:${REMOTE}"
 ssh "${SSHOPTS[@]}" "$TARGET" "test -d '$REMOTE'" \
   || { echo "!! Remote app dir not found: $REMOTE  (is this the server Pi?)"; exit 1; }
 
-say "Uploading: ${PATHS[*]}"
-for p in "${PATHS[@]}"; do
-  [ -e "$LOCAL_DIR/$p" ] || { echo "   (skip, missing locally: $p)"; continue; }
-  scp "${SSHOPTS[@]}" -rq "$LOCAL_DIR/$p" "$TARGET:$REMOTE/"
-  echo "   ✓ $p"
-done
+EXISTING=(); for p in "${PATHS[@]}"; do [ -e "$LOCAL_DIR/$p" ] && EXISTING+=("$p"); done
+say "Uploading: ${EXISTING[*]}"
+# Stream a tarball over the one SSH connection and extract on the Pi — a single
+# transfer that preserves the directory tree (more robust than per-file scp).
+tar czf - -C "$LOCAL_DIR" "${EXISTING[@]}" \
+  | ssh "${SSHOPTS[@]}" "$TARGET" "tar xzf - -C '$REMOTE' && echo '   ✓ files extracted'"
 
 say "Syntax-checking + restarting the app (enter the sudo password if asked)…"
 ssh -t "${SSHOPTS[@]}" "$TARGET" \
