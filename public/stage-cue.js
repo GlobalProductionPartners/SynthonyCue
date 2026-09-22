@@ -153,13 +153,13 @@ function renderHostView(hslots, prefix = '') {
   }
   for (const slot of ['a', 'b']) {
     const type   = hslots[slot];
-    const nextG  = getNextCueGlobal(type);
-    const curTx  = getField(getHeldCue(type)?.cue, type);   // hold-aware, per type
-    const nextTx = getField(nextG?.cue, type);
+    // LIVE cue only: appears the moment TC reaches the cue, holds for the hold
+    // setting, then clears. No early preview of the upcoming cue.
+    const curTx  = getField(getHeldCue(type)?.cue, type);
     const txEl = $('host-text-' + slot);
     if (txEl) {
-      txEl.textContent = curTx || nextTx || '—';
-      txEl.classList.toggle('is-upcoming', !curTx && !!nextTx);
+      txEl.textContent = curTx || '—';
+      txEl.classList.remove('is-upcoming');
       // Cue 1 (slot a) is a subtitle (H4, tight under the title); Cue 2 is the hero (H1).
       const maxFrac = slot === 'a' ? 0.037 : 0.28;
       fitText(txEl, txEl, slot === 'a' ? 12 : 40, Math.round(H * maxFrac), true);

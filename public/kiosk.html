@@ -1023,6 +1023,11 @@ function handleMsg(msg) {
     case 'blackout':
       document.body.classList.toggle('is-blackout', !!msg.on);
       break;
+    case 'server_time':
+      // Shared time source: align this display's Time-of-Day to the server's
+      // (admin-supplied) clock, regardless of this Pi/tablet's own wrong clock.
+      if (Number.isFinite(msg.epoch)) todOffset = msg.epoch - Date.now();
+      break;
     case 'manual_cue':
       setManualCue(msg);
       renderCurrent();
@@ -1069,19 +1074,22 @@ document.addEventListener('DOMContentLoaded', () => {
   switchView(currentView);
   wsConnect();
 
-  // Time of day — update every second (bottom bar)
+  // Time of day — update every second (bottom bar). The time itself comes from
+  // the SERVER (todOffset, set by the 'server_time' broadcast that the admin
+  // browser feeds), so every display — Pi or iPad — shows one shared clock even
+  // when the device's own clock is wrong. The timezone just formats it.
+  var todOffset = 0;
   function updateClock() {
     const el = document.getElementById('kf-tod');
     if (!el) return;
+    const now = new Date(Date.now() + todOffset);
     // A configured timezone (IANA name, e.g. "Europe/London") wins; otherwise
-    // fall back to the display Pi's own local clock. An invalid tz never breaks
-    // the clock — it just reverts to local.
+    // fall back to local formatting. An invalid tz never breaks the clock.
     const tz = State.config && State.config.todTimezone;
     if (tz) {
-      try { el.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }); return; }
+      try { el.textContent = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }); return; }
       catch (e) { /* bad tz → local */ }
     }
-    const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');

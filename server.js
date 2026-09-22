@@ -269,6 +269,15 @@ function localStats() {
 const remoteStats = new Map();   // host → last report
 const pendingHostCommands = new Map();  // host → [ 'reboot', ... ] delivered on next report
 
+// ── Time source ───────────────────────────────────────────────────────────────
+// The field network has no internet/NTP and the Pis have no RTC, so their wall
+// clocks are wrong. Instead of setting each Pi, the admin browser (which always
+// has the right time) tells the server the real time; the server broadcasts it
+// to every display so ALL of them — Pi kiosks and web displays (iPads etc.) —
+// show one shared, correct Time of Day. clockOffsetMs is (real - this box's clock).
+let clockOffsetMs = 0;
+function nowMs() { return Date.now() + clockOffsetMs; }
+
 // ── Flight recorder ───────────────────────────────────────────────────────────
 // Append-only show-day log: every fired output, TC event, save, and screen
 // drop, stamped with wall clock and show TC. When "did that cue fire?" comes
@@ -461,6 +470,7 @@ wss.on('connection', (ws, req) => {
   // joined or dropped. Send the current list to every new client.
   safeSend(ws, { type: 'screens_list', screens: screensList() });
   safeSend(ws, { type: 'clients', count: liveClientCount() });
+  safeSend(ws, { type: 'server_time', epoch: nowMs() });   // one shared time source for all displays
 
   ws.on('message', (raw) => {
     try { handleClientMessage(ws, JSON.parse(raw)); } catch {}
@@ -933,6 +943,16 @@ function handleClientMessage(ws, msg) {
       break;
     }
 
+    case 'set_time': {
+      // The admin browser is the trusted clock source (it always has the real
+      // time). Record its offset from this box's clock and push the shared time
+      // to every display at once — Pi kiosks and web displays alike.
+      if (!verifyEdit(ws, msg)) return;
+      const e = Number(msg.epoch);
+      if (Number.isFinite(e)) { clockOffsetMs = e - Date.now(); broadcast({ type: 'server_time', epoch: nowMs() }); }
+      break;
+    }
+
     case 'save_config': {
       if (!verifyEdit(ws, msg)) return;
       const prevLtcDevice = String(config.ltcDevice ?? '');
@@ -1073,6 +1093,8 @@ app.post('/api/system/report', (req, res) => {
 });
 // Re-evaluate periodically so a Pi that stops reporting drops out of the count.
 setInterval(() => broadcastClients(), 10000).unref?.();
+// Re-broadcast the shared time so displays stay aligned and late-joiners sync.
+setInterval(() => broadcast({ type: 'server_time', epoch: nowMs() }), 15000).unref?.();
 
 // Admin: reboot a machine (queued for its stats agent) or reload a screen's
 // browser (immediate, via the screen socket). action: 'reboot' | 'reload'.

@@ -1180,6 +1180,12 @@ function sendScreenUpdate() {
 let ws = null;
 let wsReconnectTimer = null;
 
+// Time source: the admin browser always has the real time (its own OS clock),
+// so it feeds it to the server, which fans it out to every display. Sent on
+// connect and refreshed every 30s so the server's offset tracks real time.
+function sendTimeSync() { wsSend({ type: 'set_time', epoch: Date.now() }); }
+setInterval(() => sendTimeSync(), 30000);
+
 function wsConnect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
@@ -1190,6 +1196,7 @@ function wsConnect() {
     setConnStatus('connected');
     clearTimeout(wsReconnectTimer);
     setTimeout(sendScreenHello, 200);
+    sendTimeSync();   // this admin browser is the trusted clock source for all displays
   };
 
   ws.onclose = () => {
