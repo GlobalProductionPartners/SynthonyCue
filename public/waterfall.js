@@ -33,14 +33,22 @@ const Waterfall = {
   // shows all cue content; a filter narrows to one type.
   _entries() {
     const types = this._cueType === 'any' ? [...CUE_BASE_TYPES, ...customCueTypes()] : [this._cueType];
+    const songs = State.songs || [];
+    // Order cues by when they PLAY, not by absolute timecode. Songs are jammed
+    // to their own non-sequential TC islands, so a play-order timeline —
+    // cumulative song durations + the cue's offset — is what counts down
+    // correctly (matches getShowTime, used as "now"). base[i] = show-time frames
+    // before song i. Without this the waterfall counts down to whatever cue has
+    // the next-lowest wall-TC, which can be a far-off song, so it looks stuck.
+    const base = []; let acc = 0;
+    for (let i = 0; i < songs.length; i++) { base[i] = acc; acc += parseDuration(songs[i].duration || ''); }
     const out = [];
-    for (const song of (State.songs || [])) {
-      const start = parseTC(song.timecode);
-      for (const cue of (song.cues || [])) {
-        const abs = start + parseTC(cue.offset);
+    for (let i = 0; i < songs.length; i++) {
+      for (const cue of (songs[i].cues || [])) {
+        const pos = base[i] + parseTC(cue.offset);   // frames along the play timeline
         for (const t of types) {
           const text = _wfField(cue, t);
-          if (text) out.push({ abs, type: t, text, id: cue.id + ':' + t });
+          if (text) out.push({ abs: pos, type: t, text, id: cue.id + ':' + t });
         }
       }
     }
@@ -86,7 +94,7 @@ const Waterfall = {
     this._syncTypeOptions();
     if (sel && sel.value !== this._cueType) sel.value = this._cueType;
 
-    this._anchorFrames = State.tcFrames || parseTC(State.tc);
+    this._anchorFrames = getShowTime();   // play-timeline position, matches _entries ordering
     this._anchorWall   = performance.now();
 
     const now = this._anchorFrames;
