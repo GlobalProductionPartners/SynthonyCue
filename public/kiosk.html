@@ -649,6 +649,10 @@ body.video-clean .video-stage { background: #000; }
 // getNextSong, getCurrentCue, getPrevCueGlobal, getNextCueGlobal,
 // durationCountdown, renderConsoleView → /cue-utils.js
 const State = { songs: [], tc: '00:00:00:00', tcFrames: 0, tcRunning: false, tcSource: 'internal', config: {} };
+// Shared time offset (real − this device's clock), fed by the server's
+// 'server_time' broadcast. Top-level so BOTH the message handler and the clock
+// (inside DOMContentLoaded) reference the same one.
+let todOffset = 0;
 const testSlots = { a: localStorage.getItem('kiosk-con-slot-a') || 'stage', b: localStorage.getItem('kiosk-con-slot-b') || 'host' };
 
 // Screen identity
@@ -1078,7 +1082,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // the SERVER (todOffset, set by the 'server_time' broadcast that the admin
   // browser feeds), so every display — Pi or iPad — shows one shared clock even
   // when the device's own clock is wrong. The timezone just formats it.
-  var todOffset = 0;
   function updateClock() {
     const el = document.getElementById('kf-tod');
     if (!el) return;
