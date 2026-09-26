@@ -14,8 +14,10 @@ const Waterfall = {
   windowSec: 90,        // bars grow only in the final 90s — tighter lead time
   minWidthPct: 8,
   pastShown: 30,         // history kept in the DOM so the host can scroll back
-  maxRows: 120,          // upcoming cues kept in the DOM so the host can scroll to later songs
-  _userHold: false, _holdTimer: null, _scrollBound: false,   // manual-scroll state
+  _forwardCap: 80,       // upcoming cues in the DOM; grows as the host scrolls near the end
+  // manual-scroll / pagination state
+  _userHold: false, _holdTimer: null, _scrollBound: false,
+  _frozen: null, _moreAvailable: false, _progUntil: 0, _from: 0, _end: 0,
   _cueType: localStorage.getItem('wf-cue-type') || 'any',
   _lastNum: null,
 
@@ -117,14 +119,26 @@ const Waterfall = {
 
     let nextIdx = all.findIndex(e => e.abs > now);
     if (nextIdx < 0) nextIdx = all.length;
-    const from  = Math.max(0, nextIdx - this.pastShown);
-    this._slice = all.slice(from, Math.min(all.length, nextIdx + this.maxRows));
+
+    // Window into the cue list. Normally it follows NOW live; while the host is
+    // browsing it FREEZES (so the list can't shift under them), and scrolling
+    // near the end grows the frozen window — paginated "load more".
+    let from, end;
+    if (this._userHold && this._frozen) {
+      from = this._frozen.from;
+      end  = Math.min(all.length, this._frozen.end);
+    } else {
+      from = Math.max(0, nextIdx - this.pastShown);
+      end  = Math.min(all.length, nextIdx + this._forwardCap);
+    }
+    this._from = from; this._end = end;
+    this._moreAvailable = end < all.length;
+    this._slice = all.slice(from, end);
 
     const sig = this._slice.map(e => e.id).join('|') + '#' + this._cueType;
-    // While the host has scrolled back through history, don't rebuild/scroll the
-    // list out from under them — the bars still tick via _paint below. It snaps
-    // back to NOW after they stop (or tap "Back to now").
-    if (sig !== this._sig && !this._userHold) {
+    if (sig !== this._sig) {
+      const held = this._userHold;
+      const keepTop = held ? body.scrollTop : null;   // preserve position when browsing
       let html = '', markerPlaced = false, prevSong = null;
       for (const e of this._slice) {
         const isPast = e.abs <= now;
@@ -150,8 +164,15 @@ const Waterfall = {
       this._sig = sig;
       this._lastSec = -1;
 
-      const mk = body.querySelector('.wf-nowline');
-      if (mk) { const t = Math.max(0, mk.offsetTop - body.clientHeight * 0.18); body.scrollTo({ top: t, behavior: 'smooth' }); }
+      if (keepTop !== null) {
+        // Restore the browsing position instantly (rows only grew at the end).
+        this._progUntil = performance.now() + 700;
+        const sb = body.style.scrollBehavior; body.style.scrollBehavior = 'auto';
+        body.scrollTop = keepTop; body.style.scrollBehavior = sb;
+      } else {
+        const mk = body.querySelector('.wf-nowline');
+        if (mk) { this._progUntil = performance.now() + 900; const t = Math.max(0, mk.offsetTop - body.clientHeight * 0.18); body.scrollTo({ top: t, behavior: 'smooth' }); }
+      }
     }
 
     this._paint();       // immediate paint
@@ -197,23 +218,35 @@ const Waterfall = {
   // hold the auto-scroll + list-rebuild so it doesn't jump. Resume automatically
   // after a lull, or when they tap "Back to now".
   _bindScroll(body) {
-    const onHold = () => {
+    const startHold = () => {
       if (!this._userHold) {
         this._userHold = true;
+        this._frozen = { from: this._from, end: this._end };   // freeze the current window
         const v = document.getElementById('view-waterfall'); if (v) v.classList.add('wf-holding');
       }
       clearTimeout(this._holdTimer);
-      this._holdTimer = setTimeout(() => this.backToNow(), 12000);
+      this._holdTimer = setTimeout(() => this.backToNow(), 15000);
     };
-    body.addEventListener('wheel', onHold, { passive: true });
-    body.addEventListener('touchstart', onHold, { passive: true });
-    body.addEventListener('touchmove', onHold, { passive: true });
+    body.addEventListener('wheel', startHold, { passive: true });
+    body.addEventListener('touchstart', startHold, { passive: true });
+    body.addEventListener('scroll', () => {
+      if (performance.now() < this._progUntil) return;   // ignore our own programmatic scrolls
+      startHold();
+      // Paginate: near the end, pull in the next batch of upcoming cues.
+      if (this._moreAvailable && body.scrollTop + body.clientHeight >= body.scrollHeight - 700) this._loadMore();
+    }, { passive: true });
+  },
+  _loadMore() {
+    if (!this._frozen) this._frozen = { from: this._from, end: this._end };
+    this._frozen.end += 60;   // grow the window; render() clamps it to the show length
+    this._sig = null;
+    this.render();
   },
   backToNow() {
     clearTimeout(this._holdTimer);
-    this._userHold = false;
+    this._userHold = false; this._frozen = null; this._forwardCap = 80;
     const v = document.getElementById('view-waterfall'); if (v) v.classList.remove('wf-holding');
-    this._sig = null;      // force a fresh render + scroll-to-now
+    this._sig = null;         // force a fresh render + scroll-to-now
     this.render();
   }
 };

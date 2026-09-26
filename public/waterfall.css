@@ -51,17 +51,21 @@
 .wf-nowline::after { content: ''; flex: 1; height: 2px; background: var(--accent); border-radius: 1px; }
 .wf-nowline span { font-family: var(--font-tc); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
 
-/* Song header before each song's cues; sticks to the top so you always know
-   which song you're looking at while scrolling. */
+/* Song header before each song's cues — a clearly-distinct filled bar (not a
+   line, so it can't be mistaken for the NOW marker), sticky so you always know
+   which song you're in while scrolling. */
 .wf-song {
-  position: sticky; top: 0; z-index: 2;
-  font-family: var(--font-ui); font-weight: 800;
-  font-size: clamp(15px, 2vw, 28px); color: var(--text);
-  padding: 6px var(--s-3); margin: var(--s-3) 0 var(--s-2);
-  border-bottom: 2px solid var(--accent); background: var(--bg);
-  letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  position: sticky; top: -1px; z-index: 3;
+  display: flex; align-items: center;
+  font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: clamp(12px, 1.4vw, 19px); color: var(--text-2);
+  padding: 7px var(--s-3); margin: var(--s-4) 0 var(--s-2);
+  background: var(--surface); border-radius: var(--r-2);
+  border-left: 5px solid var(--accent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.wf-song.past { opacity: 0.4; border-bottom-color: var(--border); }
+.wf-song:first-child { margin-top: 0; }
+.wf-song.past { opacity: 0.4; border-left-color: var(--border); }
 
 .wf-row {
   display: flex; align-items: stretch; gap: var(--s-2);
