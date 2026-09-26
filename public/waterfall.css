@@ -31,7 +31,9 @@
 .wf-track-cell.now  .wf-track-name { font-weight: 800; font-size: clamp(18px, 2.6vw, 40px); color: var(--live); }
 .wf-track-cell.next .wf-track-name { font-weight: 700; font-size: clamp(15px, 2vw, 30px); color: var(--text-2); }
 
-.wf-body { flex: 1; overflow-y: auto; padding: var(--s-2) var(--s-3); scroll-behavior: smooth; }
+/* No top padding: a sticky .wf-song pins to top:0 = the padding edge, so any top
+   padding would leave a strip above the header where scrolling rows peek out. */
+.wf-body { flex: 1; overflow-y: auto; padding: 0 var(--s-3) var(--s-2); scroll-behavior: smooth; }
 /* A "return to now" hint while the user has scrolled back through history. */
 .wf-holding #wf-backnow { display: flex; }
 #wf-backnow {
@@ -55,20 +57,30 @@
    line, so it can't be mistaken for the NOW marker), sticky so you always know
    which song you're in while scrolling. */
 .wf-song {
-  /* Plain in-flow divider — NOT sticky. A pinned header overlapped the cue row
-     underneath it (its surface bar over a half-scrolled row read as a gap /
-     clutter). The always-visible NOW/NEXT box already tells the host which song
-     they're in, so the header only needs to mark section boundaries in the list. */
+  /* Sticky section header: stays pinned so the host always sees which song the
+     cues below belong to, while rows scroll cleanly beneath it. Two things make
+     it read right instead of looking like a gap/overlap:
+       - the body has no top padding (see .wf-body), so it pins FLUSH to the very
+         top with no strip above where rows could peek through;
+       - a solid elevated bar + drop shadow, so scrolling cues clearly pass
+         UNDER it rather than colliding with it;
+       - NO top margin (a sticky element keeps its margins, which would reappear
+         as a gap under the NOW/NEXT box when pinned). Song separation comes from
+         the preceding row's margin-bottom instead. */
+  position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center;
   font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
   font-size: clamp(12px, 1.4vw, 19px); color: var(--text-2);
-  padding: 9px var(--s-3) 8px; margin: var(--s-4) 0 var(--s-2);
-  background: var(--surface); border-radius: var(--r-2);
+  padding: 9px var(--s-3) 8px; margin: 0 0 var(--s-2);
+  background: var(--surface-2); border-radius: var(--r-2);
   border-left: 5px solid var(--accent);
+  box-shadow: 0 10px 16px -6px rgba(0,0,0,0.9);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.wf-song:first-child { margin-top: 0; }
-.wf-song.past { opacity: 0.4; border-left-color: var(--border); }
+/* Breathing room before each header, on the row that precedes it (never on the
+   header — a top margin there would show as a gap when it pins). */
+.wf-row:has(+ .wf-song) { margin-bottom: var(--s-4); }
+.wf-song.past { opacity: 0.4; border-left-color: var(--border); box-shadow: none; }
 
 .wf-row {
   display: flex; align-items: stretch; gap: var(--s-2);
