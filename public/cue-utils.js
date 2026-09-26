@@ -65,8 +65,12 @@ function cueTypeOptionsHTML(selected, opts) {
 // (different sheet loaded), fall back to the Nth available type.
 function resolveCueType(current, fallbackIndex) {
   const types = customCueTypes();
+  // No types known yet (songs not loaded, mid-reconnect, or the show was briefly
+  // cleared) → KEEP the current selection. Resetting here is what made screens
+  // silently revert to a default cue during a show on reconnect/reload.
+  if (!types.length) return current || '';
   if (types.includes(current)) return current;
-  return types[fallbackIndex || 0] || types[0] || '';
+  return types[fallbackIndex || 0] || types[0] || current || '';
 }
 
 // ── TC / duration helpers ─────────────────────────────────────────────────────

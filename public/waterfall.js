@@ -13,8 +13,9 @@ const Waterfall = {
   // it has shrunk to its minimum. 5 min matches typical cue lead times.
   windowSec: 90,        // bars grow only in the final 90s — tighter lead time
   minWidthPct: 8,
-  pastShown: 3,          // greyed just-fired rows kept for context
+  pastShown: 30,         // history kept in the DOM so the host can scroll back
   maxRows: 60,
+  _userHold: false, _holdTimer: null, _scrollBound: false,   // manual-scroll state
   _cueType: localStorage.getItem('wf-cue-type') || 'any',
   _lastNum: null,
 
@@ -91,6 +92,15 @@ const Waterfall = {
     const body = document.getElementById('wf-body');
     const sel  = document.getElementById('wf-filter');
     if (!body) return;
+    if (!this._scrollBound) { this._bindScroll(body); this._scrollBound = true; }
+    // Always-visible NOW / NEXT track reference (uses setlist play order).
+    { const songs = State.songs || [];
+      const curSong = getCurrentSong();
+      const ci = curSong ? songs.indexOf(curSong) : -1;
+      const nextSong = ci >= 0 ? songs[ci + 1] : (songs[0] || null);
+      const c = document.getElementById('wf-cur-track'), n = document.getElementById('wf-next-track');
+      if (c) c.textContent = curSong ? curSong.trackName : '—';
+      if (n) n.textContent = nextSong ? nextSong.trackName : '—'; }
     this._syncTypeOptions();
     if (sel && sel.value !== this._cueType) sel.value = this._cueType;
 
@@ -110,7 +120,10 @@ const Waterfall = {
     this._slice = all.slice(from, Math.min(all.length, nextIdx + this.maxRows));
 
     const sig = this._slice.map(e => e.id).join('|') + '#' + this._cueType;
-    if (sig !== this._sig) {
+    // While the host has scrolled back through history, don't rebuild/scroll the
+    // list out from under them — the bars still tick via _paint below. It snaps
+    // back to NOW after they stop (or tap "Back to now").
+    if (sig !== this._sig && !this._userHold) {
       let html = '', markerPlaced = false;
       for (const e of this._slice) {
         const isPast = e.abs <= now;
@@ -174,5 +187,29 @@ const Waterfall = {
       this._raf = requestAnimationFrame(loop);
     };
     this._raf = requestAnimationFrame(loop);
+  },
+
+  // Manual scrolling: when the host scrolls (wheel/touch) to look back or ahead,
+  // hold the auto-scroll + list-rebuild so it doesn't jump. Resume automatically
+  // after a lull, or when they tap "Back to now".
+  _bindScroll(body) {
+    const onHold = () => {
+      if (!this._userHold) {
+        this._userHold = true;
+        const v = document.getElementById('view-waterfall'); if (v) v.classList.add('wf-holding');
+      }
+      clearTimeout(this._holdTimer);
+      this._holdTimer = setTimeout(() => this.backToNow(), 12000);
+    };
+    body.addEventListener('wheel', onHold, { passive: true });
+    body.addEventListener('touchstart', onHold, { passive: true });
+    body.addEventListener('touchmove', onHold, { passive: true });
+  },
+  backToNow() {
+    clearTimeout(this._holdTimer);
+    this._userHold = false;
+    const v = document.getElementById('view-waterfall'); if (v) v.classList.remove('wf-holding');
+    this._sig = null;      // force a fresh render + scroll-to-now
+    this.render();
   }
 };

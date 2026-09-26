@@ -2,7 +2,7 @@
    Shared by kiosk and admin. Category colours are set inline per row from
    the type map in waterfall.js; structure lives here. */
 
-#view-waterfall { flex-direction: column; overflow: hidden; }
+#view-waterfall { flex-direction: column; overflow: hidden; position: relative; }
 
 .wf-head {
   flex-shrink: 0; display: flex; align-items: center; gap: var(--s-4);
@@ -17,7 +17,30 @@
 }
 .wf-count { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--text-3); }
 
+/* Always-visible current / next track reference. */
+.wf-track {
+  flex-shrink: 0; display: flex; gap: var(--s-4);
+  padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.wf-track-cell { display: flex; align-items: baseline; gap: var(--s-3); min-width: 0; overflow: hidden; }
+.wf-track-cell.now  { flex: 1; }
+.wf-track-cell.next { flex: 0 0 40%; opacity: 0.9; }
+.wf-track-lbl { flex: 0 0 auto; font-family: var(--font-tc); font-size: clamp(9px, 1vw, 13px); letter-spacing: 0.16em; color: var(--text-3); }
+.wf-track-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-ui); }
+.wf-track-cell.now  .wf-track-name { font-weight: 800; font-size: clamp(18px, 2.6vw, 40px); color: var(--live); }
+.wf-track-cell.next .wf-track-name { font-weight: 700; font-size: clamp(15px, 2vw, 30px); color: var(--text-2); }
+
 .wf-body { flex: 1; overflow-y: auto; padding: var(--s-2) var(--s-3); scroll-behavior: smooth; }
+/* A "return to now" hint while the user has scrolled back through history. */
+.wf-holding #wf-backnow { display: flex; }
+#wf-backnow {
+  display: none; position: absolute; left: 50%; bottom: var(--s-4); transform: translateX(-50%);
+  align-items: center; gap: 6px; z-index: 5; cursor: pointer;
+  background: var(--accent); color: #06080A; font-family: var(--font-tc);
+  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;
+  padding: 8px 16px; border-radius: 999px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
 
 /* Position marker between the just-fired and the next cue. */
 .wf-nowline {

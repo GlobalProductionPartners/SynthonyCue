@@ -182,10 +182,12 @@ body.video-clean .video-stage { background: #000; }
 /* No header bar — the menu button floats and clocks live in the bottom bar. */
 /* Bottom clock bar — TC (blue) · Show (green) · Time of day (yellow), flush. */
 #kiosk-footer { flex-shrink: 0; display: flex; border-top: 1px solid var(--border); }
-.kf-box { flex: 1; padding: 6px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; }
+.kf-box { flex: 1; padding: 10px 10px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; }
 .kf-box:last-child { border-right: none; }
-.kf-lbl { font-family: var(--font-tc); font-size: clamp(9px, 1vw, 12px); letter-spacing: 0.16em; color: var(--text-3); }
-.kf-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(18px, 2.8vw, 44px); letter-spacing: 0.02em; white-space: nowrap; }
+.kf-lbl { font-family: var(--font-tc); font-size: clamp(10px, 1.3vw, 18px); letter-spacing: 0.16em; color: var(--text-3); }
+/* Hosts read this from across the room — make the time BIG. Sized to fit the
+   widest value (the 11-char timecode) in a third-of-screen box. */
+.kf-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(30px, 5.5vw, 92px); line-height: 1.05; letter-spacing: 0; white-space: nowrap; font-weight: 700; }
 #kf-tc { color: var(--accent); }
 #kf-show { color: var(--live); }
 #kf-tod { color: var(--warn); }
@@ -338,7 +340,12 @@ body.video-clean .video-stage { background: #000; }
         <option value="description">Description</option>
       </select>
     </div>
+    <div class="wf-track">
+      <div class="wf-track-cell now"><span class="wf-track-lbl">NOW</span><span class="wf-track-name" id="wf-cur-track">—</span></div>
+      <div class="wf-track-cell next"><span class="wf-track-lbl">NEXT</span><span class="wf-track-name" id="wf-next-track">—</span></div>
+    </div>
     <div class="wf-body" id="wf-body"></div>
+    <div id="wf-backnow" onclick="Waterfall.backToNow()">▼ Back to now</div>
   </div>
 
   <!-- VIDEO (HDMI via encoder → MJPEG) -->
