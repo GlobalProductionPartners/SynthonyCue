@@ -55,21 +55,19 @@
    line, so it can't be mistaken for the NOW marker), sticky so you always know
    which song you're in while scrolling. */
 .wf-song {
-  position: sticky; top: 0; z-index: 3;
+  /* Plain in-flow divider — NOT sticky. A pinned header overlapped the cue row
+     underneath it (its surface bar over a half-scrolled row read as a gap /
+     clutter). The always-visible NOW/NEXT box already tells the host which song
+     they're in, so the header only needs to mark section boundaries in the list. */
   display: flex; align-items: center;
   font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
   font-size: clamp(12px, 1.4vw, 19px); color: var(--text-2);
-  /* No margin-top: a sticky element keeps its margins, so any top margin would
-     show as a gap under the NOW/NEXT box whenever a header pins to the top.
-     Song separation comes from the preceding row's margin-bottom instead. */
-  padding: 9px var(--s-3) 8px; margin: 0 0 var(--s-2);
+  padding: 9px var(--s-3) 8px; margin: var(--s-4) 0 var(--s-2);
   background: var(--surface); border-radius: var(--r-2);
   border-left: 5px solid var(--accent);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* Extra air between songs, applied to the last row BEFORE a header — never to
-   the header (any top margin on it would reappear as a gap when it pins). */
-.wf-row:has(+ .wf-song) { margin-bottom: var(--s-4); }
+.wf-song:first-child { margin-top: 0; }
 .wf-song.past { opacity: 0.4; border-left-color: var(--border); }
 
 .wf-row {
