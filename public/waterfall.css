@@ -42,14 +42,26 @@
   padding: 8px 16px; border-radius: 999px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 
-/* Position marker between the just-fired and the next cue. */
+/* Playhead marker between the just-fired and the next cue. A filled "NOW" pill
+   in the live/green colour (matching the NOW song in the box above) with a line
+   that glows and fades out — reads as a status marker, not a clickable control
+   (the old ▶ made it look like a play button). */
 .wf-nowline {
-  display: flex; align-items: center; gap: var(--s-2);
-  padding: 2px var(--s-2); margin: var(--s-2) 0;
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: 0; margin: var(--s-3) 0;
 }
-.wf-nowline::before { content: '▶'; color: var(--accent); font-size: 12px; }
-.wf-nowline::after { content: ''; flex: 1; height: 2px; background: var(--accent); border-radius: 1px; }
-.wf-nowline span { font-family: var(--font-tc); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.wf-nowline span {
+  flex: 0 0 auto;
+  font-family: var(--font-tc); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: #06080A; background: var(--live);
+  padding: 3px 11px; border-radius: 999px;
+  box-shadow: 0 0 14px -2px var(--live);
+}
+.wf-nowline::after {
+  content: ''; flex: 1; height: 2px; border-radius: 1px;
+  background: linear-gradient(90deg, var(--live), color-mix(in srgb, var(--live) 20%, transparent) 70%, transparent);
+}
 
 /* Song header before each song's cues — a clearly-distinct filled bar (not a
    line, so it can't be mistaken for the NOW marker) marking section boundaries
