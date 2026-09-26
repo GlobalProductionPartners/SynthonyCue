@@ -425,6 +425,32 @@ const wss = new WebSocketServer({ server });
 const clients = new Set();
 const screens = new Map(); // screenId → { ws, name, view, slots, cameraType }
 
+// Remembered per-screen selection, keyed by NAME (not the sessionStorage screen
+// id, which changes on a browser restart). So the server can re-push a screen
+// its last view + cue-type selection when it reconnects — even a tablet that
+// lost its localStorage or a Pi that reloaded — instead of it quietly reverting
+// to a default mid-show. Persisted so it also survives a server restart.
+const SCREEN_PREFS_PATH = path.join(DATA_DIR, 'data', 'screen-prefs.json');
+const screenPrefs = new Map(Object.entries(loadJSON(SCREEN_PREFS_PATH, {})));
+let _prefsSaveTimer = null;
+function saveScreenPrefsSoon() {
+  if (_prefsSaveTimer) return;
+  _prefsSaveTimer = setTimeout(() => { _prefsSaveTimer = null; try { saveJSON(SCREEN_PREFS_PATH, Object.fromEntries(screenPrefs)); } catch {} }, 1500);
+  _prefsSaveTimer.unref?.();
+}
+function screenSel(m) {
+  return { view: m.view, slots: m.slots, hostSlots: m.hostSlots, cameraType: m.cameraType,
+           ovCueType: m.ovCueType, wfCueType: m.wfCueType, ovScope: m.ovScope };
+}
+function rememberScreen(name, m) {
+  if (!name) return;
+  const sel = screenSel(m);
+  const prev = screenPrefs.get(name);
+  if (prev && JSON.stringify(prev) === JSON.stringify(sel)) return;   // unchanged
+  screenPrefs.set(name, sel);
+  saveScreenPrefsSoon();
+}
+
 function screensList() {
   return Array.from(screens.values()).map(s => ({
     id: s.id, name: s.name, view: s.view, slots: s.slots, cameraType: s.cameraType,
@@ -989,6 +1015,11 @@ function handleClientMessage(ws, msg) {
     case 'screen_hello': {
       screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, ip: ws._remoteIp, lastSeen: Date.now() });
       flightLog('SCREEN-CONNECTED', `${msg.name} (${msg.id})`);
+      // Restore this screen's remembered selection, or (first time we see the
+      // name) remember what it arrived with.
+      const pref = screenPrefs.get(msg.name);
+      if (pref) safeSend(ws, { type: 'screen_command', ...pref });
+      else rememberScreen(msg.name, msg);
       broadcastScreensList();
       break;
     }
@@ -996,6 +1027,7 @@ function handleClientMessage(ws, msg) {
     case 'screen_update': {
       const s = screens.get(msg.id);
       if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, ip: ws._remoteIp || s.ip, lastSeen: Date.now() }); broadcastScreensList(); }
+      rememberScreen(msg.name, msg);   // keep the per-name pref current
       break;
     }
 

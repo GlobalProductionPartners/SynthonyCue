@@ -14,7 +14,7 @@ const Waterfall = {
   windowSec: 90,        // bars grow only in the final 90s — tighter lead time
   minWidthPct: 8,
   pastShown: 30,         // history kept in the DOM so the host can scroll back
-  maxRows: 60,
+  maxRows: 120,          // upcoming cues kept in the DOM so the host can scroll to later songs
   _userHold: false, _holdTimer: null, _scrollBound: false,   // manual-scroll state
   _cueType: localStorage.getItem('wf-cue-type') || 'any',
   _lastNum: null,
@@ -45,11 +45,12 @@ const Waterfall = {
     for (let i = 0; i < songs.length; i++) { base[i] = acc; acc += parseDuration(songs[i].duration || ''); }
     const out = [];
     for (let i = 0; i < songs.length; i++) {
+      const songName = songs[i].trackName || '';
       for (const cue of (songs[i].cues || [])) {
         const pos = base[i] + parseTC(cue.offset);   // frames along the play timeline
         for (const t of types) {
           const text = _wfField(cue, t);
-          if (text) out.push({ abs: pos, type: t, text, id: cue.id + ':' + t });
+          if (text) out.push({ abs: pos, type: t, text, id: cue.id + ':' + t, song: songName });
         }
       }
     }
@@ -124,10 +125,13 @@ const Waterfall = {
     // list out from under them — the bars still tick via _paint below. It snaps
     // back to NOW after they stop (or tap "Back to now").
     if (sig !== this._sig && !this._userHold) {
-      let html = '', markerPlaced = false;
+      let html = '', markerPlaced = false, prevSong = null;
       for (const e of this._slice) {
         const isPast = e.abs <= now;
         if (!isPast && !markerPlaced) { html += '<div class="wf-nowline"><span>NOW</span></div>'; markerPlaced = true; }
+        // Song header before each song's first cue, so the host can see and
+        // scroll to upcoming songs.
+        if (e.song !== prevSong) { html += `<div class="wf-song${isPast ? ' past' : ''}">${_wfEsc(e.song || '—')}</div>`; prevSong = e.song; }
         const col = cueTypeColour(e.type);
         html += `<div class="wf-row${isPast ? ' past' : ''}" data-id="${e.id}" style="--wf:${col};--wf-dim:${col}22">
           <div class="wf-bar"><div class="wf-fill"></div>

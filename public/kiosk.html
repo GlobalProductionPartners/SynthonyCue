@@ -182,12 +182,16 @@ body.video-clean .video-stage { background: #000; }
 /* No header bar — the menu button floats and clocks live in the bottom bar. */
 /* Bottom clock bar — TC (blue) · Show (green) · Time of day (yellow), flush. */
 #kiosk-footer { flex-shrink: 0; display: flex; border-top: 1px solid var(--border); }
-.kf-box { flex: 1; padding: 10px 10px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; }
+/* container-type lets .kf-val size to THIS box's width (cqw), so the 11-char
+   timecode can never spill past its third of the screen — whatever the pixel
+   ratio. */
+.kf-box { flex: 1; padding: 10px 10px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; overflow: hidden; container-type: inline-size; }
 .kf-box:last-child { border-right: none; }
-.kf-lbl { font-family: var(--font-tc); font-size: clamp(10px, 1.3vw, 18px); letter-spacing: 0.16em; color: var(--text-3); }
-/* Hosts read this from across the room — make the time BIG. Sized to fit the
-   widest value (the 11-char timecode) in a third-of-screen box. */
-.kf-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: clamp(30px, 5.5vw, 92px); line-height: 1.05; letter-spacing: 0; white-space: nowrap; font-weight: 700; }
+.kf-lbl { font-family: var(--font-tc); font-size: clamp(10px, 3cqw, 18px); letter-spacing: 0.16em; color: var(--text-3); }
+/* Hosts read this from across the room — as big as fits. 13cqw ≈ 11 monospace
+   chars fill the box with a safe margin; the px fallback covers old browsers. */
+.kf-val { font-family: var(--font-tc); font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: 0; white-space: nowrap; font-weight: 700;
+  font-size: clamp(24px, 4.4vw, 60px); font-size: clamp(24px, 13cqw, 120px); }
 #kf-tc { color: var(--accent); }
 #kf-show { color: var(--live); }
 #kf-tod { color: var(--warn); }
