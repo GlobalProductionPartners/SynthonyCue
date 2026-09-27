@@ -187,6 +187,10 @@ body.video-clean .video-stage { background: #000; }
    ratio. */
 .kf-box { flex: 1; padding: 10px 10px 12px; text-align: center; border-right: 1px solid var(--border); min-width: 0; overflow: hidden; container-type: inline-size; }
 .kf-box:last-child { border-right: none; }
+/* Host view: hosts don't read raw timecode. Drop it so SHOW TIME and TIME OF
+   DAY split the full width — and, being wider boxes, their cqw-sized values
+   grow much larger. */
+body.view-host #kf-box-tc { display: none; }
 .kf-lbl { font-family: var(--font-tc); font-size: clamp(10px, 3cqw, 18px); letter-spacing: 0.16em; color: var(--text-3); }
 /* Hosts read this from across the room — as big as fits. 13cqw ≈ 11 monospace
    chars fill the box with a safe margin; the px fallback covers old browsers. */
@@ -562,7 +566,7 @@ body.video-clean .video-stage { background: #000; }
 
   <!-- Bottom clock bar — shown on every view -->
   <div id="kiosk-footer">
-    <div class="kf-box"><div class="kf-lbl">TIMECODE</div><div class="kf-val" id="kf-tc">--:--:--:--</div></div>
+    <div class="kf-box" id="kf-box-tc"><div class="kf-lbl">TIMECODE</div><div class="kf-val" id="kf-tc">--:--:--:--</div></div>
     <div class="kf-box"><div class="kf-lbl">SHOW TIME</div><div class="kf-val" id="kf-show">00:00:00.00</div></div>
     <div class="kf-box"><div class="kf-lbl">TIME OF DAY</div><div class="kf-val" id="kf-tod">--:--:--</div></div>
   </div>
@@ -890,6 +894,7 @@ function switchView(view) {
   const isVideo   = view === 'video' || view === 'videofull';
   const domView   = isVideo ? 'video' : view;
   document.body.classList.toggle('video-clean', view === 'videofull');
+  document.body.classList.toggle('view-host', view === 'host');   // hides TIMECODE in the clock bar
   if (view !== 'videofull') document.body.classList.remove('reveal');
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + domView));
   document.querySelectorAll('[id^="view-btn-"]').forEach(b => b.classList.remove('active'));
