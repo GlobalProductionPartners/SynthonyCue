@@ -18,24 +18,92 @@ const Waterfall = {
   // manual-scroll / pagination state
   _userHold: false, _holdTimer: null, _scrollBound: false,
   _frozen: null, _moreAvailable: false, _progUntil: 0, _from: 0, _end: 0,
-  _cueType: localStorage.getItem('wf-cue-type') || 'any',
+  // Which cue types to show. 'any' = all types (including any that appear later);
+  // otherwise an explicit array of ticked type names. Persisted as JSON, with a
+  // fallback to the old single-value key so existing screens keep their choice.
+  _cueTypes: (function () {
+    try { const j = localStorage.getItem('wf-cue-types'); if (j) { const v = JSON.parse(j); if (v === 'any' || Array.isArray(v)) return v; } } catch {}
+    const legacy = localStorage.getItem('wf-cue-type');
+    return (legacy && legacy !== 'any') ? [legacy] : 'any';
+  })(),
   _lastNum: null,
 
-  setCueType(val) {
-    if (!val) return;
-    this._cueType = val;
-    localStorage.setItem('wf-cue-type', val);
-    const sel = document.getElementById('wf-filter');
-    if (sel && sel.value !== val) sel.value = val;
+  // The effective list of type names to render right now (intersected with the
+  // types the loaded show actually has).
+  _activeTypes() {
+    const avail = customCueTypes();
+    if (this._cueTypes === 'any') return [...CUE_BASE_TYPES, ...avail];
+    return this._cueTypes.filter(t => avail.includes(t));
+  },
+  isTypeOn(t) { return this._cueTypes === 'any' || this._cueTypes.includes(t); },
+
+  // Persist + re-render + push to other screens. `val` is 'any' or an array.
+  setCueTypes(val, opts) {
+    this._cueTypes = (val === 'any' || Array.isArray(val)) ? val : 'any';
+    try { localStorage.setItem('wf-cue-types', JSON.stringify(this._cueTypes)); } catch {}
+    this._typeSig = null;                 // force the checkbox menu + label to rebuild
+    this._sig = null;                     // force the cue list to rebuild
     this.render();
-    if (typeof sendScreenUpdate === 'function') try { sendScreenUpdate(); } catch {}
+    if (!(opts && opts.silent) && typeof sendScreenUpdate === 'function') try { sendScreenUpdate(); } catch {}
+  },
+  // Tick/untick one type. Collapses to 'any' when everything ends up ticked.
+  toggleType(t, on) {
+    const avail = customCueTypes();
+    const set = new Set(this._cueTypes === 'any' ? avail : this._cueTypes.filter(x => avail.includes(x)));
+    if (on) set.add(t); else set.delete(t);
+    const next = avail.every(x => set.has(x)) ? 'any' : [...set];
+    this.setCueTypes(next);
+  },
+  setAll(on) { this.setCueTypes(on ? 'any' : []); },
+  // Legacy single-value entry point (old screen_command payloads).
+  setCueType(val) { this.setCueTypes(!val || val === 'any' ? 'any' : [val]); },
+
+  toggleFilterMenu(ev) {
+    if (ev) ev.stopPropagation();
+    const menu = document.getElementById('wf-filter-menu');
+    if (!menu) return;
+    if (menu.hidden) { this._typeSig = null; this._buildFilterMenu(); menu.hidden = false; this._bindMenuOutside(); }
+    else menu.hidden = true;
+  },
+  _bindMenuOutside() {
+    if (this._menuBound) return; this._menuBound = true;
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('wf-filter-menu');
+      const wrap = document.querySelector('.wf-filter-wrap');
+      if (menu && !menu.hidden && wrap && !wrap.contains(e.target)) menu.hidden = true;
+    });
+  },
+  _buildFilterMenu() {
+    const menu = document.getElementById('wf-filter-menu');
+    if (!menu) return;
+    const types = customCueTypes();
+    const allOn = this._cueTypes === 'any';
+    let html = `<label class="wf-fopt wf-fall"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="Waterfall.setAll(this.checked)"><span class="wf-fname">All cues</span></label>`;
+    if (types.length) html += '<div class="wf-fsep"></div>';
+    for (const t of types) {
+      const on = this.isTypeOn(t);
+      html += `<label class="wf-fopt"><input type="checkbox" ${on ? 'checked' : ''} onchange="Waterfall.toggleType('${_wfEsc(t).replace(/'/g, "\\'")}', this.checked)"><span class="wf-sw" style="background:${cueTypeColour(t)}"></span><span class="wf-fname">${_wfEsc(t)}</span></label>`;
+    }
+    if (!types.length) html += '<div class="wf-fopt" style="opacity:.6">No cue types in show</div>';
+    menu.innerHTML = html;
+  },
+  _updateFilterLabel() {
+    const lbl = document.getElementById('wf-filter-label');
+    if (!lbl) return;
+    const total = customCueTypes().length;
+    if (this._cueTypes === 'any') lbl.textContent = 'All cues';
+    else if (!this._cueTypes.length) lbl.textContent = 'None';
+    else {
+      const on = this._activeTypes();
+      lbl.textContent = on.length === 1 ? on[0] : `${on.length} of ${total} types`;
+    }
   },
 
-  // Flatten every song's cues into time-sorted entries. In 'any' mode a cue
-  // with several populated fields yields one row per field, so "All" really
-  // shows all cue content; a filter narrows to one type.
+  // Flatten every song's cues into time-sorted entries. A cue with several
+  // populated (and ticked) fields yields one row per field, so ticking multiple
+  // types shows all of their content interleaved on the timeline.
   _entries() {
-    const types = this._cueType === 'any' ? [...CUE_BASE_TYPES, ...customCueTypes()] : [this._cueType];
+    const types = this._activeTypes();
     const songs = State.songs || [];
     // Order cues by when they PLAY, not by absolute timecode. Songs are jammed
     // to their own non-sequential TC islands, so a play-order timeline —
@@ -76,24 +144,19 @@ const Waterfall = {
     return b && b.offsetParent !== null;
   },
 
-  // Called on every TC update (via renderCurrent): re-anchor to the true TC
-  // and rebuild the row set only when it structurally changes.
+  // Rebuild the type-filter UI (checkbox popover + button label) only when the
+  // show's set of cue types changes, or when the selection changes.
   _syncTypeOptions() {
-    const sel = document.getElementById('wf-filter');
-    if (!sel) return;
     const custom = customCueTypes();
-    const sig = custom.join('|');
+    const sig = custom.join('|') + '#' + JSON.stringify(this._cueTypes);
     if (sig === this._typeSig) return;
     this._typeSig = sig;
-    const cur = sel.value;
-    const base = '<option value="any">All cues</option>'
-      + CUE_BASE_TYPES.map(t => `<option value="${t}">${t[0].toUpperCase()+t.slice(1)}</option>`).join('');
-    sel.innerHTML = base + custom.map(t => `<option value="${_wfEsc(t)}">${_wfEsc(t)}</option>`).join('');
-    sel.value = cur;
+    const menu = document.getElementById('wf-filter-menu');
+    if (menu && !menu.hidden) this._buildFilterMenu();   // keep an open menu in sync
+    this._updateFilterLabel();
   },
   render() {
     const body = document.getElementById('wf-body');
-    const sel  = document.getElementById('wf-filter');
     if (!body) return;
     if (!this._scrollBound) { this._bindScroll(body); this._scrollBound = true; }
     // Always-visible NOW / NEXT track reference (uses setlist play order).
@@ -105,7 +168,6 @@ const Waterfall = {
       if (c) c.textContent = curSong ? curSong.trackName : '—';
       if (n) n.textContent = nextSong ? nextSong.trackName : '—'; }
     this._syncTypeOptions();
-    if (sel && sel.value !== this._cueType) sel.value = this._cueType;
 
     this._anchorFrames = getShowTime();   // play-timeline position, matches _entries ordering
     this._anchorWall   = performance.now();
@@ -115,7 +177,7 @@ const Waterfall = {
     const cnt = document.getElementById('wf-count');
     if (cnt) cnt.textContent = all.length + (all.length === 1 ? ' cue' : ' cues');
 
-    if (!all.length) { body.innerHTML = '<div class="wf-empty">No cues' + (this._cueType === 'any' ? '' : ' for this type') + '</div>'; this._sig = null; return; }
+    if (!all.length) { body.innerHTML = '<div class="wf-empty">No cues' + (this._cueTypes === 'any' ? '' : ' for the selected types') + '</div>'; this._sig = null; return; }
 
     let nextIdx = all.findIndex(e => e.abs > now);
     if (nextIdx < 0) nextIdx = all.length;
@@ -135,7 +197,7 @@ const Waterfall = {
     this._moreAvailable = end < all.length;
     this._slice = all.slice(from, end);
 
-    const sig = this._slice.map(e => e.id).join('|') + '#' + this._cueType;
+    const sig = this._slice.map(e => e.id).join('|') + '#' + JSON.stringify(this._cueTypes);
     if (sig !== this._sig) {
       const held = this._userHold;
       const keepTop = held ? body.scrollTop : null;   // preserve position when browsing

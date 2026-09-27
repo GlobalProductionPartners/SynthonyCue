@@ -793,14 +793,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--border-str); }
         <div class="sec"><span class="sep">//</span> WATERFALL</div>
         <div class="wf-head-spacer"></div>
         <span class="wf-count" id="wf-count">0 cues</span>
-        <select class="wf-filter" id="wf-filter" onchange="Waterfall.setCueType(this.value)">
-          <option value="any">All cues</option>
-          <option value="stage">Stage</option>
-          <option value="host">Host</option>
-          <option value="conductor">Conductor</option>
-          <option value="camera">Camera</option>
-          <option value="description">Description</option>
-        </select>
+        <div class="wf-filter-wrap">
+          <button class="wf-filter" id="wf-filter-btn" onclick="Waterfall.toggleFilterMenu(event)">
+            <span id="wf-filter-label">All cues</span><span class="wf-filter-caret">▾</span>
+          </button>
+          <div class="wf-filter-menu" id="wf-filter-menu" hidden></div>
+        </div>
       </div>
       <div class="wf-body" id="wf-body"></div>
     </div>

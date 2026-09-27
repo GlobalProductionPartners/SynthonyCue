@@ -440,7 +440,7 @@ function saveScreenPrefsSoon() {
 }
 function screenSel(m) {
   return { view: m.view, slots: m.slots, hostSlots: m.hostSlots, cameraType: m.cameraType,
-           ovCueType: m.ovCueType, wfCueType: m.wfCueType, ovScope: m.ovScope };
+           ovCueType: m.ovCueType, wfCueType: m.wfCueType, wfCueTypes: m.wfCueTypes, ovScope: m.ovScope };
 }
 function rememberScreen(name, m) {
   if (!name) return;
@@ -457,6 +457,7 @@ function screensList() {
     ip: s.ip || null,   // lets a display Pi's OLED match its own screen entry
     ovCueType: s.ovCueType || 'any',
     wfCueType: s.wfCueType || 'any',
+    wfCueTypes: s.wfCueTypes || 'any',
     ovScope: s.ovScope || 'song',
     lastSeen: s.lastSeen || null
   }));
@@ -1013,7 +1014,7 @@ function handleClientMessage(ws, msg) {
     }
 
     case 'screen_hello': {
-      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, ip: ws._remoteIp, lastSeen: Date.now() });
+      screens.set(msg.id, { ws, id: msg.id, name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, wfCueTypes: msg.wfCueTypes, ovScope: msg.ovScope, ip: ws._remoteIp, lastSeen: Date.now() });
       flightLog('SCREEN-CONNECTED', `${msg.name} (${msg.id})`);
       // Restore this screen's remembered selection, or (first time we see the
       // name) remember what it arrived with.
@@ -1026,7 +1027,7 @@ function handleClientMessage(ws, msg) {
 
     case 'screen_update': {
       const s = screens.get(msg.id);
-      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope, ip: ws._remoteIp || s.ip, lastSeen: Date.now() }); broadcastScreensList(); }
+      if (s) { Object.assign(s, { name: msg.name, view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, wfCueTypes: msg.wfCueTypes, ovScope: msg.ovScope, ip: ws._remoteIp || s.ip, lastSeen: Date.now() }); broadcastScreensList(); }
       rememberScreen(msg.name, msg);   // keep the per-name pref current
       break;
     }
@@ -1036,7 +1037,7 @@ function handleClientMessage(ws, msg) {
       const target = screens.get(msg.targetId);
       console.log(`[Screen] Command → ${msg.targetId} (${target ? 'found, state=' + target.ws.readyState : 'NOT FOUND'}) view=${msg.view}`);
       console.log(`[Screen] Known screens: ${[...screens.keys()].join(', ') || 'none'}`);
-      if (target?.ws?.readyState === 1) safeSend(target.ws, { type: 'screen_command', view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, ovScope: msg.ovScope });
+      if (target?.ws?.readyState === 1) safeSend(target.ws, { type: 'screen_command', view: msg.view, slots: msg.slots, hostSlots: msg.hostSlots, cameraType: msg.cameraType, ovCueType: msg.ovCueType, wfCueType: msg.wfCueType, wfCueTypes: msg.wfCueTypes, ovScope: msg.ovScope });
       break;
     }
 

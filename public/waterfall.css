@@ -10,11 +10,36 @@
 }
 .wf-head .sec { flex: 0 0 auto; }
 .wf-head-spacer { flex: 1; }
+.wf-filter-wrap { position: relative; flex: 0 0 auto; }
 .wf-filter {
+  display: inline-flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-2); color: var(--text); font-family: var(--font-ui);
-  font-size: 13px; padding: 4px var(--s-3); cursor: pointer;
+  font-size: 13px; padding: 5px var(--s-3); cursor: pointer;
 }
+.wf-filter:hover { border-color: var(--border-str); }
+.wf-filter-caret { color: var(--text-3); font-size: 10px; }
+/* Checkbox popover — tick which cue types the waterfall shows. */
+.wf-filter-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20;
+  min-width: 220px; max-height: 60vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border-str);
+  border-radius: var(--r-2); padding: 6px;
+  box-shadow: 0 12px 28px -8px rgba(0,0,0,0.75);
+}
+.wf-filter-menu[hidden] { display: none; }
+.wf-fopt {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 7px var(--s-3); border-radius: var(--r-2);
+  font-family: var(--font-ui); font-size: 14px; color: var(--text);
+  white-space: nowrap; user-select: none;
+}
+.wf-fopt:hover { background: var(--surface-2); }
+.wf-fopt input { width: 16px; height: 16px; accent-color: var(--live); cursor: pointer; flex: 0 0 auto; margin: 0; }
+.wf-fopt .wf-sw { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+.wf-fopt.wf-fall { font-weight: 700; }
+.wf-fopt .wf-fname { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wf-fsep { height: 1px; background: var(--border); margin: 5px 2px; }
 .wf-count { font-family: var(--font-tc); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--text-3); }
 
 /* Always-visible current / next track reference. */

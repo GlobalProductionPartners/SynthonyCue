@@ -335,14 +335,13 @@ body.video-clean .video-stage { background: #000; }
       <div class="sec"><span class="sep">//</span> WATERFALL</div>
       <div class="wf-head-spacer"></div>
       <span class="wf-count" id="wf-count">0 cues</span>
-      <select class="wf-filter" id="wf-filter" onchange="Waterfall.setCueType(this.value)">
-        <option value="any">All cues</option>
-        <option value="stage">Stage</option>
-        <option value="host">Host</option>
-        <option value="conductor">Conductor</option>
-        <option value="camera">Camera</option>
-        <option value="description">Description</option>
-      </select>
+      <div class="wf-filter-wrap">
+        <button class="wf-filter" id="wf-filter-btn" onclick="Waterfall.toggleFilterMenu(event)">
+          <span id="wf-filter-label">All cues</span><span class="wf-filter-caret">▾</span>
+        </button>
+        <!-- checkbox list is built by Waterfall._syncTypeOptions() from the show's cue types -->
+        <div class="wf-filter-menu" id="wf-filter-menu" hidden></div>
+      </div>
     </div>
     <div class="wf-track">
       <div class="wf-track-cell now"><span class="wf-track-lbl">NOW</span><span class="wf-track-name" id="wf-cur-track">—</span></div>
@@ -982,7 +981,7 @@ function wsSend(obj) {
 function sendScreenHello() {
   wsSend({ type: 'screen_hello', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, cameraType,
            ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any',
-           wfCueType: (typeof Waterfall !== 'undefined' && Waterfall._cueType) || 'any',
+           wfCueTypes: (typeof Waterfall !== 'undefined' && Waterfall._cueTypes) || 'any',
            ovScope: (typeof Overview !== 'undefined' && Overview._cueScope) || 'song' });
 }
 // Heartbeat: lets the admin distinguish "quiet" from "gone".
@@ -991,7 +990,7 @@ setInterval(() => { try { sendScreenUpdate(); } catch {} }, 10000);
 function sendScreenUpdate() {
   wsSend({ type: 'screen_update', id: SCREEN_ID, name: SCREEN_NAME, view: currentView, slots, hostSlots, cameraType,
            ovCueType: (typeof Overview !== 'undefined' && Overview._cueType) || 'any',
-           wfCueType: (typeof Waterfall !== 'undefined' && Waterfall._cueType) || 'any',
+           wfCueTypes: (typeof Waterfall !== 'undefined' && Waterfall._cueTypes) || 'any',
            ovScope: (typeof Overview !== 'undefined' && Overview._cueScope) || 'song' });
 }
 
@@ -1064,7 +1063,10 @@ function handleMsg(msg) {
     case 'screen_command':
       if (msg.view) switchView(msg.view);
       if (msg.ovCueType && typeof Overview !== 'undefined') Overview.setCueType(msg.ovCueType);
-      if (msg.wfCueType && typeof Waterfall !== 'undefined') Waterfall.setCueType(msg.wfCueType);
+      if (typeof Waterfall !== 'undefined') {
+        if (msg.wfCueTypes !== undefined) Waterfall.setCueTypes(msg.wfCueTypes, { silent: true });
+        else if (msg.wfCueType) Waterfall.setCueType(msg.wfCueType);   // legacy single-value
+      }
       if (msg.ovScope && typeof Overview !== 'undefined') Overview.setScope(msg.ovScope);
       // Multi Cue ('test') has its own slot pair (testSlots); Stage uses slots.
       // Route the pushed slots to whichever the target view actually renders.
