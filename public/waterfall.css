@@ -7,6 +7,9 @@
 .wf-head {
   flex-shrink: 0; display: flex; align-items: center; gap: var(--s-4);
   padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--border);
+  /* Keep the right-hand controls clear of the fixed hamburger (40px + inset)
+     that floats over every view, top-right. */
+  padding-right: calc(40px + var(--s-3) + var(--s-4));
 }
 .wf-head .sec { flex: 0 0 auto; }
 .wf-head-spacer { flex: 1; }
